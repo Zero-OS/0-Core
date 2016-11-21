@@ -69,6 +69,10 @@ func main() {
 
 	mgr.Run()
 
+	//configure logging handlers from configurations
+	log.Infof("Configure logging")
+	logger.ConfigureLogging()
+
 	//start local transport
 	log.Infof("Starting local transport")
 	local, err := core.NewLocal("/var/run/core.sock")
@@ -95,9 +99,6 @@ func main() {
 		sinks[key] = cl
 	}
 
-	//configure logging handlers from configurations
-	log.Infof("Configure logging")
-	logger.ConfigureLogging()
 
 	log.Infof("Setting up stats buffers")
 	if config.Stats.Redis.Enabled {

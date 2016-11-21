@@ -28,8 +28,8 @@ func (d *dhcpProtocol) Stop(inf string) {
 		Command: process.CommandSystem,
 		Arguments: core.MustArguments(
 			map[string]interface{}{
-				"name": "dhcpcd",
-				"args": []string{"-x", inf},
+				"name": "udhcpc",
+				"args": []string{"-i", inf}, // FIXME
 			},
 		),
 	}
@@ -47,8 +47,8 @@ func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
 		Command: process.CommandSystem,
 		Arguments: core.MustArguments(
 			map[string]interface{}{
-				"name": "dhcpcd",
-				"args": []string{"-w", inf},
+				"name": "udhcpc",
+				"args": []string{"-i", inf, "-s", "/usr/share/udhcp/simple.script", "-q"},
 			},
 		),
 	}
