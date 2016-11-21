@@ -23,34 +23,16 @@ type DHCPProtocol interface {
 type dhcpProtocol struct {
 }
 
-func (d *dhcpProtocol) Stop(inf string) {
-	cmd := &core.Command{
-		Command: process.CommandSystem,
-		Arguments: core.MustArguments(
-			map[string]interface{}{
-				"name": "udhcpc",
-				"args": []string{"-i", inf}, // FIXME
-			},
-		),
-	}
-
-	runner, err := pm.GetManager().RunCmd(cmd)
-	if err == nil {
-		runner.Wait()
-	}
-}
-
 func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
-	d.Stop(inf)
-
 	cmd := &core.Command{
 		Command: process.CommandSystem,
 		Arguments: core.MustArguments(
-			map[string]interface{}{
-				"name": "udhcpc",
-				"args": []string{"-i", inf, "-s", "/usr/share/udhcp/simple.script", "-q"},
+			process.SystemCommandArguments{
+				Name: "udhcpc",
+				Args: []string{"-i", inf, "-s", "/usr/share/udhcp/simple.script", "-q"},
 			},
 		),
+		MaxTime: 5,
 	}
 
 	runner, err := pm.GetManager().RunCmd(cmd)
@@ -62,7 +44,7 @@ func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
 	result := runner.Wait()
 
 	if result == nil || result.State != core.StateSuccess {
-		return fmt.Errorf("dhcpcd failed on interface %s: %s", inf, result.Streams)
+		return fmt.Errorf("dhcpcd failed on interface %s: (%s) %s", inf, result.State, result.Streams)
 	}
 
 	return nil
