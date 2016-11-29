@@ -2,11 +2,11 @@ package main
 
 import (
 	"github.com/g8os/core.base"
+	"github.com/g8os/core.base/logger"
 	"github.com/g8os/core.base/pm"
 	pmcore "github.com/g8os/core.base/pm/core"
 	"github.com/g8os/core.base/settings"
 	"github.com/g8os/core0/bootstrap"
-	"github.com/g8os/core0/logger"
 	"github.com/op/go-logging"
 	"time"
 
@@ -62,7 +62,7 @@ func main() {
 
 	//configure logging handlers from configurations
 	log.Infof("Configure logging")
-	logger.ConfigureLogging()
+	logger.ConfigureLogging(uint64(0))
 
 	//start local transport
 	log.Infof("Starting local transport")
