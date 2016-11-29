@@ -62,7 +62,7 @@ func main() {
 
 	//configure logging handlers from configurations
 	log.Infof("Configure logging")
-	logger.ConfigureLogging(0)
+	logger.ConfigureLogging(uint64(0))
 
 	//start local transport
 	log.Infof("Starting local transport")

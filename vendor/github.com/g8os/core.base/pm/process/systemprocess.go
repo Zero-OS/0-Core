@@ -183,7 +183,7 @@ func (process *systemProcessImpl) Run() (<-chan *stream.Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Debugf("system: %s %s %s", cmd.Env, cmd.Path, cmd.Args)
+
 	//starttime := time.Duration(time.Now().UnixNano()) / time.Millisecond // start time in msec
 	err = process.table.Register(func() (int, error) {
 		err := cmd.Start()
