@@ -26,6 +26,13 @@ args = ['-c', 'T=`mktemp` && cat > $T && bash $T; EXIT=$?; rm -rf $T; exit $EXIT
     type = "console"
     levels = [1, 2, 4, 7, 8, 9]
 
+	[logging.redis]
+	type = "redis"
+	levels = [1, 2, 4, 7, 8, 9, 11]
+	address = "127.0.0.1:6379"
+	batch_size = 25
+
+
 [stats]
 interval = 60000 # milliseconds (1 min)
 

@@ -13,10 +13,10 @@ import (
 /*
 ConfigureLogging attached the correct message handler on top the process manager from the configurations
 */
-func ConfigureLogging() {
+func ConfigureLogging(coreNum int) {
 	//apply logging handlers.
-	mgr := pm.GetManager()
 	dbLoggerConfigured := false
+	mgr := pm.GetManager()
 	for _, logcfg := range settings.Settings.Logging {
 		switch strings.ToLower(logcfg.Type) {
 		case "db":
@@ -44,7 +44,7 @@ func ConfigureLogging() {
 
 			dbLoggerConfigured = true
 		case "redis":
-			handler := NewRedisLogger(logcfg.Address, "", logcfg.Levels)
+			handler := NewRedisLogger(coreNum, logcfg.Address, "", logcfg.Levels, logcfg.BatchSize)
 			mgr.AddMessageHandler(handler.Log)
 		case "console":
 			handler := NewConsoleLogger(logcfg.Levels)
