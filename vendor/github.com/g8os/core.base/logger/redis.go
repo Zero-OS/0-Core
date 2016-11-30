@@ -11,19 +11,24 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
 const (
 	redisLoggerQueue = "core.logs"
 	defaultBatchSize = 100000
+	maxQueueLen      = 10000 // max number of logs to hold before redis started
 )
 
 type redisLogger struct {
-	coreID    uint64
-	pool      *redis.Pool
-	defaults  []int
-	batchSize int
+	coreID         uint64
+	pool           *redis.Pool
+	defaults       []int
+	batchSize      int
+	connected      bool
+	connectedMutex sync.Mutex
+	logQueue       [][]byte
 }
 
 func NewRedisLogger(coreID uint64, address string, password string, defaults []int, batchSize int) Logger {
@@ -41,6 +46,8 @@ func NewRedisLogger(coreID uint64, address string, password string, defaults []i
 		defaults:  defaults,
 		batchSize: batchSize,
 	}
+	go rl.waitRedisUp()
+
 	if rl.coreID == 0 {
 		go rl.aggregates()
 	}
@@ -68,7 +75,14 @@ func (l *redisLogger) Log(cmd *core.Command, msg *stream.Message) {
 		log.Errorf("Failed to serialize message for redis logger: %s", err)
 		return
 	}
-	l.sendLog(bytes)
+
+	l.connectedMutex.Lock()
+	defer l.connectedMutex.Unlock()
+	if l.connected {
+		l.sendLog(bytes)
+	} else {
+		l.enqueue(bytes)
+	}
 }
 
 func (l *redisLogger) sendLog(bytes []byte) {
@@ -153,4 +167,35 @@ func (l *redisLogger) getCoreXRedisSockets() ([]string, error) {
 		socks = append(socks, sockName)
 	}
 	return socks, nil
+}
+
+func (l *redisLogger) waitRedisUp() {
+	for !l.connected {
+		time.Sleep(1 * time.Second)
+		c := l.pool.Get()
+		if b, err := redis.Bytes(c.Do("PING")); err == nil {
+			if string(b) == "PONG" {
+				l.connectedMutex.Lock()
+				l.connected = true
+				l.connectedMutex.Unlock()
+				log.Info("redis log up")
+			}
+		}
+		c.Close()
+	}
+	l.dequeueAll()
+}
+
+func (l *redisLogger) enqueue(bytes []byte) {
+	l.logQueue = append(l.logQueue, bytes)
+	if len(l.logQueue) > maxQueueLen+5 {
+		l.logQueue = l.logQueue[len(l.logQueue)-maxQueueLen:]
+	}
+}
+
+func (l *redisLogger) dequeueAll() {
+	for _, v := range l.logQueue {
+		l.sendLog(v)
+	}
+	l.logQueue = [][]byte{}
 }
