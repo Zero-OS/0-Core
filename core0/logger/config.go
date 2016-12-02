@@ -1,22 +1,27 @@
 package logger
 
 import (
-	"github.com/boltdb/bolt"
-	"github.com/g8os/core0/base/pm"
-	"github.com/g8os/core0/base/settings"
 	"os"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/boltdb/bolt"
+	"github.com/g8os/core0/base/logger"
+	"github.com/g8os/core0/base/pm"
+	"github.com/g8os/core0/base/settings"
+	"github.com/op/go-logging"
 )
 
-/*
-ConfigureLogging attached the correct message handler on top the process manager from the configurations
-*/
-func ConfigureLogging() {
+var (
+	log = logging.MustGetLogger("main")
+)
+
+// ConfigureLogging attachs the correct message handler on top the process manager from the configurations
+func ConfigureLogging(coreID uint64) {
 	//apply logging handlers.
-	mgr := pm.GetManager()
 	dbLoggerConfigured := false
+	mgr := pm.GetManager()
 	for _, logcfg := range settings.Settings.Logging {
 		switch strings.ToLower(logcfg.Type) {
 		case "db":
@@ -35,7 +40,7 @@ func ConfigureLogging() {
 				log.Fatalf("Failed to open logs database: %s", err)
 			}
 
-			handler, err := NewDBLogger(db, logcfg.Levels)
+			handler, err := logger.NewDBLogger(db, logcfg.Levels)
 			if err != nil {
 				log.Fatalf("DB logger failed to initialize: %s", err)
 			}
@@ -44,10 +49,10 @@ func ConfigureLogging() {
 
 			dbLoggerConfigured = true
 		case "redis":
-			handler := NewRedisLogger(logcfg.Address, "", logcfg.Levels)
+			handler := logger.NewRedisLogger(coreID, logcfg.Address, "", logcfg.Levels, logcfg.BatchSize)
 			mgr.AddMessageHandler(handler.Log)
 		case "console":
-			handler := NewConsoleLogger(logcfg.Levels)
+			handler := logger.NewConsoleLogger(logcfg.Levels)
 			mgr.AddMessageHandler(handler.Log)
 		default:
 			log.Fatalf("Unsupported logger type: %s", logcfg.Type)
