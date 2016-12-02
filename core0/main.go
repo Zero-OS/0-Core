@@ -78,7 +78,7 @@ func main() {
 	logger.ConfigureLogging(uint64(0))
 
 	// start logs forwarder
-	logsforwarder.Start(0)
+	logsforwarder.Start(10)
 
 	//start local transport
 	log.Infof("Starting local transport")

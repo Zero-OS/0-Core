@@ -60,10 +60,10 @@ func forward() error {
 		}
 
 		// send to public redis
-		if err := pubConn.Send("RPUSH", logger.RedisLoggerQueue, b); err != nil {
+		if _, err := pubConn.Do("RPUSH", logger.RedisLoggerQueue, b); err != nil {
 			log.Errorf("[logsforwarder] failed to forward logs:%v", err)
 		}
-		if err := pubConn.Send("LTRIM", logger.RedisLoggerQueue, -1*batchSize, -1); err != nil {
+		if _, err := pubConn.Do("LTRIM", logger.RedisLoggerQueue, -1*batchSize, -1); err != nil {
 			log.Errorf("[logsforwarder] failed to truncate log message to `%v` err: `%v`", batchSize, err)
 		}
 
