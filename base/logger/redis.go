@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	redisLoggerQueue = "core.logs"
+	RedisLoggerQueue = "core.logs"
 	defaultBatchSize = 100000
 )
 
@@ -72,11 +72,11 @@ func (l *redisLogger) sendLog(bytes []byte) {
 	db := l.pool.Get()
 	defer db.Close()
 
-	if err := db.Send("RPUSH", redisLoggerQueue, bytes); err != nil {
+	if err := db.Send("RPUSH", RedisLoggerQueue, bytes); err != nil {
 		log.Errorf("Failed to push log message to redis: %s", err)
 	}
 
-	if err := db.Send("LTRIM", redisLoggerQueue, -1*l.batchSize, -1); err != nil {
+	if err := db.Send("LTRIM", RedisLoggerQueue, -1*l.batchSize, -1); err != nil {
 		log.Errorf("Failed to truncate log message to `%v` err: `%v`", l.batchSize, err)
 	}
 }

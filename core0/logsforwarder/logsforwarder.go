@@ -5,12 +5,13 @@ import (
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/op/go-logging"
+
+	"github.com/g8os/core0/base/logger"
 )
 
 const (
-	defaultPeriod    = 10 // default forwared period
-	redisLoggerQueue = "core.logs"
-	batchSize        = 100000
+	defaultPeriod = 10 // default forwared period
+	batchSize     = 100000
 )
 
 var (
@@ -50,7 +51,7 @@ func forward() error {
 	// forwad the logs
 	for {
 		// take from private redis
-		b, err := redis.Bytes(privConn.Do("LPOP", redisLoggerQueue))
+		b, err := redis.Bytes(privConn.Do("LPOP", logger.RedisLoggerQueue))
 		if err != nil {
 			if err == redis.ErrNil {
 				break
@@ -59,10 +60,10 @@ func forward() error {
 		}
 
 		// send to public redis
-		if _, err := pubConn.Do("RPUSH", redisLoggerQueue, b); err != nil {
+		if err := pubConn.Send("RPUSH", logger.RedisLoggerQueue, b); err != nil {
 			log.Errorf("[logsforwarder] failed to forward logs:%v", err)
 		}
-		if _, err := pubConn.Do("LTRIM", redisLoggerQueue, -1*batchSize, -1); err != nil {
+		if err := pubConn.Send("LTRIM", logger.RedisLoggerQueue, -1*batchSize, -1); err != nil {
 			log.Errorf("[logsforwarder] failed to truncate log message to `%v` err: `%v`", batchSize, err)
 		}
 
