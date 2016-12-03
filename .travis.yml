@@ -4,10 +4,11 @@ go:
   - 1.6
 
 before_install:
-  - go get github.com/g8os/controller
   - go get github.com/tools/godep
   - go get github.com/stretchr/testify
 
-install:
-  - godep restore
-  - go test -v ./...
+script:
+  - bash test.sh
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
