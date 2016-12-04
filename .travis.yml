@@ -3,11 +3,12 @@ language: go
 go:
   - 1.7.1
 
-before_install:
+install:
   - go get github.com/tools/godep
   - go get github.com/stretchr/testify
 
-script: bash test.sh
+script:
+  - bash test.sh
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
