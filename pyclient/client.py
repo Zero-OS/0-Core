@@ -503,6 +503,7 @@ class Client(BaseClient):
         self._container_manager = ContainerManager(self)
         self._bridge_manager = BridgeManager(self)
         self._disk_manager = DiskManager(self)
+        self._btrfs_manager = BtrfsManager(self)
 
     @property
     def container(self):
@@ -515,6 +516,10 @@ class Client(BaseClient):
     @property
     def disk(self):
         return self._disk_manager
+
+    @property
+    def btrfs(self):
+        return self._btrfs_manager
 
     def raw(self, command, arguments):
         id = str(uuid.uuid4())
@@ -538,4 +543,3 @@ class Client(BaseClient):
 
     def response_for(self, id):
         return Response(self, id)
-
