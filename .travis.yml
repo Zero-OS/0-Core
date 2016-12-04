@@ -6,7 +6,7 @@ go:
 install:
   - go get github.com/tools/godep
   - go get github.com/stretchr/testify
-  - godpe restore
+  - godep restore
 
 script:
   - bash test.sh
