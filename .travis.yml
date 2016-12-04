@@ -6,9 +6,12 @@ go:
 install:
   - go get github.com/tools/godep
   - go get github.com/stretchr/testify
+  - godpe restore
 
 script:
   - bash test.sh
 
 after_success:
+  - go install ./core0
+  - go install ./coreX
   - bash <(curl -s https://codecov.io/bash)
