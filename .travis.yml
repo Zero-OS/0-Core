@@ -4,7 +4,6 @@ go:
   - 1.6
 
 before_install:
-  - go get github.com/g8os/controller
   - go get github.com/tools/godep
   - go get github.com/stretchr/testify
 
