@@ -89,6 +89,7 @@ func (process *containerProcessImpl) Run() (<-chan *stream.Message, error) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Chroot:     process.args.Chroot,
 		Cloneflags: syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID | syscall.CLONE_NEWNS | syscall.CLONE_NEWNET,
+		Setpgid:    true,
 	}
 
 	for k, v := range process.args.Env {

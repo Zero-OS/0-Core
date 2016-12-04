@@ -133,6 +133,7 @@ func (c *container) cleanup() {
 
 	//TODO: remove port forwards
 
+	c.unPortForward()
 	//remove bridge links
 	for _, bridge := range c.args.Network.Bridge {
 		c.unbridge(bridge)
@@ -416,31 +417,42 @@ func (c *container) setDefaultDNS() error {
 	return err
 }
 
+func (c *container) forwardId(host int, container int) string {
+	return fmt.Sprintf("socat-%d-%d-%d", c.id, host, container)
+}
+
+func (c *container) unPortForward() {
+	for host, container := range c.args.Port {
+		pm.GetManager().Kill(c.forwardId(host, container))
+	}
+}
+
 func (c *container) setPortForwards() error {
+	ip := c.getDefaultIP()
+
 	for host, container := range c.args.Port {
 		//nft add rule nat prerouting iif eth0 tcp dport { 80, 443 } dnat 192.168.1.120
 		cmd := &core.Command{
+			ID:      c.forwardId(host, container),
 			Command: process.CommandSystem,
 			Arguments: core.MustArguments(
 				process.SystemCommandArguments{
-					Name: "nft",
+					Name: "socat",
 					Args: []string{
-						"add", "rule", "nat", "pre", "tcp",
-						"dport", fmt.Sprintf("%d", host),
-						"dnat", fmt.Sprintf("%s:%d", c.getDefaultIP(), container),
+						fmt.Sprintf("tcp-listen:%d,reuseaddr,fork", host),
+						fmt.Sprintf("tcp-connect:%s:%d", ip, container),
 					},
 				},
 			),
 		}
 
-		runner, err := pm.GetManager().RunCmd(cmd)
-		if err != nil {
-			return err
+		onExit := &pm.ExitHook{
+			Action: func(s bool) {
+				log.Infof("Port forward %d:%d container: %d exited", host, container, c.id)
+			},
 		}
-		result := runner.Wait()
-		if result.State != core.StateSuccess {
-			return fmt.Errorf("failed to forward port %d:%d err: %v", host, container, result.Streams)
-		}
+
+		pm.GetManager().RunCmd(cmd, onExit)
 	}
 
 	return nil

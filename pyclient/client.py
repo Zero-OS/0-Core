@@ -176,7 +176,7 @@ class ContainerManager:
     def __init__(self, client):
         self._client = client
 
-    def create(self, root_url, mount={}, zerotier=None, bridge=[]):
+    def create(self, root_url, mount={}, zerotier=None, bridge=None, port=None):
         """
         Creater a new container with the given root plist, mount points and
         zerotier id, and connected to the given bridges
@@ -185,7 +185,7 @@ class ContainerManager:
                       where host_source directory must exists.
                       host_source can be a url to a plist to mount.
         :param zerotier: An optional zerotier netowrk ID to join
-        :param bridge: A dict of tuples as ('bridge_name': 'network_setup')
+        :param bridge: A list of tuples as ('bridge_name': 'network_setup')
                        where :network_setup: can be one of the following
                        '' or 'none':
                             no IP is gonna be set on the link
@@ -197,6 +197,9 @@ class ContainerManager:
 
                        Examples:
                         `bridge=[('br0', '127.0.0.100/24'), ('br1', 'dhcp')]`
+        :param port: A dict of host_port: container_port pairs
+                       Example:
+                        `port={8080: 80, 7000:7000}`
         """
         response = self._client.raw('corex.create', {
             'root': root_url,
@@ -205,6 +208,7 @@ class ContainerManager:
                 'zerotier': zerotier,
                 'bridge': bridge,
             },
+            'port': port,
         })
 
         result = response.get()

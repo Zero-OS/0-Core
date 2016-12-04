@@ -96,3 +96,14 @@ With the 0.9 version of core0/coreX, you can:
 
 # Schema
 ![Schema Plan](/specs/schema.png)
+
+# Examples
+## Creating a container
+We will create a very basic container that only mount the root filesystem. We use this flist for testing
+`https://ipfs.io/ipfs/QmSpueL98KX1zyfp7Bqy91NScsdVctQKT8HQsR6LSSPM6i`.
+
+```python
+container_id = cl.container.create(flist)
+container = cl.container.client(container_id)
+print(container.system('ps').get())
+```
