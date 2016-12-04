@@ -9,4 +9,4 @@ before_install:
 
 install:
   - godep restore
-  - go test -v ./...
+  - go test -v ./base/... ./core0/... ./coreX/..
