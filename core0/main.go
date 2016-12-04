@@ -7,7 +7,6 @@ import (
 	"github.com/g8os/core0/base/settings"
 	"github.com/g8os/core0/core0/bootstrap"
 	"github.com/g8os/core0/core0/logger"
-	"github.com/g8os/core0/core0/logsforwarder"
 	"github.com/op/go-logging"
 	"time"
 
@@ -75,10 +74,7 @@ func main() {
 
 	//configure logging handlers from configurations
 	log.Infof("Configure logging")
-	logger.ConfigureLogging(uint64(0))
-
-	// start logs forwarder
-	logsforwarder.Start(10)
+	logger.InitLogging()
 
 	//start local transport
 	log.Infof("Starting local transport")
@@ -91,6 +87,9 @@ func main() {
 
 	bs := bootstrap.NewBootstrap()
 	bs.Bootstrap()
+
+	// start logs forwarder
+	logger.StartForwarder()
 
 	sinkID := fmt.Sprintf("default")
 
