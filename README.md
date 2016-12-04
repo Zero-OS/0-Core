@@ -73,8 +73,37 @@ print(
     cl.system('ip a').get()
 )
 
-#client exposes more tools for disk, bridges, and container mgmt 
+#client exposes more tools for disk, bridges, and container mgmt
 print(
     cl.disk.list()
 )
+```
+
+# Features
+With the 0.9 version of core0/coreX, you can:
+- Boot the core0 as init process
+- Manage disks
+- Create containers
+  - Full Namespace isolation
+  - Host the root filesystem of the containers via ipfs
+  - Network stack dedicated
+  - ZeroTier Network integration
+  - Use flist file format as root metadata
+- Remotly administrate the process
+  - via Python client
+  - via redis
+
+
+# Schema
+![Schema Plan](/specs/schema.png)
+
+# Examples
+## Creating a container
+We will create a very basic container that only mount the root filesystem. We use this flist for testing
+`https://ipfs.io/ipfs/QmSpueL98KX1zyfp7Bqy91NScsdVctQKT8HQsR6LSSPM6i`.
+
+```python
+container_id = cl.container.create(flist)
+container = cl.container.client(container_id)
+print(container.system('ps').get())
 ```

@@ -278,10 +278,12 @@ start in order, but will also make sure a service won't start until it's depende
 running.
 */
 func (pm *PM) RunSlice(slice settings.StartupSlice) {
-	state := NewStateMachine()
-	provided := make(map[string]int)
-	needed := make(map[string]int)
-	all := make([]string, 0)
+	var all []string
+	for _, startup := range slice {
+		all = append(all, startup.Key())
+	}
+
+	state := NewStateMachine(all...)
 
 	for _, startup := range slice {
 		if startup.Args == nil {
@@ -292,13 +294,6 @@ func (pm *PM) RunSlice(slice settings.StartupSlice) {
 			ID:        startup.Key(),
 			Command:   startup.Name,
 			Arguments: core.MustArguments(startup.Args),
-		}
-
-		all = append(all, cmd.ID)
-
-		provided[cmd.ID] = 1
-		for _, k := range startup.After {
-			needed[k] = 1
 		}
 
 		go func(up settings.Startup, c *core.Command) {
@@ -347,17 +342,10 @@ func (pm *PM) RunSlice(slice settings.StartupSlice) {
 			}
 		}(startup, cmd)
 	}
-	//release all dependencies that are not provided by this slice.
-	for k := range needed {
-		if _, ok := provided[k]; !ok {
-			log.Debugf("Auto releasing of '%s'", k)
-			state.Release(k, true)
-		}
-	}
 
 	//wait for the full slice to run
 	log.Infof("Waiting for the slice to boot")
-	state.Wait(all...)
+	state.WaitAll()
 }
 
 func (pm *PM) cleanUp(runner Runner) {

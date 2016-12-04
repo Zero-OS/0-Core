@@ -58,9 +58,10 @@ func (b *Bootstrap) registerExtensions(extensions map[string]settings.Extension)
 }
 
 func (b *Bootstrap) startupServices(s, e settings.After) {
-	log.Infof("Starting up '%s' services", s)
+	log.Debugf("Starting up '%s' services", s)
 	slice := b.t.Slice(s.Weight(), e.Weight())
 	pm.GetManager().RunSlice(slice)
+	log.Debugf("'%s' services are booted", s)
 }
 
 func (b *Bootstrap) canReachInternet() bool {

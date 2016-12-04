@@ -48,7 +48,7 @@ func Test_NonBlockingWait(t *testing.T) {
 }
 
 func Test_BlockingWait_SatisfiedConditions_True(t *testing.T) {
-	state := NewStateMachine()
+	state := NewStateMachine("init")
 
 	state.Release("init", true)
 
@@ -63,7 +63,7 @@ func Test_BlockingWait_SatisfiedConditions_True(t *testing.T) {
 }
 
 func Test_BlockingWait_SatisfiedConditions_False(t *testing.T) {
-	state := NewStateMachine()
+	state := NewStateMachine("init")
 
 	state.Release("init", false)
 
@@ -78,7 +78,7 @@ func Test_BlockingWait_SatisfiedConditions_False(t *testing.T) {
 }
 
 func Test_BlockingWait_UNSatisfiedConditions(t *testing.T) {
-	state := NewStateMachine()
+	state := NewStateMachine("init")
 
 	//waiting for a condition that didn't (and never) happen
 	s, err := Wait(state, 2, "init")
@@ -92,7 +92,7 @@ func Test_BlockingWait_UNSatisfiedConditions(t *testing.T) {
 }
 
 func Test_BlockingWait_DelayedSatisfiedConditions(t *testing.T) {
-	state := NewStateMachine()
+	state := NewStateMachine("init")
 
 	//waiting for a condition that didn't (and never) happen
 	go func() {
@@ -111,7 +111,7 @@ func Test_BlockingWait_DelayedSatisfiedConditions(t *testing.T) {
 }
 
 func Test_BlockingWait_DelayedSatisfiedConditions_Multiple(t *testing.T) {
-	state := NewStateMachine()
+	state := NewStateMachine("init", "net")
 
 	//waiting for a condition that didn't (and never) happen
 	go func() {
@@ -133,7 +133,7 @@ func Test_BlockingWait_DelayedSatisfiedConditions_Multiple(t *testing.T) {
 
 func Test_BlockingWait_ComplexDependency(t *testing.T) {
 
-	state := NewStateMachine()
+	state := NewStateMachine("x", "a", "b", "c", "d")
 	var wg sync.WaitGroup
 	wg.Add(4)
 
