@@ -32,13 +32,14 @@ func forward() error {
 	// forwad the logs
 	for {
 		// take from private redis
-		b, err := redis.Bytes(privConn.Do("BLPOP", logger.RedisLoggerQueue, 0))
+
+		b, err := redis.ByteSlices(privConn.Do("BLPOP", logger.RedisLoggerQueue, 0))
 		if err != nil {
 			return err
 		}
 
 		var record logger.LogRecord
-		if err := json.Unmarshal(b, &record); err != nil {
+		if err := json.Unmarshal(b[1], &record); err != nil {
 			return err
 		}
 

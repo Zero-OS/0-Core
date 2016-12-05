@@ -1,13 +1,12 @@
 package stream
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/g8os/core0/base/pm/core"
-	"time"
 )
 
 const (
+	LevelInvalid = -1
 	//LevelStdout stdout message
 	LevelStdout = 1 // stdout
 	//LevelStderr stderr message
@@ -70,23 +69,13 @@ var (
 
 //Message is a message from running process
 type Message struct {
-	Level   int
-	Message string
-	Epoch   int64
+	Level   int    `json:"level"`
+	Message string `json:"message"`
+	Epoch   int64  `json:"epoch"`
 }
 
 //MessageHandler represents a callback type
 type MessageHandler func(*Message)
-
-//MarshalJSON serializes message to json
-func (msg *Message) MarshalJSON() ([]byte, error) {
-	data := make(map[string]interface{})
-	data["epoch"] = msg.Epoch / int64(time.Millisecond)
-	data["level"] = msg.Level
-	data["data"] = msg.Message
-
-	return json.Marshal(data)
-}
 
 //String represents a message as a string
 func (msg *Message) String() string {

@@ -80,8 +80,7 @@ func main() {
 	}
 
 	log.Infof("Configure redis logger")
-	rl := logger.NewRedisLogger(uint16(opt.CoreID()), opt.RedisSocket(), "",
-		[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, 100000)
+	rl := logger.NewRedisLogger(uint16(opt.CoreID()), opt.RedisSocket(), "", nil, 100000)
 	mgr.AddMessageHandler(rl.Log)
 	//
 	//log.Infof("Setting up stats buffers")

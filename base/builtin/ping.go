@@ -1,9 +1,11 @@
 package builtin
 
 import (
+	"fmt"
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
+	"time"
 )
 
 const (
@@ -15,5 +17,5 @@ func init() {
 }
 
 func ping(cmd *core.Command) (interface{}, error) {
-	return "pong", nil
+	return fmt.Sprintf("PONG %s", time.Now()), nil
 }

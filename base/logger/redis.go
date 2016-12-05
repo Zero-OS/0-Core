@@ -43,7 +43,7 @@ func NewRedisLogger(coreID uint16, address string, password string, defaults []i
 }
 
 func (l *redisLogger) Log(cmd *core.Command, msg *stream.Message) {
-	if len(l.defaults) > 0 && !utils.In(l.defaults, msg.Level) {
+	if !IsLoggable(l.defaults, cmd, msg) {
 		return
 	}
 

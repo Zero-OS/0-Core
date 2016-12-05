@@ -11,7 +11,8 @@ import (
 )
 
 var (
-	log = logging.MustGetLogger("logger")
+	log      = logging.MustGetLogger("logger")
+	Disabled = []int{stream.LevelInvalid}
 )
 
 type LogRecord struct {
@@ -24,6 +25,16 @@ type LogRecord struct {
 type Logger interface {
 	Log(*core.Command, *stream.Message)
 	LogRecord(record *LogRecord)
+}
+
+func IsLoggable(defaults []int, cmd *core.Command, msg *stream.Message) bool {
+	if len(cmd.LogLevels) > 0 {
+		return utils.In(cmd.LogLevels, msg.Level)
+	} else if len(defaults) > 0 {
+		return utils.In(defaults, msg.Level)
+	}
+
+	return true
 }
 
 // DBLogger implements a logger that stores the message in a bold database.
@@ -61,14 +72,7 @@ func NewDBLogger(coreID uint16, db *bolt.DB, defaults []int) (Logger, error) {
 }
 
 func (logger *DBLogger) Log(cmd *core.Command, msg *stream.Message) {
-	levels := logger.defaults
-	msgLevels := cmd.LogLevels
-
-	if len(msgLevels) > 0 {
-		levels = msgLevels
-	}
-
-	if len(levels) > 0 && !utils.In(levels, msg.Level) {
+	if !IsLoggable(logger.defaults, cmd, msg) {
 		return
 	}
 
@@ -120,7 +124,7 @@ func (logger *ConsoleLogger) LogRecord(record *LogRecord) {
 
 // Log messages
 func (logger *ConsoleLogger) Log(cmd *core.Command, msg *stream.Message) {
-	if len(logger.defaults) > 0 && !utils.In(logger.defaults, msg.Level) {
+	if !IsLoggable(logger.defaults, cmd, msg) {
 		return
 	}
 

@@ -2,6 +2,7 @@ package containers
 
 import (
 	"fmt"
+	"github.com/g8os/core0/base/logger"
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
@@ -45,8 +46,9 @@ func (c *container) Start() error {
 	//
 	mgr := pm.GetManager()
 	extCmd := &core.Command{
-		ID:    coreID,
-		Route: c.route,
+		ID:        coreID,
+		Route:     c.route,
+		LogLevels: logger.Disabled,
 		Arguments: core.MustArguments(
 			process.ContainerCommandArguments{
 				Name:   "/coreX",

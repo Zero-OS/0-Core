@@ -381,8 +381,7 @@ func (pm *PM) Kill(cmdID string) {
 }
 
 func (pm *PM) msgCallback(cmd *core.Command, msg *stream.Message) {
-	levels := cmd.LogLevels
-	if len(levels) > 0 && !utils.In(levels, msg.Level) {
+	if len(cmd.LogLevels) > 0 && !utils.In(cmd.LogLevels, msg.Level) {
 		return
 	}
 
