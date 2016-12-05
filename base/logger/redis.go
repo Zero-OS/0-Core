@@ -20,6 +20,8 @@ type redisLogger struct {
 	pool      *redis.Pool
 	defaults  []int
 	queueSize int
+
+	ch chan *LogRecord
 }
 
 // NewRedisLogger creates new redis logger handler
@@ -37,8 +39,10 @@ func NewRedisLogger(coreID uint16, address string, password string, defaults []i
 		pool:      utils.NewRedisPool(network, address, password),
 		defaults:  defaults,
 		queueSize: batchSize,
+		ch:        make(chan *LogRecord, MaxRedisQueueSize),
 	}
 
+	go rl.pusher()
 	return rl
 }
 
@@ -55,24 +59,38 @@ func (l *redisLogger) Log(cmd *core.Command, msg *stream.Message) {
 }
 
 func (l *redisLogger) LogRecord(record *LogRecord) {
-	bytes, err := json.Marshal(record)
-	if err != nil {
-		log.Errorf("Failed to serialize message for redis logger: %s", err)
-		return
-	}
-
-	l.sendLog(bytes)
+	l.ch <- record
 }
 
-func (l *redisLogger) sendLog(bytes []byte) {
+func (l *redisLogger) pusher() {
+	for {
+		if err := l.push(); err != nil {
+			log.Errorf("redis log pusher error: %s", err)
+			//we don't sleep to avoid blocking the logging channel and to not slow down processes.
+		}
+	}
+}
+
+func (l *redisLogger) push() error {
 	db := l.pool.Get()
 	defer db.Close()
 
-	if err := db.Send("RPUSH", RedisLoggerQueue, bytes); err != nil {
-		log.Errorf("Failed to push log message to redis: %s", err)
-	}
+	for {
+		record := <-l.ch
+		log.Debugf("received log message: ", record)
 
-	if err := db.Send("LTRIM", RedisLoggerQueue, -1*l.queueSize, -1); err != nil {
-		log.Errorf("Failed to truncate log message to `%v` err: `%v`", l.queueSize, err)
+		bytes, err := json.Marshal(record)
+		if err != nil {
+			log.Errorf("Failed to serialize message for redis logger: %s", err)
+			continue
+		}
+
+		if _, err := db.Do("RPUSH", RedisLoggerQueue, bytes); err != nil {
+			return err
+		}
+
+		if _, err := db.Do("LTRIM", RedisLoggerQueue, -1*l.queueSize, -1); err != nil {
+			return err
+		}
 	}
 }

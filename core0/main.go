@@ -59,6 +59,13 @@ func main() {
 
 	var config = settings.Settings
 
+	level, err := logging.LogLevel(config.Main.LogLevel)
+	if err != nil {
+		log.Fatal("invalid log level: %s", settings.Settings.Main.LogLevel)
+	}
+
+	logging.SetLevel(level, "")
+
 	pm.InitProcessManager(config.Main.MaxJobs)
 
 	//start process mgr.

@@ -67,28 +67,29 @@ type SinkConfig struct {
 
 //Settings main agent settings
 type AppSettings struct {
-	Main      struct {
-		MaxJobs int
-		Include string
-		Network string
+	Main struct {
+		MaxJobs  int
+		Include  string
+		Network  string
+		LogLevel string
 	}
 
-	Sink      map[string]SinkConfig
+	Sink map[string]SinkConfig
 
 	Extension map[string]Extension
 
-	Logging   map[string]Logger
+	Logging map[string]Logger
 
-	Stats     struct {
+	Stats struct {
 		Interval int
-		Redis struct {
+		Redis    struct {
 			Enabled       bool
 			FlushInterval int
 			Address       string
 		}
 	}
 
-	Channel   struct {
+	Channel struct {
 		Cmds []string
 	}
 }
@@ -96,6 +97,10 @@ type AppSettings struct {
 var Settings AppSettings
 
 func (s *AppSettings) Validate() []error {
+	if s.Main.LogLevel == "" {
+		s.Main.LogLevel = "info"
+	}
+
 	errors := make([]error, 0)
 	for name, con := range s.Sink {
 		if u, err := url.Parse(con.URL); err != nil {
