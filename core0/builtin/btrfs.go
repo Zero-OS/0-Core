@@ -112,7 +112,8 @@ func btrfsCreate(cmd *core.Command) (interface{}, error) {
 	if result.State != core.StateSuccess {
 		return "", fmt.Errorf("error creating btrfs filesystem: %v", result.Streams)
 	}
-	return "OK", nil
+
+	return nil, nil
 }
 
 // list btrfs FSs
@@ -154,9 +155,9 @@ func btrfsSubvolCreate(cmd *core.Command) (interface{}, error) {
 	}
 
 	if result.State != core.StateSuccess {
-		return "", fmt.Errorf("error creating btrfs subvolume: %v:%v", result.Streams, result.Data)
+		return nil, fmt.Errorf("error creating btrfs subvolume: %v:%v", result.Streams, result.Data)
 	}
-	return "OK", nil
+	return nil, nil
 }
 
 // delete subvolume under a mount point
@@ -176,9 +177,10 @@ func btrfsSubvolDelete(cmd *core.Command) (interface{}, error) {
 	}
 
 	if result.State != core.StateSuccess {
-		return "", fmt.Errorf("error deleting btrfs subvolume: %v:%v", result.Streams, result.Data)
+		return nil, fmt.Errorf("error deleting btrfs subvolume: %v:%v", result.Streams, result.Data)
 	}
-	return "OK", nil
+
+	return nil, nil
 }
 
 // list subvolume under a mount point
@@ -198,8 +200,9 @@ func btrfsSubvolList(cmd *core.Command) (interface{}, error) {
 	}
 
 	if result.State != core.StateSuccess || len(result.Streams) != 2 {
-		return "", fmt.Errorf("error list btrfs subvolume: %v:%v", result.Streams, result.Data)
+		return nil, fmt.Errorf("error list btrfs subvolume: %v:%v", result.Streams, result.Data)
 	}
+
 	return btrfsParseSubvolList(result.Streams[0])
 }
 
@@ -219,6 +222,7 @@ func runBtrfsCmd(cmd string, args []string) (*core.JobResult, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return runner.Wait(), nil
 }
 func btrfsParseSubvolList(out string) ([]btrfsSubvol, error) {

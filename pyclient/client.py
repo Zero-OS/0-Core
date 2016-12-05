@@ -447,8 +447,6 @@ class BtrfsManager:
         if result.state != 'SUCCESS':
             raise RuntimeError('failed to create btrfs FS %s' % result.data)
 
-        return result.data
-
     def subvol_create(self, path):
         """
         Create a btrfs subvolume in the specified path
@@ -460,8 +458,6 @@ class BtrfsManager:
 
         if result.state != 'SUCCESS':
             raise RuntimeError('failed to create btrfs subvolume %s' % result.data)
-
-        return result.data
 
     def subvol_list(self, path):
         """
@@ -491,8 +487,6 @@ class BtrfsManager:
 
         if result.state != 'SUCCESS':
             raise RuntimeError('failed to list btrfs subvolume %s' % result.data)
-
-        return result.data
 
 
 class Client(BaseClient):
