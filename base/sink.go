@@ -3,7 +3,6 @@ package core
 import (
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
-	"github.com/g8os/core0/base/settings"
 	"time"
 )
 
