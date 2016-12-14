@@ -10,9 +10,6 @@ log_level = "info"
 url = "redis://127.0.0.1:6379"
 password = ""
 
-[channel]
-cmds = [] # empty for long polling from all defined controllers, or specif controllers keys
-
 [extension.bash]
 binary = "bash"
 args = ['-c', 'T=`mktemp` && cat > $T && bash $T; EXIT=$?; rm -rf $T; exit $EXIT']
@@ -41,3 +38,6 @@ interval = 60000 # milliseconds (1 min)
 enabled = false
 flush_interval = 100 # millisecond
 address = "172.17.0.1:6379"
+
+[globals]
+fuse_storage = "https://stor.jumpscale.org/stor2"

@@ -3,10 +3,10 @@ package containers
 import (
 	"crypto/md5"
 	"fmt"
+	"github.com/g8os/core0/base/settings"
 	"github.com/g8os/fs/config"
 	"github.com/g8os/fs/files"
 	"github.com/g8os/fs/meta"
-	"github.com/g8os/fs/storage"
 	"io"
 	"net/http"
 	"net/url"
@@ -90,14 +90,16 @@ func (c *container) mountPList(src string, target string) error {
 		return err
 	}
 
-	u, _ := url.Parse("ipfs://localhost:5001")
+	storageConfig := &config.StorConfig{
+		URL: settings.Settings.Globals.Get("fuse_storage", "https://stor.jumpscale.org/stor2"),
+	}
 
-	store, err := storage.NewIPFSStorage(u)
+	storage, err := storageConfig.GetStorClient()
 	if err != nil {
 		return err
 	}
 
-	fs, err := files.NewFS(target, be, store, ms, false)
+	fs, err := files.NewFS(target, be, storage, ms, false)
 
 	if err != nil {
 		return err

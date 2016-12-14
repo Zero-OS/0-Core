@@ -65,6 +65,17 @@ type SinkConfig struct {
 	Password string
 }
 
+type Globals map[string]string
+
+func (g Globals) Get(key string, def ...string) string {
+	v, ok := g[key]
+	if !ok && len(def) == 1 {
+		return def[0]
+	}
+
+	return v
+}
+
 //Settings main agent settings
 type AppSettings struct {
 	Main struct {
@@ -73,6 +84,8 @@ type AppSettings struct {
 		Network  string
 		LogLevel string
 	}
+
+	Globals Globals
 
 	Sink map[string]SinkConfig
 
@@ -87,10 +100,6 @@ type AppSettings struct {
 			FlushInterval int
 			Address       string
 		}
-	}
-
-	Channel struct {
-		Cmds []string
 	}
 }
 
