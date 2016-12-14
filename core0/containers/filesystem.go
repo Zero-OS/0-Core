@@ -85,7 +85,9 @@ func (c *container) mountPList(src string, target string) error {
 
 	be := &config.Backend{Path: backend}
 
-	ms := meta.NewFileMetaStore(metaBackend)
+	ms := meta.NewMemoryMetaStore()
+	//NOTE: replace the memory meta store with the file meta store for a smaller memory footprint (but slower startup)
+	//ms := meta.NewFileMetaStore(metaBackend)
 	if err := ms.Populate(plist, "/"); err != nil {
 		return err
 	}

@@ -70,11 +70,12 @@ func (c *StorConfig) GetStorClient() (storage.Storage, error) {
 	}
 
 	switch u.Scheme {
+	case "aydo":
+		u.Scheme = "https"
+		fallthrough
 	case "http":
 		fallthrough
 	case "https":
-		fallthrough
-	case "aydo":
 		return storage.NewAydoStorage(u)
 	case "ipfs":
 		return storage.NewIPFSStorage(u)

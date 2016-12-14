@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"path"
+	"strings"
 )
 
 type aydoStor struct {
@@ -15,25 +15,15 @@ type aydoStor struct {
 }
 
 func NewAydoStorage(u *url.URL) (Storage, error) {
-	if u.Scheme != "aydo" {
-		return nil, fmt.Errorf("invalid scheme, expecting URL of format aydo://uname:password@host/store/<namespace>")
-	}
-
-	us := url.URL{
-		Scheme: "http",
-		User:   u.User,
-		Path:   u.Path,
-	}
-
 	return &aydoStor{
 		client:  &http.Client{},
-		baseURL: us.String(),
+		baseURL: strings.TrimRight(u.String(), "/"),
 	}, nil
 }
 
 func (s *aydoStor) Get(hash string) (io.ReadCloser, error) {
-	u := path.Join(s.baseURL, hash)
-	log.Info("Downloading: %s", u)
+	u := fmt.Sprintf("%s/%s", s.baseURL, hash)
+	log.Infof("Downloading: %s", u)
 
 	req, _ := http.NewRequest("GET", u, nil)
 	req.Header.Set("Accept", "application/brotli")

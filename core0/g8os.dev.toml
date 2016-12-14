@@ -40,4 +40,4 @@ flush_interval = 100 # millisecond
 address = "172.17.0.1:6379"
 
 [globals]
-fuse_storage = "https://stor.jumpscale.org/stor2"
+fuse_storage = "https://stor.jumpscale.org/stor2/store/ubuntu-g8os-flist/"
