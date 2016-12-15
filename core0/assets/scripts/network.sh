@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
 #PATH=/tmp/ZeroTierOne/:$PATH
@@ -51,7 +51,7 @@ if [ -z "$(echo $req | grep ^200)" ]; then
 fi
 
 echo "[+] waiting connectivity"
-while ! zerotier-cli -D$zerohome listnetworks | grep 'OK PUBLIC' > /dev/null; do
+while ! zerotier-cli -D$zerohome listnetworks | grep 'OK' | grep $zeronet > /dev/null; do
     sleep 0.5
 done
 
