@@ -283,13 +283,15 @@ func (m *containerManager) list(cmd *core.Command) (interface{}, error) {
 			continue
 		}
 		ps := runner.Process()
+		var state *process.ProcessStats
 		if ps != nil {
-			state := ps.GetStats()
-			state.Cmd = nil
-			containers[id] = state
-		} else {
-			containers[id] = nil
+			if stater, ok := ps.(process.Stater); ok {
+				state = stater.Stats()
+				state.Cmd = nil
+			}
 		}
+
+		containers[id] = state
 	}
 
 	return containers, nil

@@ -67,15 +67,11 @@ var pm *PM
 //NewPM creates a new PM
 func InitProcessManager(maxJobs int) *PM {
 	pm = &PM{
-		cmds:     make(chan *core.Command),
-		runners:  make(map[string]Runner),
-		maxJobs:  maxJobs,
-		jobsCond: sync.NewCond(&sync.Mutex{}),
-
-		msgHandlers:         make([]MessageHandler, 0, 3),
-		resultHandlers:      make([]ResultHandler, 0, 3),
+		cmds:                make(chan *core.Command),
+		runners:             make(map[string]Runner),
+		maxJobs:             maxJobs,
+		jobsCond:            sync.NewCond(&sync.Mutex{}),
 		routeResultHandlers: make(map[core.Route][]ResultHandler),
-		statsFlushHandlers:  make([]StatsFlushHandler, 0, 3),
 		queueMgr:            newCmdQueueManager(),
 
 		pids: make(map[int]chan *syscall.WaitStatus),

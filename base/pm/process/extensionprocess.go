@@ -71,6 +71,10 @@ func (process *extensionProcess) Kill() {
 	process.system.Kill()
 }
 
-func (process *extensionProcess) GetStats() *ProcessStats {
-	return process.system.GetStats()
+func (process *extensionProcess) Stats() *ProcessStats {
+	if sys, ok := process.system.(Stater); ok {
+		return sys.Stats()
+	} else {
+		return nil
+	}
 }
