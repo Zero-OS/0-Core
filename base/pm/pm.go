@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -31,14 +32,11 @@ type MeterHandler func(cmd *core.Command, p *psutil.Process)
 
 type MessageHandler func(*core.Command, *stream.Message)
 
-//StatsdMeterHandler represents a callback type
-type StatsdMeterHandler func(statsd *stats.Statsd, cmd *core.Command, p *psutil.Process)
-
 //ResultHandler represents a callback type
 type ResultHandler func(cmd *core.Command, result *core.JobResult)
 
 //StatsFlushHandler represents a callback type
-type StatsFlushHandler func(stats *stats.Stats)
+type StatsHandler func(operation stats.Operation, key string, value float64, tags string)
 
 //PM is the main process manager.
 type PM struct {
@@ -47,15 +45,13 @@ type PM struct {
 	runners map[string]Runner
 
 	runnersMux sync.Mutex
-
-	statsdes map[string]*stats.Statsd
-	maxJobs  int
-	jobsCond *sync.Cond
+	maxJobs    int
+	jobsCond   *sync.Cond
 
 	msgHandlers         []MessageHandler
 	resultHandlers      []ResultHandler
 	routeResultHandlers map[core.Route][]ResultHandler
-	statsFlushHandlers  []StatsFlushHandler
+	statsFlushHandlers  []StatsHandler
 	queueMgr            *cmdQueueManager
 
 	pids    map[int]chan *syscall.WaitStatus
@@ -139,7 +135,7 @@ func (pm *PM) AddRouteResultHandler(route core.Route, handler ResultHandler) {
 }
 
 //AddStatsFlushHandler adds handler to stats flush.
-func (pm *PM) AddStatsFlushHandler(handler StatsFlushHandler) {
+func (pm *PM) AddStatsHandler(handler StatsHandler) {
 	pm.statsFlushHandlers = append(pm.statsFlushHandlers, handler)
 }
 
@@ -376,7 +372,45 @@ func (pm *PM) Kill(cmdID string) {
 	}
 }
 
+func (pm *PM) handleStatsMessage(cmd *core.Command, msg *stream.Message) {
+	parts := strings.Split(msg.Message, "|")
+	if len(parts) < 2 {
+		log.Errorf("Invalid statsd string, expecting data|type[|options], got '%s'", msg.Message)
+	}
+
+	optype := parts[1]
+
+	var tags string
+	if len(parts) == 3 {
+		tags = parts[2]
+	}
+
+	data := strings.Split(parts[0], ":")
+	if len(data) != 2 {
+		log.Errorf("Invalid statsd data, expecting key:value, got '%s'", parts[0])
+	}
+
+	key := strings.Trim(data[0], " ")
+	value := data[1]
+	v, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		log.Warning("invalid stats message value is not a number '%s'", msg.Message)
+		return
+	}
+
+	for _, handler := range pm.statsFlushHandlers {
+		handler(stats.Operation(optype), key, v, tags)
+	}
+}
+
 func (pm *PM) msgCallback(cmd *core.Command, msg *stream.Message) {
+	//handle stats messages
+	if msg.Level == stream.LevelStatsd {
+		pm.handleStatsMessage(cmd, msg)
+		return
+	}
+
+	//handle logging.
 	if len(cmd.LogLevels) > 0 && !utils.In(cmd.LogLevels, msg.Level) {
 		return
 	}
@@ -398,11 +432,5 @@ func (pm *PM) resultCallback(cmd *core.Command, result *core.JobResult) {
 
 	for _, handler := range pm.routeResultHandlers[cmd.Route] {
 		handler(cmd, result)
-	}
-}
-
-func (pm *PM) statsFlushCallback(stats *stats.Stats) {
-	for _, handler := range pm.statsFlushHandlers {
-		handler(stats)
 	}
 }

@@ -12,6 +12,7 @@ import (
 
 	"fmt"
 	_ "github.com/g8os/core0/base/builtin"
+	"github.com/g8os/core0/base/stats"
 	_ "github.com/g8os/core0/core0/builtin"
 	"github.com/g8os/core0/core0/containers"
 	"github.com/g8os/core0/core0/options"
@@ -111,10 +112,10 @@ func main() {
 		sinks[key] = cl
 	}
 
-	log.Infof("Setting up stats buffers")
+	log.Infof("Setting up stats aggregator clients")
 	if config.Stats.Redis.Enabled {
-		redis := core.NewRedisStatsBuffer(config.Stats.Redis.Address, "", 1000, time.Duration(config.Stats.Redis.FlushInterval)*time.Millisecond)
-		mgr.AddStatsFlushHandler(redis.Handler)
+		redis := stats.NewRedisStatsBuffer(config.Stats.Redis.Address, "", 1000, time.Duration(config.Stats.Redis.FlushInterval)*time.Millisecond)
+		mgr.AddStatsHandler(redis.Handler)
 	}
 
 	//start/register containers commands and process
