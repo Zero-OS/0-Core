@@ -62,6 +62,7 @@ func (c *container) Start() error {
 					"-core-id", fmt.Sprintf("%d", c.id),
 					"-redis-socket", "/redis.socket",
 					"-reply-to", coreXResponseQueue,
+                    "-hostname", c.args.Hostname,
 				},
 				Env: map[string]string{
 					"PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",

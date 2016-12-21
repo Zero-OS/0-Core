@@ -108,7 +108,7 @@ func (m metaDir) Load() (*MetaData, error) {
 		Mtime:       uint64(st.Mtim.Sec),
 		Uid:         st.Uid,
 		Gid:         st.Gid,
-		Permissions: st.Mode | uint32(os.ModePerm),
+		Permissions: st.Mode & uint32(os.ModePerm),
 	}, nil
 }
 

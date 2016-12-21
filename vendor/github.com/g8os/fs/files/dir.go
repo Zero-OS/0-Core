@@ -1,22 +1,36 @@
 package files
 
 import (
-	"github.com/hanwen/go-fuse/fuse"
 	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/hanwen/go-fuse/fuse"
 )
 
 // Mkdir creates a directory
-func (fs *fileSystem) Mkdir(path string, mode uint32, context *fuse.Context) (code fuse.Status) {
+func (fs *fileSystem) Mkdir(path string, mode uint32, context *fuse.Context) fuse.Status {
 	fullPath := fs.GetPath(path)
 
-	log.Debugf("Mkdir %v", path)
-
-	status := fuse.ToStatus(os.Mkdir(fullPath, os.FileMode(mode)))
-	if status != fuse.OK {
-		return status
+	backendFn := func() fuse.Status {
+		return fuse.ToStatus(os.Mkdir(fullPath, os.FileMode(mode)))
 	}
 
-	fs.meta.CreateDir(path)
+	metaFn := func() { fs.meta.CreateDir(path) }
+
+	if st := backendFn(); st != fuse.ENOENT {
+		metaFn()
+		return st
+	}
+
+	// only populate directories above it.
+	fs.populateDirFile(filepath.Dir(strings.TrimSuffix(path, "/")))
+
+	if st := backendFn(); st != fuse.OK {
+		return st
+	}
+
+	metaFn()
 	// This line break mkdir on OL
 	// fs.tracker.Touch(fullPath)
 	return fuse.OK

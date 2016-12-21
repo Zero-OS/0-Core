@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/g8os/core0/base"
 	"github.com/g8os/core0/base/logger"
 	"github.com/g8os/core0/base/pm"
@@ -10,7 +12,6 @@ import (
 	"github.com/g8os/core0/coreX/bootstrap"
 	"github.com/g8os/core0/coreX/options"
 	"github.com/op/go-logging"
-	"os"
 
 	_ "github.com/g8os/core0/base/builtin"
 	_ "github.com/g8os/core0/coreX/builtin"
@@ -59,7 +60,7 @@ func main() {
 	}
 
 	bs := bootstrap.NewBootstrap()
-	if err := bs.Bootstrap(); err != nil {
+	if err := bs.Bootstrap(opt.Hostname()); err != nil {
 		log.Fatalf("Failed to bootstrap corex: %s", err)
 	}
 

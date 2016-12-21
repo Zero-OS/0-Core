@@ -4,7 +4,6 @@ import json
 import textwrap
 import shlex
 
-
 class Timeout(Exception):
     pass
 
@@ -244,7 +243,8 @@ class ContainerManager:
     def __init__(self, client):
         self._client = client
 
-    def create(self, root_url, mount=None, zerotier=None, bridge=None, port=None):
+    def create(self, root_url, mount=None, zerotier=None, bridge=None, port=None, hostname=None):
+
         """
         Creater a new container with the given root plist, mount points and
         zerotier id, and connected to the given bridges
@@ -268,6 +268,9 @@ class ContainerManager:
         :param port: A dict of host_port: container_port pairs
                        Example:
                         `port={8080: 80, 7000:7000}`
+        :param hostname: Specific hostname you want to give to the container.
+                         if None it will automatically be set to core-x,
+                         x beeing the ID of the container
         """
         response = self._client.raw('corex.create', {
             'root': root_url,
@@ -277,6 +280,7 @@ class ContainerManager:
                 'bridge': bridge,
             },
             'port': port,
+            'hostname': hostname,
         })
 
         result = response.get()

@@ -1,3 +1,7 @@
+// Copyright 2016 the Go-FUSE Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package nodefs
 
 import (
@@ -106,7 +110,7 @@ func (n *defaultNode) OpenDir(context *fuse.Context) ([]fuse.DirEntry, fuse.Stat
 }
 
 func (n *defaultNode) GetXAttr(attribute string, context *fuse.Context) (data []byte, code fuse.Status) {
-	return nil, fuse.ENOSYS
+	return nil, fuse.ENOATTR
 }
 
 func (n *defaultNode) RemoveXAttr(attr string, context *fuse.Context) fuse.Status {
@@ -122,6 +126,9 @@ func (n *defaultNode) ListXAttr(context *fuse.Context) (attrs []string, code fus
 }
 
 func (n *defaultNode) GetAttr(out *fuse.Attr, file File, context *fuse.Context) (code fuse.Status) {
+	if file != nil {
+		return file.GetAttr(out)
+	}
 	if n.Inode().IsDir() {
 		out.Mode = fuse.S_IFDIR | 0755
 	} else {

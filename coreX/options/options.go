@@ -12,6 +12,7 @@ type AppOptions struct {
 	redisPassword string
 	replyTo       string
 	maxJobs       int
+	hostname      string
 }
 
 func (o *AppOptions) CoreID() uint64 {
@@ -32,6 +33,10 @@ func (o *AppOptions) ReplyTo() string {
 
 func (o *AppOptions) MaxJobs() int {
 	return o.maxJobs
+}
+
+func (o *AppOptions) Hostname() string {
+	return o.hostname
 }
 
 func (o *AppOptions) Validate() []error {
@@ -57,8 +62,13 @@ func init() {
 	flag.StringVar(&Options.redisPassword, "redis-password", "", "Redis password [optional]")
 	flag.StringVar(&Options.replyTo, "reply-to", "corex:results", "Reply to queue")
 	flag.IntVar(&Options.maxJobs, "max-jobs", 100, "Max number of jobs that can run concurrently")
+	flag.StringVar(&Options.hostname, "hostname", "", "Hostname of the container")
 
 	flag.Parse()
+
+	if Options.hostname == "" {
+		Options.hostname = fmt.Sprintf("core-%d", Options.coreID)
+	}
 
 	printHelp := func() {
 		fmt.Println("coreX [options]")

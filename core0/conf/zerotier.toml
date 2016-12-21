@@ -1,4 +1,4 @@
-# Start the ipfs daemon, after the networkin is already configured
+# Start the zerotier daemon, after the networking is already configured
 [startup.zerotier]
 name = "core.system"
 after = ["net"]

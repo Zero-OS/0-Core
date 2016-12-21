@@ -37,15 +37,12 @@ cl.disk.mount("/dev/sdb1", "/data")
 cl.btrfs.subvol_create('/data/vol1')
 ```
 
-## Creating a container 
+## Creating a container
 We will create a very basic container that only mount the root filesystem. We use this flist for testing
-`https://ipfs.io/ipfs/QmSpueL98KX1zyfp7Bqy91NScsdVctQKT8HQsR6LSSPM6i`.
+`https://stor.jumpscale.org/stor2/flist/ubuntu-g8os-flist/ubuntu-g8os.flist`.
 
 ```python
-flist = 'https://ipfs.io/ipfs/QmSpueL98KX1zyfp7Bqy91NScsdVctQKT8HQsR6LSSPM6i'
-mount = {
-    '/data/vol1': '/opt',
-}
+flist = 'https://stor.jumpscale.org/stor2/flist/ubuntu-g8os-flist/ubuntu-g8os.flist'
 
 container_id = cl.container.create(flist, mount=mount)
 container = cl.container.client(container_id)
