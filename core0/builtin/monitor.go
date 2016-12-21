@@ -8,6 +8,8 @@ import (
 	"github.com/g8os/core0/base/pm/process"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
+	"github.com/shirou/gopsutil/mem"
+	"github.com/shirou/gopsutil/net"
 	"io/ioutil"
 	"strconv"
 	"strings"
@@ -43,7 +45,9 @@ func (m monitor) monitor(cmd *core.Command) (interface{}, error) {
 	case monitorCPU:
 		return nil, m.cpu()
 	case monitorMemory:
-		return nil, m.mem()
+		return nil, m.memory()
+	case monitorNetwork:
+		return nil, m.network()
 	default:
 		return nil, fmt.Errorf("invalid monitoring domain: %s", args.Domain)
 	}
@@ -156,6 +160,74 @@ func (m *monitor) cpu() error {
 	return nil
 }
 
-func (m *monitor) mem() error {
+func (m *monitor) memory() error {
+	virt, err := mem.VirtualMemory()
+	if err != nil {
+		return err
+	}
+
+	p := pm.GetManager()
+
+	p.Aggregate(pm.AggreagteAverage,
+		"machine.memory.ram.available@phys",
+		float64(virt.Available)/(1024.*1024.),
+		"",
+	)
+
+	swap, err := mem.SwapMemory()
+	if err != nil {
+		return err
+	}
+
+	p.Aggregate(pm.AggreagteAverage,
+		"machine.memory.swap.left@phys",
+		float64(swap.Free)/(1024.*1024.),
+		"",
+	)
+
+	p.Aggregate(pm.AggreagteAverage,
+		"machine.memory.swap.used@phys",
+		float64(swap.Used)/(1024.*1024.),
+		"",
+	)
+
+	return nil
+}
+
+func (m *monitor) network() error {
+	counters, err := net.IOCounters(true)
+	if err != nil {
+		return err
+	}
+
+	p := pm.GetManager()
+	for _, counter := range counters {
+		key := fmt.Sprintf("%%s@phys.%s", counter.Name)
+
+		p.Aggregate(pm.AggreagteDifference,
+			fmt.Sprintf(key, "network.throughput.outgoing"),
+			float64(counter.BytesSent)/(1024.*1024.),
+			"",
+		)
+
+		p.Aggregate(pm.AggreagteDifference,
+			fmt.Sprintf(key, "network.throughput.incoming"),
+			float64(counter.BytesRecv)/(1024.*1024.),
+			"",
+		)
+
+		p.Aggregate(pm.AggreagteDifference,
+			fmt.Sprintf(key, "network.packets.tx"),
+			float64(counter.PacketsSent)/(1024.*1024.),
+			"",
+		)
+
+		p.Aggregate(pm.AggreagteDifference,
+			fmt.Sprintf(key, "network.packets.rx"),
+			float64(counter.PacketsRecv)/(1024.*1024.),
+			"",
+		)
+	}
+
 	return nil
 }
