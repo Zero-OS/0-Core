@@ -84,7 +84,7 @@ func scriptsNetworkSh() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "scripts/network.sh", size: 1466, mode: os.FileMode(420), modTime: time.Unix(1482243566, 0)}
+	info := bindataFileInfo{name: "scripts/network.sh", size: 1473, mode: os.FileMode(420), modTime: time.Unix(1482329816, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -104,8 +104,7 @@ func scriptsStatLua() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "scripts/stat.lua", size: 3410, mode: os.FileMode(493), modTime: time.Unix(1482302648, 0)}
-
+	info := bindataFileInfo{name: "scripts/stat.lua", size: 3410, mode: os.FileMode(493), modTime: time.Unix(1482329917, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
