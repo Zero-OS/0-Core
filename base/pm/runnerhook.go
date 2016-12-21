@@ -3,6 +3,7 @@ package pm
 import (
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/stream"
+	"regexp"
 	"sync"
 	"time"
 )
@@ -69,16 +70,32 @@ func (h *PIDHook) PID(pid int) {
 
 type MatchHook struct {
 	NOOPHook
-	Match string
-	o     sync.Once
-
+	Match  string
 	Action func(msg *stream.Message)
+
+	io sync.Once
+	p  *regexp.Regexp
+	o  sync.Once
 }
 
 func (h *MatchHook) Message(msg *stream.Message) {
-	if msg.Message == h.Match {
+	h.io.Do(func() {
+		p, e := regexp.CompilePOSIX(h.Match)
+		if e != nil {
+			log.Errorf("Failed to compile regexp pattern '%s'", h.Match)
+			return
+		}
+		h.p = p
+	})
+
+	if h.p == nil {
+		return
+	}
+
+	if h.p.MatchString(msg.Message) {
 		h.o.Do(func() {
 			h.Action(msg)
+			h.p = nil
 		})
 	}
 }

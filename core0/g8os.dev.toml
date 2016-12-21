@@ -3,16 +3,12 @@
 [main]
 max_jobs = 200
 include = "/root/conf"
-log_level = "info"
+log_level = "debug"
 # network = "./network.toml"
 
 [sink.main]
 url = "redis://127.0.0.1:6379"
 password = ""
-
-[extension.bash]
-binary = "sh"
-args = ['-c', 'T=`mktemp` && cat > $T && sh $T; EXIT=$?; rm -rf $T; exit $EXIT']
 
 [logging]
     [logging.db]
@@ -35,9 +31,9 @@ args = ['-c', 'T=`mktemp` && cat > $T && sh $T; EXIT=$?; rm -rf $T; exit $EXIT']
 interval = 60000 # milliseconds (1 min)
 
 [stats.redis]
-enabled = false
-flush_interval = 100 # millisecond
-address = "172.17.0.1:6379"
+enabled = true
+flush_interval = 10 # seconds
+address = "127.0.0.1:6379"
 
 [globals]
 fuse_storage = "https://stor.jumpscale.org/stor2/store/ubuntu-g8os-flist/"

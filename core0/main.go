@@ -15,6 +15,7 @@ import (
 	_ "github.com/g8os/core0/core0/builtin"
 	"github.com/g8os/core0/core0/containers"
 	"github.com/g8os/core0/core0/options"
+	"github.com/g8os/core0/core0/stats"
 	"os"
 )
 
@@ -111,10 +112,14 @@ func main() {
 		sinks[key] = cl
 	}
 
-	log.Infof("Setting up stats buffers")
+	log.Infof("Setting up stats aggregator clients")
 	if config.Stats.Redis.Enabled {
-		redis := core.NewRedisStatsBuffer(config.Stats.Redis.Address, "", 1000, time.Duration(config.Stats.Redis.FlushInterval)*time.Millisecond)
-		mgr.AddStatsFlushHandler(redis.Handler)
+		aggregator, err := stats.NewRedisStatsAggregator(config.Stats.Redis.Address, "", 1000, time.Duration(config.Stats.Redis.FlushInterval)*time.Second)
+		if err != nil {
+			log.Errorf("failed to initialize redis stats aggregator: %s", err)
+		} else {
+			mgr.AddStatsHandler(aggregator.Aggregate)
+		}
 	}
 
 	//start/register containers commands and process

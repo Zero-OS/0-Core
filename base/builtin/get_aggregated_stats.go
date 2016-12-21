@@ -33,12 +33,16 @@ func (mgr *aggregatedStatsMgr) getAggregatedStats(cmd *core.Command) (interface{
 	stat := process.ProcessStats{}
 
 	for _, runner := range pm.GetManager().Runners() {
-		process := runner.Process()
-		if process == nil {
+		ps := runner.Process()
+		if ps == nil {
+			continue
+		}
+		stats, ok := ps.(process.Stater)
+		if !ok {
 			continue
 		}
 
-		processStats := process.GetStats()
+		processStats := stats.Stats()
 		stat.CPU += processStats.CPU
 		stat.RSS += processStats.RSS
 		stat.Swap += processStats.Swap

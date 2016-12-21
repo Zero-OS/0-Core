@@ -77,7 +77,7 @@ func (l *redisLogger) push() error {
 
 	for {
 		record := <-l.ch
-		log.Debugf("received log message: ", record)
+		log.Debugf("received log message: %v", record)
 
 		bytes, err := json.Marshal(record)
 		if err != nil {

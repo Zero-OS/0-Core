@@ -110,6 +110,7 @@ class InfoManager:
     def os(self):
         return self._client.json('info.os', {})
 
+
 class ProcessManager:
     def __init__(self, client):
         self._client = client
@@ -132,6 +133,7 @@ class ProcessManager:
         :param id: process id to kill
         """
         return self._client.json('process.kill', {'id': id})
+
 
 class BaseClient:
     def __init__(self):
@@ -171,7 +173,7 @@ class BaseClient:
 
     def json(self, command, arguments):
         """
-        Same as self.sync except it assumes the returned result is json, and loads the payload of the retun object
+        Same as self.sync except it assumes the returned result is json, and loads the payload of the return object
 
         :Return: Data
         """
@@ -205,6 +207,13 @@ class BaseClient:
 
         return response
 
+    def bash(self, command):
+        response = self.raw(command='bash', arguments={
+            'stdin': command,
+        })
+
+        return response
+
 
 class ContainerClient(BaseClient):
     def __init__(self, client, container):
@@ -234,7 +243,8 @@ class ContainerManager:
     def __init__(self, client):
         self._client = client
 
-    def create(self, root_url, mount={}, zerotier=None, bridge=None, port=None, hostname=None):
+    def create(self, root_url, mount=None, zerotier=None, bridge=None, port=None, hostname=None):
+
         """
         Creater a new container with the given root plist, mount points and
         zerotier id, and connected to the given bridges
@@ -630,13 +640,6 @@ class Client(BaseClient):
         self._redis.rpush('core:default', json.dumps(payload))
 
         return Response(self, id)
-
-    def bash(self, command):
-        response = self.raw(command='bash', arguments={
-            'stdin': command,
-        })
-
-        return response
 
     def response_for(self, id):
         return Response(self, id)
