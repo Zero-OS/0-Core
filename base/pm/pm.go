@@ -19,6 +19,11 @@ import (
 	"time"
 )
 
+const (
+	AggreagteAverage    = "A"
+	AggreagteDifference = "D"
+)
+
 var (
 	log               = logging.MustGetLogger("pm")
 	UnknownCommandErr = errors.New("unkonw command")
@@ -370,6 +375,12 @@ func (pm *PM) Kill(cmdID string) {
 	}
 }
 
+func (pm *PM) Aggregate(op, key string, value float64, tags string) {
+	for _, handler := range pm.statsFlushHandlers {
+		handler(op, key, value, tags)
+	}
+}
+
 func (pm *PM) handleStatsMessage(cmd *core.Command, msg *stream.Message) {
 	parts := strings.Split(msg.Message, "|")
 	if len(parts) < 2 {
@@ -396,9 +407,7 @@ func (pm *PM) handleStatsMessage(cmd *core.Command, msg *stream.Message) {
 		return
 	}
 
-	for _, handler := range pm.statsFlushHandlers {
-		handler(optype, key, v, tags)
-	}
+	pm.Aggregate(optype, key, v, tags)
 }
 
 func (pm *PM) msgCallback(cmd *core.Command, msg *stream.Message) {

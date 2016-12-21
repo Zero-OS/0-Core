@@ -7,7 +7,7 @@ import (
 )
 
 /*
-Runable represents a runnable built in function that can be managed by the process manager.
+Runnable represents a runnable built in function that can be managed by the process manager.
 */
 type Runnable func(*core.Command) (interface{}, error)
 
@@ -19,19 +19,15 @@ type internalProcess struct {
 	cmd      *core.Command
 }
 
-func NewInternalProcess(cmd *core.Command, runnable Runnable) Process {
-	return &internalProcess{
-		runnable: runnable,
-		cmd:      cmd,
-	}
-}
-
 /*
 internalProcessFactory factory to build Runnable processes
 */
 func NewInternalProcessFactory(runnable Runnable) ProcessFactory {
 	factory := func(_ PIDTable, cmd *core.Command) Process {
-		return NewInternalProcess(cmd, runnable)
+		return &internalProcess{
+			runnable: runnable,
+			cmd:      cmd,
+		}
 	}
 
 	return factory
@@ -83,20 +79,4 @@ Kill kills internal process (not implemented)
 */
 func (process *internalProcess) Kill() {
 	//you can't kill an internal process.
-}
-
-/*
-GetStats gets cpu, mem, etc.. consumption of internal process (not implemented)
-*/
-func (process *internalProcess) GetStats() *ProcessStats {
-	//can't provide values for the internal process, but
-	//we have to return the correct data struct for interface completenss
-	//also indication of running internal commands.
-	return &ProcessStats{
-		Cmd:  process.cmd,
-		CPU:  0,
-		RSS:  0,
-		VMS:  0,
-		Swap: 0,
-	}
 }
