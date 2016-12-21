@@ -119,8 +119,6 @@ func (runner *runnerImpl) run() *core.JobResult {
 	stderrBuffer := stream.NewBuffer(StreamBufferSize)
 
 	timeout := runner.timeout()
-	meterTicker := time.NewTicker(meterPeriod)
-	defer meterTicker.Stop()
 
 	handlersTicker := time.NewTicker(1 * time.Second)
 	defer handlersTicker.Stop()
