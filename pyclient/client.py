@@ -206,6 +206,13 @@ class BaseClient:
 
         return response
 
+    def bash(self, command):
+        response = self.raw(command='bash', arguments={
+            'stdin': command,
+        })
+
+        return response
+
 
 class ContainerClient(BaseClient):
     def __init__(self, client, container):
@@ -627,13 +634,6 @@ class Client(BaseClient):
         self._redis.rpush('core:default', json.dumps(payload))
 
         return Response(self, id)
-
-    def bash(self, command):
-        response = self.raw(command='bash', arguments={
-            'stdin': command,
-        })
-
-        return response
 
     def response_for(self, id):
         return Response(self, id)

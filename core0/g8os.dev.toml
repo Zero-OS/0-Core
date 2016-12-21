@@ -10,10 +10,6 @@ log_level = "debug"
 url = "redis://127.0.0.1:6379"
 password = ""
 
-[extension.bash]
-binary = "sh"
-args = ['-c', 'T=`mktemp` && cat > $T && sh $T; EXIT=$?; rm -rf $T; exit $EXIT']
-
 [logging]
     [logging.db]
     type = "DB"
