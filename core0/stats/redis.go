@@ -2,8 +2,10 @@ package stats
 
 import (
 	"github.com/g8os/core0/base/utils"
+	"github.com/g8os/core0/core0/assets"
 	"github.com/garyburd/redigo/redis"
 	"github.com/op/go-logging"
+	"strings"
 	"time"
 )
 
@@ -24,8 +26,8 @@ that are collected via the process manager. Flush happens when buffer is full or
 
 The StatsBuffer.Handler should be registers as StatsFlushHandler on the process manager object.
 */
-type StatsFlusher interface {
-	Handler(operation Operation, key string, value float64, tags string)
+type Aggregator interface {
+	Aggregate(operation string, key string, value float64, tags string)
 }
 
 type Stats struct {
@@ -42,7 +44,7 @@ type redisStatsBuffer struct {
 	sha string
 }
 
-func NewRedisStatsBuffer(address string, password string, capacity int, flushInt time.Duration) StatsFlusher {
+func NewRedisStatsAggregator(address string, password string, capacity int, flushInt time.Duration) (Aggregator, error) {
 	pool := utils.NewRedisPool("tcp", address, password)
 
 	redisBuffer := &redisStatsBuffer{
@@ -51,12 +53,36 @@ func NewRedisStatsBuffer(address string, password string, capacity int, flushInt
 
 	redisBuffer.buffer = utils.NewBuffer(capacity, flushInt, redisBuffer.onFlush)
 
-	return redisBuffer
+	if err := redisBuffer.init(); err != nil {
+		return nil, err
+	}
+
+	return redisBuffer, nil
 }
 
-func (r *redisStatsBuffer) Handler(op Operation, key string, value float64, tags string) {
+func (r *redisStatsBuffer) init() error {
+	data, err := assets.Asset("scripts/stat.lua")
+	if err != nil {
+		return err
+	}
+
+	db := r.pool.Get()
+	defer db.Close()
+
+	sha, err := redis.String(db.Do("SCRIPT", "LOAD", string(data)))
+	if err != nil {
+		return err
+	}
+
+	r.sha = sha
+	return nil
+}
+
+func (r *redisStatsBuffer) Aggregate(op string, key string, value float64, tags string) {
+	log.Debugf("STATS: %s(%s, %f, '%s')", op, key, value, tags)
+
 	r.buffer.Append(Stats{
-		Operation: op,
+		Operation: Operation(strings.ToUpper(op)),
 		Key:       key,
 		Value:     value,
 		Tags:      tags,

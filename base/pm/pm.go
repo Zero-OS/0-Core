@@ -7,8 +7,6 @@ import (
 	"github.com/g8os/core0/base/pm/process"
 	"github.com/g8os/core0/base/pm/stream"
 	"github.com/g8os/core0/base/settings"
-	"github.com/g8os/core0/base/stats"
-	"github.com/g8os/core0/base/utils"
 	"github.com/op/go-logging"
 	psutil "github.com/shirou/gopsutil/process"
 	"io/ioutil"
@@ -36,7 +34,7 @@ type MessageHandler func(*core.Command, *stream.Message)
 type ResultHandler func(cmd *core.Command, result *core.JobResult)
 
 //StatsFlushHandler represents a callback type
-type StatsHandler func(operation stats.Operation, key string, value float64, tags string)
+type StatsHandler func(operation string, key string, value float64, tags string)
 
 //PM is the main process manager.
 type PM struct {
@@ -399,7 +397,7 @@ func (pm *PM) handleStatsMessage(cmd *core.Command, msg *stream.Message) {
 	}
 
 	for _, handler := range pm.statsFlushHandlers {
-		handler(stats.Operation(optype), key, v, tags)
+		handler(optype, key, v, tags)
 	}
 }
 
@@ -407,12 +405,6 @@ func (pm *PM) msgCallback(cmd *core.Command, msg *stream.Message) {
 	//handle stats messages
 	if msg.Level == stream.LevelStatsd {
 		pm.handleStatsMessage(cmd, msg)
-		return
-	}
-
-	//handle logging.
-	if len(cmd.LogLevels) > 0 && !utils.In(cmd.LogLevels, msg.Level) {
-		return
 	}
 
 	//stamp msg.

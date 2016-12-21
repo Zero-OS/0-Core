@@ -97,7 +97,7 @@ type AppSettings struct {
 		Interval int
 		Redis    struct {
 			Enabled       bool
-			FlushInterval int
+			FlushInterval int //in seconds
 			Address       string
 		}
 	}

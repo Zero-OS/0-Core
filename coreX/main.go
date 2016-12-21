@@ -82,12 +82,11 @@ func main() {
 	log.Infof("Configure redis logger")
 	rl := logger.NewRedisLogger(uint16(opt.CoreID()), opt.RedisSocket(), "", nil, 100000)
 	mgr.AddMessageHandler(rl.Log)
-	//
-	//log.Infof("Setting up stats buffers")
-	//if config.Stats.Redis.Enabled {
-	//	redis := core.NewRedisStatsBuffer(config.Stats.Redis.Address, "", 1000, time.Duration(config.Stats.Redis.FlushInterval)*time.Millisecond)
-	//	mgr.AddStatsFlushHandler(redis.Handler)
-	//}
+
+	//forward stats messages to core0
+	mgr.AddStatsHandler(func(op, key string, value float64, tags string) {
+		fmt.Printf("10::core-%d.%s:%f|%s|%s\n", opt.CoreID(), key, value, op, tags)
+	})
 
 	//start jobs sinks.
 	core.StartSinks(pm.GetManager(), sinks)

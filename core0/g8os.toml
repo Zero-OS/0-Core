@@ -28,5 +28,5 @@ interval = 60000 # milliseconds (1 min)
 
 [stats.redis]
 enabled = false
-flush_interval = 100 # millisecond
+flush_interval = 10 # seconds
 address = "172.17.0.1:6379"

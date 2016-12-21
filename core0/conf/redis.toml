@@ -6,6 +6,7 @@
 
 [startup.redis-private]
 name = "core.system"
+running_match = "The server is now ready to accept connections"
 
 [startup.redis-private.args]
 name = "redis-server"
@@ -13,6 +14,7 @@ args = ["--unixsocket", "/var/run/redis.socket", "--port", "0"]
 
 [startup.redis-public]
 name = "core.system"
+running_match = "The server is now ready to accept connections"
 
 [startup.redis-public.args]
 name = "redis-server"
