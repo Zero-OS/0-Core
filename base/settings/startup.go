@@ -7,13 +7,14 @@ import (
 
 //StartupCmd startup command config
 type Startup struct {
-	After        []string
-	RunningDelay int
-	RunningMatch string
-	Name         string
-	Args         map[string]interface{}
+	After           []string
+	RunningDelay    int
+	RunningMatch    string
+	RecurringPeriod int
+	Name            string
+	Args            map[string]interface{}
 
-	key          string
+	key string
 }
 
 func (s Startup) String() string {

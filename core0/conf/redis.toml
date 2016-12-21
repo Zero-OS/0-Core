@@ -4,18 +4,18 @@
 #
 # Code assumes that this socket is available in the given location
 
-[startup.redis-private]
+[startup."redis.private"]
 name = "core.system"
 running_match = "The server is now ready to accept connections"
 
-[startup.redis-private.args]
+[startup."redis.private".args]
 name = "redis-server"
 args = ["--unixsocket", "/var/run/redis.socket", "--port", "0"]
 
-[startup.redis-public]
+[startup."redis.public"]
 name = "core.system"
 running_match = "The server is now ready to accept connections"
 
-[startup.redis-public.args]
+[startup."redis.public".args]
 name = "redis-server"
 args = ["--bind", "0.0.0.0", "--port", "6379"]

@@ -286,9 +286,10 @@ func (pm *PM) RunSlice(slice settings.StartupSlice) {
 		}
 
 		cmd := &core.Command{
-			ID:        startup.Key(),
-			Command:   startup.Name,
-			Arguments: core.MustArguments(startup.Args),
+			ID:              startup.Key(),
+			Command:         startup.Name,
+			RecurringPeriod: startup.RecurringPeriod,
+			Arguments:       core.MustArguments(startup.Args),
 		}
 
 		go func(up settings.Startup, c *core.Command) {

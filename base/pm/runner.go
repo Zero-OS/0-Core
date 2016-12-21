@@ -232,7 +232,7 @@ loop:
 		}
 
 		if restarting {
-			log.Infof("Recurring '%s' in %d", runner.command, restartIn)
+			log.Infof("Recurring '%s' in %s", runner.command, restartIn)
 			select {
 			case <-time.After(restartIn):
 			case <-runner.kill:
