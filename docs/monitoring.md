@@ -81,7 +81,7 @@ network.throughput.outgoing@phys.lo
 network.throughput.outgoing@phys.zt0
 ```
 
-It's not automated to run by default, but by including this [config](../core0/conf/monitor.toml]) it will be 
+It's not automated to run by default, but by including this [config](../core0/conf/monitor.toml) it will be 
 scheduled to run automatically and report system metrics
  
 ## Where do the metrics go anyway?
