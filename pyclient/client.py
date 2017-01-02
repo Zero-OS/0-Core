@@ -3,6 +3,8 @@ import uuid
 import json
 import textwrap
 import shlex
+import typchk
+
 
 class Timeout(Exception):
     pass
@@ -221,15 +223,27 @@ class ContainerClient(BaseClient):
 
         self._client = client
         self._container = container
+        self._checker = typchk.Checker({
+            'container': int,
+            'command': {
+                'command': str,
+                'arguments': typchk.Any(),
+            }
+        })
 
     def raw(self, command, arguments):
-        response = self._client.raw('corex.dispatch', {
+        args = {
             'container': self._container,
             'command': {
                 'command': command,
                 'arguments': arguments,
             },
-        })
+        }
+
+        if not self._checker.check(args):
+            raise ValueError('invalid input')
+
+        response = self._client.raw('corex.dispatch', args)
 
         result = response.get()
         if result.state != 'SUCCESS':
@@ -240,6 +254,32 @@ class ContainerClient(BaseClient):
 
 
 class ContainerManager:
+    _create_chk = typchk.Checker({
+        'root': str,
+        'mount': typchk.Or(
+            typchk.Map(str, str),
+            typchk.IsNone()
+        ),
+        'network': {
+            'zerotier': typchk.Or(
+                str,
+                typchk.IsNone()
+            ),
+            'bridge': typchk.Or(
+                [typchk.Length([str], 2)],
+                typchk.IsNone()
+            ),  # list of tuples each of length 2 or None
+        },
+        'port': typchk.Or(
+            typchk.Map(int, int),
+            typchk.IsNone()
+        ),
+        'hostname': typchk.Or(
+            str,
+            typchk.IsNone()
+        ),
+    })
+
     def __init__(self, client):
         self._client = client
 
@@ -272,7 +312,9 @@ class ContainerManager:
                          if None it will automatically be set to core-x,
                          x beeing the ID of the container
         """
-        response = self._client.raw('corex.create', {
+
+
+        args = {
             'root': root_url,
             'mount': mount,
             'network': {
@@ -281,7 +323,12 @@ class ContainerManager:
             },
             'port': port,
             'hostname': hostname,
-        })
+        }
+
+        if not self._create_chk.check(args):
+            raise ValueError('invalid input')
+
+        response = self._client.raw('corex.create', args)
 
         result = response.get()
         if result.state != 'SUCCESS':
