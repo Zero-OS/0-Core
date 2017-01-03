@@ -10,11 +10,58 @@ class CheckerException(BaseException):
     pass
 
 
+class Tracker(BaseException):
+    def __init__(self, base):
+        self._base = base
+        self._reason = None
+        self._branches = []
+
+    @property
+    def branches(self):
+        return self._branches
+
+    def copy(self):
+        l = self._base.copy()
+        t = Tracker(l)
+        t._reason = self._reason
+        return t
+
+    def push(self, s):
+        t = self.copy()
+        t._base.append(str(s))
+        return t
+
+    def pop(self):
+        t = self.copy()
+        t._base.pop()
+        return t
+
+    def reason(self, reason):
+        self._reason = reason
+        return self
+
+    def branch(self, tracker):
+        t = tracker.copy()
+        self._branches.append(t)
+
+    def __str__(self):
+        u = "/".join(self._base)
+        if self._reason is not None:
+            u = '[{}] at -> {}'.format(self._reason, u)
+        for branch in self.branches:
+            u += '\n  -> {}'.format(branch)
+
+        return u
+
+    def __repr__(self):
+        return str(self)
+
+
 class Option:
     def __init__(self):
         raise NotImplementedError()
 
-    def check(self, object):
+    def check(self, object, t):
         raise NotImplementedError()
 
 
@@ -24,35 +71,41 @@ class Or(Option):
         for typ in types:
             self._checkers.append(Checker(typ))
 
-    def check(self, object):
+    def check(self, object, t):
+        bt = t.copy()
         for chk in self._checkers:
-            if chk.check(object) is True:
-                return True
-        return False
+            try:
+                chk.check(object, bt)
+                return
+            except Tracker as tx:
+                t.branch(tx)
+        raise t.reason('all branches failed')
 
 
 class IsNone(Option):
     def __init__(self):
         pass
 
-    def check(self, object):
-        return object is None
+    def check(self, object, t):
+        if object is not None:
+            raise t.reason('is not none')
 
 
 class Missing(Option):
     def __init__(self):
         pass
 
-    def check(self, object):
-        return object == missing
+    def check(self, object, t):
+        if object != missing:
+            raise t.reason('is not missing')
 
 
 class Any(Option):
     def __init__(self):
         pass
 
-    def check(self, object):
-        return True
+    def check(self, object, t):
+        return
 
 
 class Length(Option):
@@ -60,10 +113,10 @@ class Length(Option):
         self._checker = Checker(typ)
         self._len = len
 
-    def check(self, object):
-        if not self._checker.check(object):
-            return False
-        return len(object) == self._len
+    def check(self, object, t):
+        self._checker.check(object, t)
+        if len(object) != self._len:
+            raise t.reason('invalid length, expecting {} got {}'.format(self._len, len(object)))
 
 
 class Map(Option):
@@ -71,15 +124,14 @@ class Map(Option):
         self._key = Checker(key_type)
         self._value = Checker(value_type)
 
-    def check(self, object):
+    def check(self, object, t):
         if not isinstance(object, dict):
-            return False
+            raise t
         for k, v in object.items():
-            if not self._key.check(k):
-                return False
-            if not self._value.check(v):
-                return False
-        return True
+            tx = t.push(k)
+            self._key.check(k, tx)
+            tv = t.push('{}[value]'.format(k))
+            self._value.check(v, tv)
 
 
 class Checker:
@@ -128,53 +180,50 @@ class Checker:
     def __init__(self, tyepdef):
         self._typ = tyepdef
 
-    def check(self, object):
-        return self._check(self._typ, object)
+    def check(self, object, tracker=None):
+        if tracker is None:
+            tracker = Tracker([]).push('/')
+        return self._check(self._typ, object, tracker)
 
-    def _check_list(self, typ, obj_list):
-        for elem in obj_list:
-            if not self._check(typ, elem):
-                return False
-        return True
+    def _check_list(self, typ, obj_list, t):
+        for i, elem in enumerate(obj_list):
+            tx = t.push('[{}]'.format(i))
+            self._check(typ, elem, tx)
 
-    def _check_dict(self, typ, obj_dict):
+    def _check_dict(self, typ, obj_dict, t):
         given = []
         for name, value in obj_dict.items():
+            tx = t.push(name)
             if name not in typ:
-                return False
+                raise tx.reason('unknown key "{}"'.format(name))
             given.append(name)
             attr_type = typ[name]
-            if not self._check(attr_type, value):
-                return False
+            self._check(attr_type, value, tx)
 
         if len(given) == len(typ):
-            return True
+            return
 
         type_keys = list(typ.keys())
         for key in given:
             type_keys.remove(key)
 
         for required in type_keys:
-            if not self._check(typ[required], missing):
-                return False
-        return True
+            tx = t.push(required)
+            self._check(typ[required], missing, tx)
 
-    def _check(self, typ, object):
+    def _check(self, typ, object, t):
         if isinstance(typ, Option):
-            return typ.check(object)
+            return typ.check(object, t)
 
         atyp = type(object)
-        if primitive(atyp):
-            return atyp == typ
+        if primitive(atyp) and atyp != typ:
+            raise t.reason('invalid type, expecting {}'.format(typ))
 
         if isinstance(typ, (list, tuple)):
             if atyp != list:
-                return False
-            return self._check_list(typ[0], object)
+                raise t.reason('expecting a list')
+            self._check_list(typ[0], object, t)
         elif isinstance(typ, dict):
             if atyp != dict:
-                return False
-            return self._check_dict(typ, object)
-
-        return False
-
+                raise t.reason('expecting a dict')
+            self._check_dict(typ, object, t)

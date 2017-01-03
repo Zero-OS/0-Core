@@ -324,7 +324,7 @@ class ContainerManager:
             'port': port,
             'hostname': hostname,
         }
-
+        import ipdb; ipdb.set_trace()
         if not self._create_chk.check(args):
             raise ValueError('invalid input')
 
