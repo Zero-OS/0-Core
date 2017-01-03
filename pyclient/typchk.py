@@ -126,12 +126,23 @@ class Map(Option):
 
     def check(self, object, t):
         if not isinstance(object, dict):
-            raise t
+            raise t.reason('expecting a dict, got {}'.format(type(object)))
         for k, v in object.items():
             tx = t.push(k)
             self._key.check(k, tx)
             tv = t.push('{}[value]'.format(k))
             self._value.check(v, tv)
+
+
+class Enum(Option):
+    def __init__(self, *valid):
+        self._valid = valid
+
+    def check(self, object, t):
+        if not isinstance(object, str):
+            raise t.reason('expecting string, got {}'.format(type(object)))
+        if object not in self._valid:
+            raise t.reason('value "{}" not in enum'.format(object))
 
 
 class Checker:
