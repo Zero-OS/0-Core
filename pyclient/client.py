@@ -114,6 +114,10 @@ class InfoManager:
 
 
 class ProcessManager:
+    _process_chk = typchk.Checker({
+        'id': int,
+    })
+
     def __init__(self, client):
         self._client = client
 
@@ -123,7 +127,9 @@ class ProcessManager:
 
         :param id: optional ID for the process to list
         """
-        return self._client.json('process.list', {'id': id})
+        args = {'id': id}
+        self._process_chk.check(args)
+        return self._client.json('process.list', args)
 
     def kill(self, id):
         """
@@ -134,10 +140,24 @@ class ProcessManager:
 
         :param id: process id to kill
         """
-        return self._client.json('process.kill', {'id': id})
+        args = {'id': id}
+        self._process_chk.check(args)
+        return self._client.json('process.kill', args)
 
 
 class BaseClient:
+    _system_chk = typchk.Checker({
+        'name': str,
+        'args': [str],
+        'dir': str,
+        'stdin': str,
+        'env': typchk.Or(typchk.Map(str, str), typchk.IsNone()),
+    })
+
+    _bash_chk = typchk.Checker({
+        'stdin': str,
+    })
+
     def __init__(self):
         self._info = InfoManager(self)
         self._process = ProcessManager(self)
@@ -199,20 +219,25 @@ class BaseClient:
         if len(parts) == 0:
             raise ValueError('invalid command')
 
-        response = self.raw(command='core.system', arguments={
+        args = {
             'name': parts[0],
             'args': parts[1:],
             'dir': dir,
             'stdin': stdin,
             'env': env,
-        })
+        }
+
+        self._system_chk.check(args)
+        response = self.raw(command='core.system', arguments=args)
 
         return response
 
     def bash(self, command):
-        response = self.raw(command='bash', arguments={
+        args = {
             'stdin': command,
-        })
+        }
+        self._bash_chk.check(args)
+        response = self.raw(command='bash', arguments=args)
 
         return response
 
@@ -281,6 +306,10 @@ class ContainerManager:
         ),
     })
 
+    _terminate_chk = typchk.Checker({
+        'container': int
+    })
+
     def __init__(self, client):
         self._client = client
 
@@ -346,9 +375,11 @@ class ContainerManager:
         return json.loads(result.data)
 
     def terminate(self, container):
-        response = self._client.raw('corex.terminate', {
+        args = {
             'container': container,
-        })
+        }
+        self._terminate_chk.check(args)
+        response = self._client.raw('corex.terminate', args)
 
         result = response.get()
         if result.state != 'SUCCESS':
@@ -363,7 +394,7 @@ class BridgeManager:
         'name': str,
         'hwaddr': str,
         'network': {
-            'model': typchk.Enum('none', 'static', 'dnsmasq'),
+            'mode': typchk.Or(typchk.Enum('static', 'dnsmasq'), typchk.IsNone()),
             'nat': bool,
             'settings': typchk.Map(str, str),
         }
