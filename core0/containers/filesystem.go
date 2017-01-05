@@ -72,6 +72,9 @@ func (c *container) mountPList(src string, target string) error {
 	hash := c.hash(src)
 	backend := path.Join(BackendBaseDir, c.name(), hash)
 
+	os.RemoveAll(backend)
+	os.MkdirAll(backend, 0755)
+
 	plist, err := c.getPlist(src)
 	if err != nil {
 		return err
