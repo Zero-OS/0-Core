@@ -35,7 +35,8 @@ const (
 
 	OSTypeTypeHVM OSTypeType = "hvm"
 
-	ArchI686 = "i686"
+	ArchI686   = "i686"
+	ArchX86_64 = "x86_64"
 )
 
 type OSType struct {
@@ -47,6 +48,11 @@ type OS struct {
 	Type OSType `xml:"type"`
 }
 
+type Memory struct {
+	Capacity int    `xml:",chardata"`
+	Unit     string `xml:"unit,attr,omitempty"`
+}
+
 type Device interface{}
 
 type Domain struct {
@@ -54,7 +60,7 @@ type Domain struct {
 	Type    DomainType `xml:"type,attr"`
 	Name    string     `xml:"name"`
 	UUID    string     `xml:"uuid"`
-	Memory  int        `xml:"memory"`
+	Memory  Memory     `xml:"memory"`
 	VCPU    int        `xml:"vcpu`
 	OS      OS         `xml:"os"`
 	Devices Devices    `xml:"devices"`
@@ -90,6 +96,7 @@ type DiskSourceBlock struct {
 
 type DiskTarget struct {
 	Dev string `xml:"dev,attr"`
+	Bus string `xml:"bus,attr"`
 }
 
 type DiskDevice struct {
