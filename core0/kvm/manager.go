@@ -116,6 +116,7 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 	defer os.Remove(tmp.Name())
+	defer tmp.Close()
 
 	if _, err := tmp.Write(data); err != nil {
 		return nil, fmt.Errorf("failed to write domain xml: %s", err)
