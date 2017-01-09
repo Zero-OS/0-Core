@@ -113,9 +113,33 @@ const (
 	GraphicsDeviceTypeVNC GraphicsDeviceType = "vnc"
 )
 
+type Listen struct {
+	Type    string `xml:"type,attr"`
+	Address string `xml:"address,attr"`
+}
+
 type GraphicsDevice struct {
 	XMLName xml.Name           `xml:"graphics"`
 	Type    GraphicsDeviceType `xml:"type,attr"`
 	Port    int                `xml:"port,attr"`
 	KeyMap  string             `xml:"keymap,attr"`
+	Listen  Listen             `xml:"listen"`
+}
+
+type InterfaceDeviceType string
+
+const (
+	InterfaceDeviceTypeBridge InterfaceDeviceType = "bridge"
+)
+
+type InterfaceDeviceSource interface{}
+
+type InterfaceDeviceSourceBridge struct {
+	Bridge string `xml:"bridge,attr"`
+}
+
+type InterfaceDevice struct {
+	XMLName xml.Name              `xml:"interface"`
+	Type    InterfaceDeviceType   `xml:"type,attr"`
+	Source  InterfaceDeviceSource `xml:"source"`
 }

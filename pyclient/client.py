@@ -769,6 +769,53 @@ class ZerotierManager:
         return json.loads(data)
 
 
+class KvmManager:
+    _create_chk = typchk.Checker({
+        'name': str,
+        'image': str,
+        'cpu': int,
+        'memory': int,
+        'bridge': typchk.Or(str, typchk.IsNone()),
+    })
+
+    _destroy_chk = typchk.Checker({
+        'name': str,
+    })
+
+    def __init__(self, client):
+        self._client =  client
+
+    def create(self, name, image, cpu=2, memory=512, bridge=None):
+        args = {
+            'name': name,
+            'image': image,
+            'cpu': cpu,
+            'memory': memory,
+            'bridge': bridge,
+        }
+        self._create_chk.check(args)
+
+        self._client.sync('kvm.create', args)
+
+    def destroy(self, name):
+        args = {
+            'name': name,
+        }
+        self._create_chk.check(args)
+
+        self._client.sync('kvm.destroy', args)
+
+    def list(self):
+        return self._client.json('kvm.list', {})
+
+class Experimental:
+    def __init__(self, client):
+        self._kvm = KvmManager(client)
+
+    @property
+    def kvm(self):
+        return self._kvm
+
 class Client(BaseClient):
     def __init__(self, host, port=6379, password="", db=0):
         super().__init__()
@@ -779,6 +826,11 @@ class Client(BaseClient):
         self._disk_manager = DiskManager(self)
         self._btrfs_manager = BtrfsManager(self)
         self._zerotier = ZerotierManager(self)
+        self._experimntal = Experimental(self)
+
+    @property
+    def experimental(self):
+        return self._experimntal
 
     @property
     def container(self):
