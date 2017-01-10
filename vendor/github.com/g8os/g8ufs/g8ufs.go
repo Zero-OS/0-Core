@@ -20,6 +20,13 @@ var (
 	log = logging.MustGetLogger("g8ufs")
 )
 
+type Starter interface {
+	Start() error
+	Wait() error
+}
+
+type Exec func(name string, arg ...string) Starter
+
 type Options struct {
 	//PList (required) to mount
 	PList string
@@ -36,12 +43,18 @@ type Options struct {
 	Storage storage.Storage
 	//Reset if set, will wipe up the backend clean before mounting.
 	Reset bool
+
+	Exec Exec
 }
 
 type G8ufs struct {
 	target string
 	server *fuse.Server
-	cmd    *exec.Cmd
+	cmd    Starter
+}
+
+func DefaultExec(name string, arg ...string) Starter {
+	return exec.Command(name, arg...)
 }
 
 //Mount mounts fuse with given options, it blocks forever until unmount is called on the given mount point
@@ -90,9 +103,17 @@ func Mount(opt *Options) (*G8ufs, error) {
 
 	branch := fmt.Sprintf("%s=RW:%s=RO", rw, ro)
 
-	cmd := exec.Command("unionfs", "-f",
+	ex := DefaultExec
+	if opt.Exec != nil {
+		ex = opt.Exec
+	}
+
+	cmd := ex("unionfs", "-f",
 		"-o", "cow",
 		"-o", "allow_other",
+		"-o", "default_permissions",
+		"-o", "attr_timeout=0",
+		"-o", "entry_timeout=0",
 		branch, opt.Target)
 
 	if err := cmd.Start(); err != nil {

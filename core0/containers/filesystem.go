@@ -3,9 +3,13 @@ package containers
 import (
 	"crypto/md5"
 	"fmt"
+	"github.com/g8os/core0/base/pm"
+	"github.com/g8os/core0/base/pm/core"
+	"github.com/g8os/core0/base/pm/process"
 	"github.com/g8os/core0/base/settings"
 	"github.com/g8os/g8ufs"
 	"github.com/g8os/g8ufs/storage"
+	"github.com/pborman/uuid"
 	"io"
 	"net/http"
 	"net/url"
@@ -19,6 +23,28 @@ const (
 	BackendBaseDir       = "/tmp"
 	ContainerBaseRootDir = "/mnt"
 )
+
+type starterWrapper struct {
+	cmd *core.Command
+	run pm.Runner
+}
+
+func (s *starterWrapper) Start() error {
+	runner, err := pm.GetManager().RunCmd(s.cmd)
+	s.run = runner
+	return err
+}
+
+func (s *starterWrapper) Wait() error {
+	if s.run == nil {
+		return fmt.Errorf("not started")
+	}
+	r := s.run.Wait()
+	if r.State != core.StateSuccess {
+		return fmt.Errorf("exit error: %s", r.Streams[1])
+	}
+	return nil
+}
 
 func (c *container) name() string {
 	return fmt.Sprintf("container-%d", c.id)
@@ -63,6 +89,21 @@ func (c *container) getPlist(src string) (string, error) {
 	return "", fmt.Errorf("invalid plist url %s", src)
 }
 
+func (c *container) exec(name string, arg ...string) g8ufs.Starter {
+	return &starterWrapper{
+		cmd: &core.Command{
+			ID:      uuid.New(),
+			Command: process.CommandSystem,
+			Arguments: core.MustArguments(
+				process.SystemCommandArguments{
+					Name: name,
+					Args: arg,
+				},
+			),
+		},
+	}
+}
+
 func (c *container) mountPList(src string, target string) error {
 	//check
 	if err := os.MkdirAll(target, 0755); err != nil {
@@ -96,6 +137,7 @@ func (c *container) mountPList(src string, target string) error {
 		Target:  target,
 		Storage: aydo,
 		Reset:   true,
+		Exec:    c.exec,
 	})
 
 	if err != nil {

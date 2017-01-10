@@ -32,4 +32,4 @@ aysfs
 Godeps/_workspace
 tags
 *.swp
-g8ufs
+cmd/cmd

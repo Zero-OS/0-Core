@@ -31,19 +31,19 @@
 		},
 		{
 			"ImportPath": "github.com/g8os/g8ufs",
-			"Rev": "0e0f259c47df16ed443923ccbc6069ddc32a206f"
+			"Rev": "a45f2a4038adf77eb7bf3978248f016d69ddf7e4"
 		},
 		{
 			"ImportPath": "github.com/g8os/g8ufs/meta",
-			"Rev": "0e0f259c47df16ed443923ccbc6069ddc32a206f"
+			"Rev": "a45f2a4038adf77eb7bf3978248f016d69ddf7e4"
 		},
 		{
 			"ImportPath": "github.com/g8os/g8ufs/rofs",
-			"Rev": "0e0f259c47df16ed443923ccbc6069ddc32a206f"
+			"Rev": "a45f2a4038adf77eb7bf3978248f016d69ddf7e4"
 		},
 		{
 			"ImportPath": "github.com/g8os/g8ufs/storage",
-			"Rev": "0e0f259c47df16ed443923ccbc6069ddc32a206f"
+			"Rev": "a45f2a4038adf77eb7bf3978248f016d69ddf7e4"
 		},
 		{
 			"ImportPath": "github.com/garyburd/redigo/internal",
@@ -165,6 +165,16 @@
 		{
 			"ImportPath": "golang.org/x/sys/unix",
 			"Rev": "833a04a10549a95dc34458c195cbad61bbb6cb4d"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/vendor/github.com/davecgh/go-spew/spew",
+			"Comment": "v1.1.4-4-g976c720",
+			"Rev": "976c720a22c8eb4eb6a0b4348ad85ad12491a506"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/vendor/github.com/pmezard/go-difflib/difflib",
+			"Comment": "v1.1.4-4-g976c720",
+			"Rev": "976c720a22c8eb4eb6a0b4348ad85ad12491a506"
 		}
 	]
 }
