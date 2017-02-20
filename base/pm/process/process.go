@@ -39,7 +39,10 @@ type Process interface {
 	Command() *core.Command
 	Run() (<-chan *stream.Message, error)
 	Kill()
-	GetStats() *ProcessStats
+}
+
+type Stater interface {
+	Stats() *ProcessStats
 }
 
 type ProcessFactory func(PIDTable, *core.Command) Process

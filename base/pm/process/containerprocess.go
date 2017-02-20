@@ -49,7 +49,7 @@ func (process *containerProcessImpl) Kill() {
 }
 
 //GetStats gets stats of an external process
-func (process *containerProcessImpl) GetStats() *ProcessStats {
+func (process *containerProcessImpl) Stats() *ProcessStats {
 	stats := ProcessStats{}
 	stats.Cmd = process.cmd
 

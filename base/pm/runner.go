@@ -1,13 +1,10 @@
 package pm
 
 import (
-	"fmt"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
 	"github.com/g8os/core0/base/pm/stream"
-	"github.com/g8os/core0/base/stats"
 	"github.com/g8os/core0/base/utils"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -34,9 +31,7 @@ type runnerImpl struct {
 	kill    chan int
 
 	process process.Process
-	statsd  *stats.Statsd
-
-	hooks []RunnerHook
+	hooks   []RunnerHook
 
 	waitOnce sync.Once
 	result   *core.JobResult
@@ -73,11 +68,6 @@ func NewRunner(manager *PM, command *core.Command, factory process.ProcessFactor
 		factory: factory,
 		kill:    make(chan int),
 		hooks:   hooks,
-
-		statsd: stats.NewStatsd(
-			command.ID,
-			time.Duration(statsInterval)*time.Second,
-			manager.statsFlushCallback),
 	}
 
 	runner.wg.Add(1)
@@ -94,21 +84,6 @@ func (runner *runnerImpl) timeout() <-chan time.Time {
 		timeout = time.After(time.Duration(runner.command.MaxTime) * time.Second)
 	}
 	return timeout
-}
-
-func (runner *runnerImpl) meter() {
-	process := runner.process
-	if process == nil {
-		return
-	}
-
-	stats := process.GetStats()
-	//feed statsd
-	statsd := runner.statsd
-	statsd.Gauage("_cpu_", fmt.Sprintf("%f", stats.CPU))
-	statsd.Gauage("_rss_", fmt.Sprintf("%d", stats.RSS))
-	statsd.Gauage("_vms_", fmt.Sprintf("%d", stats.VMS))
-	statsd.Gauage("_swap_", fmt.Sprintf("%d", stats.Swap))
 }
 
 func (runner *runnerImpl) run() *core.JobResult {
@@ -144,8 +119,6 @@ func (runner *runnerImpl) run() *core.JobResult {
 	stderrBuffer := stream.NewBuffer(StreamBufferSize)
 
 	timeout := runner.timeout()
-	meterTicker := time.NewTicker(meterPeriod)
-	defer meterTicker.Stop()
 
 	handlersTicker := time.NewTicker(1 * time.Second)
 	defer handlersTicker.Stop()
@@ -160,8 +133,6 @@ loop:
 			process.Kill()
 			jobresult.State = core.StateTimeout
 			break loop
-		case <-meterTicker.C:
-			runner.meter()
 		case <-handlersTicker.C:
 			d := time.Now().Sub(starttime)
 			for _, hook := range runner.hooks {
@@ -177,8 +148,6 @@ loop:
 				stdoutBuffer.Append(message.Message)
 			} else if message.Level == stream.LevelStderr {
 				stderrBuffer.Append(message.Message)
-			} else if message.Level == stream.LevelStatsd {
-				runner.statsd.Feed(strings.Trim(message.Message, " "))
 			} else if message.Level == stream.LevelCritical {
 				critical = message.Message
 			}
@@ -218,7 +187,6 @@ func (runner *runnerImpl) Run() {
 	runs := 0
 	var result *core.JobResult
 	defer func() {
-		runner.statsd.Stop()
 		if result != nil {
 			runner.result = result
 			runner.manager.resultCallback(runner.command, result)
@@ -231,8 +199,6 @@ func (runner *runnerImpl) Run() {
 		runner.manager.cleanUp(runner)
 	}()
 
-	//start statsd
-	runner.statsd.Run()
 loop:
 	for {
 		result = runner.run()
@@ -264,7 +230,7 @@ loop:
 		}
 
 		if restarting {
-			log.Infof("Recurring '%s' in %d", runner.command, restartIn)
+			log.Infof("Recurring '%s' in %s", runner.command, restartIn)
 			select {
 			case <-time.After(restartIn):
 			case <-runner.kill:

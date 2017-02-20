@@ -52,7 +52,7 @@ func (process *systemProcessImpl) Kill() {
 }
 
 //GetStats gets stats of an external process
-func (process *systemProcessImpl) GetStats() *ProcessStats {
+func (process *systemProcessImpl) Stats() *ProcessStats {
 	stats := ProcessStats{}
 	stats.Cmd = process.cmd
 
