@@ -8,7 +8,8 @@ Systemd replacement for G8OS
 
 ## Releases:
 - [0.9.0](https://github.com/g8os/core0/tree/0.9.0)
-- [0.10.0](https://github.com/g8os/core0/tree/0.10.0) - last release
+- [0.10.0](https://github.com/g8os/core0/tree/0.10.0)
+- [0.11.0](https://github.com/g8os/core0/tree/0.11.0) - last release
 
 ## Sample setup
 The following steps will create a docker container that have core0 as the init process. When running,
@@ -97,6 +98,10 @@ v0.9:
 
 v0.10:
 - change datastore for fuse filesystem from ipfs to [G8OS Store](https://github.com/g8os/stor).
+
+v0.11:
+- include of the monitoring of all processes running on the g8os.
+  It produces aggregated statistics on the processes that can be dump into a time series database and displayed used something like grafana.
 
 
 # Available Commands

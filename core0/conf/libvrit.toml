@@ -1,0 +1,11 @@
+[startup.libvirt]
+name = "core.system"
+
+[startup.libvirt.args]
+name = "libvirtd"
+
+[startup.virtlogd]
+name = "core.system"
+
+[startup.virtlogd.args]
+name = "virtlogd"

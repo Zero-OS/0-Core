@@ -1,16 +1,15 @@
-[startup._ssh]
-name = "bash"
-must_exit = true
-data = """
-mkdir -p /var/run/sshd
-"""
+[startup."ssh.init"]
+name = "core.system"
+running_delay = -1
+
+[startup."ssh.init".args]
+name = "mkdir"
+args = ["-p", "/var/run/sshd"]
 
 [startup.sshd]
-after = ["_ssh"]
-name = "execute"
+after = ["ssh.init"]
+name = "core.system"
 
 [startup.sshd.args]
-loglevels_db = '2'
-domain = "core"
 name = "/usr/sbin/sshd"
 args = ["-D"]
