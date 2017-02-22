@@ -3,7 +3,7 @@ import uuid
 import json
 import textwrap
 import shlex
-import typchk
+from g8core import typchk
 
 
 class Timeout(Exception):
