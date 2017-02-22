@@ -36,4 +36,4 @@ flush_interval = 10 # seconds
 address = "127.0.0.1:6379"
 
 [globals]
-fuse_storage = "https://stor.jumpscale.org/stor2/store/ubuntu-g8os-flist/"
+fuse_storage = "ardb://home.maxux.net:26379"

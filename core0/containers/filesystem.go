@@ -144,23 +144,42 @@ func (c *container) getMetaDB(src string) (string, error) {
 
 	archive := tar.NewReader(reader)
 	db := path.Join(BackendBaseDir, c.name(), fmt.Sprintf("%s.db", c.hash(src)))
-	os.MkdirAll(db, 0755)
-	for header, err := archive.Next(); err != nil; {
+	log.Debugf("Extracting meta to %s", db)
+	if err := os.MkdirAll(db, 0755); err != nil {
+		return "", err
+	}
+
+	for {
+		header, err := archive.Next()
+		if err != nil && err != io.EOF {
+			return "", err
+		} else if err == io.EOF {
+			break
+		}
+
+		if header.FileInfo().IsDir() {
+			continue
+		}
+
 		base := path.Join(db, path.Dir(header.Name))
-		os.MkdirAll(base, 0755)
+		log.Debugf("extracting: %s", header.Name)
+		if err := os.MkdirAll(base, 0755); err != nil {
+			return "", err
+		}
 
 		file, err := os.Create(path.Join(db, header.Name))
 		if err != nil {
-			return db, err
+			return "", err
 		}
 
 		if _, err := io.Copy(file, archive); err != nil {
 			file.Close()
-			return db, err
+			return "", err
 		}
 
 		file.Close()
 	}
+
 	return db, nil
 }
 
