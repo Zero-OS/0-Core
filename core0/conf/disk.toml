@@ -2,17 +2,39 @@
 binary = "sh"
 args = ["-c", "echo 20::: && lsblk -J -b && echo :::"]
 
+[extension."disk.getpart"]
+binary = "sh"
+args = ["-c", """
+set -e
+echo 20:::
+START=$(cat /sys/block/{disk}/{part}/start)
+SIZE=$(cat /sys/block/{disk}/{part}/size)
+BLOCKSIZE=$(parted /dev/sda unit B print |grep Sector| cut -d: -f2|cut -d/ -f1)
+BLOCKSIZE=${BLOCKSIZE%B}
+START=$(($START*$BLOCKSIZE))
+SIZE=$(($SIZE*$BLOCKSIZE))
+
+cat <<EOF
+{
+    \"blocksize\": ${BLOCKSIZE},
+    \"start\": ${START},
+    \"size\": ${SIZE}
+}
+EOF
+echo :::
+"""]
+
 [extension."disk.mktable"]
 binary = "parted"
-args = ["{disk}", "mktable", "{table_type}"]
+args = ["/dev/{disk}", "mktable", "{table_type}"]
 
 [extension."disk.mkpart"]
 binary = "parted"
-args = ["{disk}", "mkpart", "{part_type}", "{start}", "{end}"]
+args = ["/dev/{disk}", "mkpart", "{part_type}", "{start}", "{end}"]
 
 [extension."disk.rmpart"]
 binary = "parted"
-args = ["{disk}", "rm", "{number}"]
+args = ["/dev/{disk}", "rm", "{number}"]
 
 [extension."disk.mount"]
 binary = "mount"

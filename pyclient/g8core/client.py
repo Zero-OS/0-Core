@@ -484,6 +484,11 @@ class DiskManager:
         'part_type': typchk.Enum('primary', 'logical', 'extended'),
     })
 
+    _getpart_chk = typchk.Checker({
+        'disk': str,
+        'part': str,
+    })
+
     _rmpart_chk = typchk.Checker({
         'disk': str,
         'number': int,
@@ -542,10 +547,41 @@ class DiskManager:
         if result.state != 'SUCCESS':
             raise RuntimeError('failed to create table: %s' % result.stderr)
 
+    def getpart(self, disk, part):
+        """
+        Get more info about the partition
+
+        :param disk: (sda, sdb, etc..)
+        :param part: (sda1, sdb2, etc...)
+        :return: a dict with {"blocksize", "start", and "size"}
+        """
+        args = {
+            "disk": disk,
+            "part": part,
+        }
+
+        self._getpart_chk.check(args)
+
+        response = self._client.raw('disk.getpart', args)
+
+        result = response.get()
+
+        if result.state != 'SUCCESS':
+            raise RuntimeError('failed to get partition info: %s' % result.stderr)
+
+        if result.level != 20:  # 20 is JSON output.
+            raise RuntimeError('invalid response type from disk.getpart command')
+
+        data = result.data.strip()
+        if data:
+            return json.loads(data)
+        else:
+            return {}
+
     def mkpart(self, disk, start, end, part_type='primary'):
         """
         Make partition on disk
-        :param disk: Full device path like /dev/sda
+        :param disk: device name (sda, sdb, etc...)
         :param start: partition start as accepted by parted mkpart
         :param end: partition end as accepted by parted mkpart
         :param part_type: partition type as accepted by parted mkpart
@@ -569,7 +605,7 @@ class DiskManager:
     def rmpart(self, disk, number):
         """
         Remove partion from disk
-        :param disk: Full device path like /dev/sda
+        :param disk: device name (sda, sdb, etc...)
         :param number: Partition number (starting from 1)
         """
         args = {
