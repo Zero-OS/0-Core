@@ -9,8 +9,7 @@ set -e
 echo 20:::
 START=$(cat /sys/block/{disk}/{part}/start)
 SIZE=$(cat /sys/block/{disk}/{part}/size)
-BLOCKSIZE=$(parted /dev/sda unit B print |grep Sector| cut -d: -f2|cut -d/ -f1)
-BLOCKSIZE=${BLOCKSIZE%B}
+BLOCKSIZE=$(lsblk -n -r -o PHY-SEC /dev/{part})
 START=$(($START*$BLOCKSIZE))
 SIZE=$(($SIZE*$BLOCKSIZE))
 
