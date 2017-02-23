@@ -243,7 +243,7 @@ func (c *container) mountPList(src string, target string) error {
 		return err
 	}
 
-	go func() {
+	go func(fs *g8ufs.G8ufs) {
 		err := fs.Wait()
 		if err != nil {
 			switch e := err.(type) {
@@ -254,7 +254,7 @@ func (c *container) mountPList(src string, target string) error {
 				log.Errorf("unionfs exited with err: %s", e)
 			}
 		}
-	}()
+	}(fs)
 
 	return nil
 }
