@@ -16,7 +16,7 @@ setup (
     long_description=long_description,
     url='https://github.com/g8os/core0',
     author='Muhamad Azmy',
-    author_email='muhamad.azmy@greenitglobe.com',
+    author_email='muhamada@greenitglobe.com'
     license='Apache 2.0',
     packages=find_packages(),
     install_requires=['redis>=2.10.5'],
