@@ -2,25 +2,65 @@
 binary = "sh"
 args = ["-c", "echo 20::: && lsblk -J -b && echo :::"]
 
-[extension."disk.getpart"]
+[extension."disk.getinfo"]
 binary = "sh"
 args = ["-c", """
 set -e
-echo 20:::
-START=$(cat /sys/block/{disk}/{part}/start)
-SIZE=$(cat /sys/block/{disk}/{part}/size)
-BLOCKSIZE=$(lsblk -n -r -o PHY-SEC /dev/{part})
+
+DISK={disk}
+PART={part}
+
+START=0
+SIZE=0
+BLOCKSIZE=1
+
+if [ -n \"$PART\" ]; then
+    START=$(cat /sys/block/{disk}/{part}/start)
+    SIZE=$(cat /sys/block/{disk}/{part}/size)
+    BLOCKSIZE=$(lsblk -n -r -o PHY-SEC /dev/{part})
+else
+    SIZE=$(cat /sys/block/{disk}/size)
+    BLOCKSIZE=$(lsblk -n -r -o PHY-SEC /dev/{disk}|head -n 1)
+fi
+
 START=$(($START*$BLOCKSIZE))
 SIZE=$(($SIZE*$BLOCKSIZE))
+END=$(($START+$SIZE-1))
+cat <<EOF
+20:::
+{
+    \"blocksize\": $BLOCKSIZE,
+    \"start\": $START,
+    \"size\": $SIZE,
+    \"end\": $END,
+    \"free\": [
+EOF
+
+if [ -z \"$PART\" ]; then
+FREE=()
+for value in $(parted /dev/$DISK unit B print free |grep 'Free Space'|awk '{print $1 \" \" $2 \" \" $3 }'); do
+    value=${value%B}
+    if [ ${#FREE[@]} -eq 3 ]; then
+        cat <<EOF
+{\"start\": ${FREE[0]}, \"end\": ${FREE[1]}, \"size\": ${FREE[2]}},
+EOF
+        FREE=($value)
+    else
+        FREE+=($value)
+    fi
+done
+
+if [ ${#FREE[@]} -eq 3 ]; then
+   cat <<EOF
+{\"start\": ${FREE[0]}, \"end\": ${FREE[1]}, \"size\": ${FREE[2]}}
+EOF
+fi
+fi
 
 cat <<EOF
-{
-    \"blocksize\": ${BLOCKSIZE},
-    \"start\": ${START},
-    \"size\": ${SIZE}
-}
+]}
+:::
 EOF
-echo :::
 """]
 
 [extension."disk.mktable"]

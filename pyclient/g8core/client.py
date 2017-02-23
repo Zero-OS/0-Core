@@ -547,13 +547,13 @@ class DiskManager:
         if result.state != 'SUCCESS':
             raise RuntimeError('failed to create table: %s' % result.stderr)
 
-    def getpart(self, disk, part):
+    def getinfo(self, disk, part=''):
         """
-        Get more info about the partition
+        Get more info about a disk or a disk partition
 
         :param disk: (sda, sdb, etc..)
         :param part: (sda1, sdb2, etc...)
-        :return: a dict with {"blocksize", "start", and "size"}
+        :return: a dict with {"blocksize", "start", "size", and "free" sections}
         """
         args = {
             "disk": disk,
@@ -562,15 +562,15 @@ class DiskManager:
 
         self._getpart_chk.check(args)
 
-        response = self._client.raw('disk.getpart', args)
+        response = self._client.raw('disk.getinfo', args)
 
         result = response.get()
 
         if result.state != 'SUCCESS':
-            raise RuntimeError('failed to get partition info: %s' % result.stderr)
+            raise RuntimeError('failed to get info: %s' % result.stderr)
 
         if result.level != 20:  # 20 is JSON output.
-            raise RuntimeError('invalid response type from disk.getpart command')
+            raise RuntimeError('invalid response type from disk.getinfo command')
 
         data = result.data.strip()
         if data:
