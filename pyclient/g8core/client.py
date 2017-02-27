@@ -3,6 +3,7 @@ import uuid
 import json
 import textwrap
 import shlex
+import base64
 from g8core import typchk
 
 
@@ -144,6 +145,93 @@ class ProcessManager:
         self._process_chk.check(args)
         return self._client.json('process.kill', args)
 
+class FilesystemManager:
+    def __init__(self, client):
+        self._client = client
+
+    def open(self, file, mode='r', perm=0o0644):
+        args = {
+            'file': file,
+            'mode': mode,
+            'perm': perm,
+        }
+
+        return self._client.json('filesystem.open', args)
+
+    def read(self, fd):
+        args = {
+            'fd': fd,
+        }
+
+        data = self._client.json('filesystem.read', args)
+        return base64.decodebytes(data.encode())
+
+    def write(self, fd, bytes):
+        args = {
+            'fd': fd,
+            'block': base64.encodebytes(bytes).decode(),
+        }
+
+        return self._client.json('filesystem.write', args)
+
+    def close(self, fd):
+        args = {
+            'fd': fd,
+        }
+
+        return self._client.json('filesystem.close', args)
+
+    def upload(self, remote, reader):
+        """
+        Uploads a file
+        :param remote: remote file name
+        :param reader: an object that implements the read(size) method (typically a file descriptor)
+        :return:
+        """
+
+        fd = self.open(remote, 'wx')
+        while True:
+            chunk = reader.read(512*1024)
+            if chunk == b'':
+                break
+            self.write(fd, chunk)
+        self.close(fd)
+
+    def download(self, remote, writer):
+        """
+        Downloads a file
+        :param remote: remote file name
+        :param writer: an object the implements the write(bytes) interface (typical a file descriptor)
+        :return:
+        """
+
+        fd = self.open(remote)
+        while True:
+            chunk = self.read(fd)
+            if chunk == b'':
+                break
+            writer.write(chunk)
+        self.close(fd)
+
+    def upload_file(self, remote, local):
+        """
+        Uploads a file
+        :param remote: remote file name
+        :param local: local file name
+        :return:
+        """
+        file = open(local, 'rb')
+        self.upload(remote, file)
+
+    def download_file(self, remote, local):
+        """
+        Downloads a file
+        :param remote: remote file name
+        :param local: local file name
+        :return:
+        """
+        file = open(local, 'wb')
+        self.download(remote, file)
 
 class BaseClient:
     _system_chk = typchk.Checker({
@@ -161,6 +249,7 @@ class BaseClient:
     def __init__(self):
         self._info = InfoManager(self)
         self._process = ProcessManager(self)
+        self._filesystem = FilesystemManager(self)
 
     @property
     def info(self):
@@ -169,6 +258,10 @@ class BaseClient:
     @property
     def process(self):
         return self._process
+
+    @property
+    def filesystem(self):
+        return self._filesystem
 
     def raw(self, command, arguments):
         """
