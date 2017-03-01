@@ -10,7 +10,7 @@ during the build of both core0 and coreX (only using the make file)
 const (
 	vBranch   = "{branch}"
 	vRevision = "{revision}"
-	vDirty    = ""
+	vDirty    = "{dirty}"
 )
 
 type version struct{}
