@@ -27,6 +27,12 @@ func init() {
 }
 
 func main() {
+	var opt = options.Options
+	fmt.Printf("Core0 Version: %s\n", core.Version())
+	if opt.Version() {
+		os.Exit(0)
+	}
+
 	if errors := options.Options.Validate(); len(errors) != 0 {
 		for _, err := range errors {
 			log.Errorf("Validation Error: %s\n", err)
@@ -34,8 +40,6 @@ func main() {
 
 		os.Exit(1)
 	}
-
-	var opt = options.Options
 
 	pm.InitProcessManager(opt.MaxJobs())
 

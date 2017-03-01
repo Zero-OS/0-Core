@@ -35,5 +35,6 @@ legacy
 *.iml
 
 #binary
+bin/
 core0/core0
 coreX/coreX

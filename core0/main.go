@@ -24,7 +24,7 @@ var (
 	log = logging.MustGetLogger("main")
 )
 
-func init() {
+func setupLogging() {
 	l, err := os.Create("/var/log/core.log")
 	if err != nil {
 		panic(err)
@@ -42,6 +42,14 @@ func init() {
 
 func main() {
 	var options = options.Options
+
+	fmt.Printf("Core0 Version: %s\n", core.Version())
+
+	if options.Version() {
+		os.Exit(0)
+	}
+
+	setupLogging()
 
 	if err := settings.LoadSettings(options.Config()); err != nil {
 		log.Fatal(err)

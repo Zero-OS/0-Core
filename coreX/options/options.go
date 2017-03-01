@@ -7,12 +7,17 @@ import (
 )
 
 type AppOptions struct {
+	version       bool
 	coreID        uint64
 	redisSocket   string
 	redisPassword string
 	replyTo       string
 	maxJobs       int
 	hostname      string
+}
+
+func (o *AppOptions) Version() bool {
+	return o.version
 }
 
 func (o *AppOptions) CoreID() uint64 {
@@ -57,6 +62,7 @@ var Options AppOptions
 func init() {
 	help := false
 	flag.BoolVar(&help, "h", false, "Print this help screen")
+	flag.BoolVar(&Options.version, "v", false, "Print the version and exits")
 	flag.Uint64Var(&Options.coreID, "core-id", 0, "Core ID")
 	flag.StringVar(&Options.redisSocket, "redis-socket", "", "Path to the redis socket")
 	flag.StringVar(&Options.redisPassword, "redis-password", "", "Redis password [optional]")
