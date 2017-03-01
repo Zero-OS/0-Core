@@ -10,12 +10,18 @@ during the build of both core0 and coreX (only using the make file)
 const (
 	vBranch   = "{branch}"
 	vRevision = "{revision}"
+	vDirty    = ""
 )
 
 type version struct{}
 
 func (v *version) String() string {
-	return fmt.Sprintf("%s@%s", vBranch, vRevision)
+	s := fmt.Sprintf("%s@%s", vBranch, vRevision)
+	if vDirty != "" {
+		s += "#dirty-repo"
+	}
+
+	return s
 }
 
 func Version() fmt.Stringer {
