@@ -1,26 +1,21 @@
 OUTPUT = bin
 VERSION = base/version.go
 
-all: version core0 coreX clean
+branch = $(shell git rev-parse --abbrev-ref HEAD)
+revision = $(shell git rev-parse HEAD)
+dirty = $(shell test -n "`git diff --shortstat 2> /dev/null | tail -n1`" && echo "*")
+base = github.com/g8os/core0/base
+ldflags = '-w -s -X $(base).Branch=$(branch) -X $(base).Revision=$(revision) -X $(base).Dirty=$(dirty)'
 
-.PHONEY: all
+all: core0 coreX
 
-core0: $(OUTPUT) $(VERSION)
-	cd core0 && go build -o ../$(OUTPUT)/$@
+core0: $(OUTPUT)
+	cd core0 && go build -ldflags $(ldflags) -o ../$(OUTPUT)/$@
 
-coreX: $(OUTPUT) $(VERSION)
-	cd coreX && go build -o ../$(OUTPUT)/$@
+coreX: $(OUTPUT)
+	cd coreX && go build -ldflags $(ldflags) -o ../$(OUTPUT)/$@
+
+.PHONEY: core0 coreX
 
 $(OUTPUT):
 	mkdir -p $(OUTPUT)
-
-version: branch = $(shell git rev-parse --abbrev-ref HEAD)
-version: revision = $(shell git rev-parse HEAD)
-version: dirty = $(shell test -n "`git diff --shortstat 2> /dev/null | tail -n1`" && echo "*")
-version:
-	sed -i 's/{branch}/$(branch)/' $(VERSION)
-	sed -i 's/{revision}/$(revision)/' $(VERSION)
-	sed -i 's/{dirty}/$(dirty)/' $(VERSION)
-
-clean:
-	git checkout $(VERSION)

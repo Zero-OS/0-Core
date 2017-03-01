@@ -42,9 +42,7 @@ func setupLogging() {
 
 func main() {
 	var options = options.Options
-
-	fmt.Printf("Core0 Version: %s\n", core.Version())
-
+	fmt.Println(core.Version())
 	if options.Version() {
 		os.Exit(0)
 	}

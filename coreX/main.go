@@ -28,7 +28,7 @@ func init() {
 
 func main() {
 	var opt = options.Options
-	fmt.Printf("Core0 Version: %s\n", core.Version())
+	fmt.Println(core.Version())
 	if opt.Version() {
 		os.Exit(0)
 	}
