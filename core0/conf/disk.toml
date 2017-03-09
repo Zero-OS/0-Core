@@ -1,6 +1,6 @@
 [extension."disk.list"]
 binary = "sh"
-args = ["-c", "echo 20::: && lsblk -J -b && echo :::"]
+args = ["-c", "echo 20::: && lsblk -J -O -b && echo :::"]
 
 [extension."disk.mktable"]
 binary = "parted"
