@@ -85,7 +85,9 @@ class Response:
         self._client = client
         self._queue = 'result:{}'.format(id)
 
-    def get(self, timeout=10):
+    def get(self, timeout=None):
+        if timeout is None:
+            timeout = self._client.timeout
         r = self._client._redis
         v = r.brpoplpush(self._queue, self._queue, timeout)
         if v is None:
@@ -246,7 +248,8 @@ class BaseClient:
         'stdin': str,
     })
 
-    def __init__(self):
+    def __init__(self, timeout=10):
+        self.timeout = timeout
         self._info = InfoManager(self)
         self._process = ProcessManager(self)
         self._filesystem = FilesystemManager(self)
@@ -345,7 +348,7 @@ class ContainerClient(BaseClient):
     })
 
     def __init__(self, client, container):
-        super().__init__()
+        super().__init__(client.timeout)
 
         self._client = client
         self._container = container
