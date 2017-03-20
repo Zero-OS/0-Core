@@ -102,7 +102,7 @@ func btrfsCreate(cmd *core.Command) (interface{}, error) {
 	if args.Data != "" {
 		opts = append(opts, "-d", args.Data)
 	}
-	opts = append(opts, strings.Join(args.Devices, " "))
+	opts = append(opts, args.Devices...)
 
 	result, err := runBtrfsCmd("mkfs.btrfs", opts)
 	if err != nil {
