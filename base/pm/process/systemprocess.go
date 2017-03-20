@@ -8,6 +8,7 @@ import (
 	psutils "github.com/shirou/gopsutil/process"
 	"io"
 	"os/exec"
+	"syscall"
 )
 
 type SystemCommandArguments struct {
@@ -138,6 +139,14 @@ func (process *systemProcessImpl) killChildren() {
 			log.Errorf("Failed to kill child process: %s", err)
 		}
 	}
+}
+
+func (process *systemProcessImpl) Signal(sig syscall.Signal) error {
+	if process.process != nil {
+		return syscall.Kill(int(process.process.Pid), sig)
+	}
+
+	return fmt.Errorf("process not found")
 }
 
 func (process *systemProcessImpl) Run() (<-chan *stream.Message, error) {

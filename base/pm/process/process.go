@@ -45,4 +45,8 @@ type Stater interface {
 	Stats() *ProcessStats
 }
 
+type Signaler interface {
+	Signal(sig syscall.Signal) error
+}
+
 type ProcessFactory func(PIDTable, *core.Command) Process

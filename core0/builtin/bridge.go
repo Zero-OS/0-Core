@@ -8,14 +8,21 @@ import (
 	"github.com/g8os/core0/base/pm/process"
 	"github.com/pborman/uuid"
 	"github.com/vishvananda/netlink"
+	"io/ioutil"
 	"net"
 	"os"
+	"path"
+	"syscall"
 )
 
+type bridgeMgr struct{}
+
 func init() {
-	pm.CmdMap["bridge.create"] = process.NewInternalProcessFactory(bridgeCreate)
-	pm.CmdMap["bridge.list"] = process.NewInternalProcessFactory(bridgeList)
-	pm.CmdMap["bridge.delete"] = process.NewInternalProcessFactory(bridgeDelete)
+	b := &bridgeMgr{}
+	pm.CmdMap["bridge.create"] = process.NewInternalProcessFactory(b.create)
+	pm.CmdMap["bridge.list"] = process.NewInternalProcessFactory(b.list)
+	pm.CmdMap["bridge.delete"] = process.NewInternalProcessFactory(b.delete)
+	pm.CmdMap["bridge.add_host"] = process.NewInternalProcessFactory(b.addHost)
 }
 
 const (
@@ -65,7 +72,13 @@ type BridgeDeleteArguments struct {
 	Name string `json:"name"`
 }
 
-func bridgeStaticNetworking(bridge *netlink.Bridge, network *BridgeNetwork) (*netlink.Addr, error) {
+type BridgeAddHost struct {
+	Bridge string `json:"bridge"`
+	IP     string `json:"ip"`
+	Mac    string `json:"mac"`
+}
+
+func (b *bridgeMgr) bridgeStaticNetworking(bridge *netlink.Bridge, network *BridgeNetwork) (*netlink.Addr, error) {
 	var settings NetworkStaticSettings
 	if err := json.Unmarshal(network.Settings, &settings); err != nil {
 		return nil, err
@@ -93,7 +106,7 @@ func bridgeStaticNetworking(bridge *netlink.Bridge, network *BridgeNetwork) (*ne
 	}
 
 	cmd := &core.Command{
-		ID:      fmt.Sprintf("dnsmasq-%s", bridge.Name),
+		ID:      b.dnsmasqPName(bridge.Name),
 		Command: process.CommandSystem,
 		Arguments: core.MustArguments(
 			process.SystemCommandArguments{
@@ -121,7 +134,15 @@ func bridgeStaticNetworking(bridge *netlink.Bridge, network *BridgeNetwork) (*ne
 	return addr, nil
 }
 
-func bridgeDnsMasqNetworking(bridge *netlink.Bridge, network *BridgeNetwork) (*netlink.Addr, error) {
+func (b *bridgeMgr) dnsmasqPName(n string) string {
+	return fmt.Sprintf("dnsmasq-%s", n)
+}
+
+func (b *bridgeMgr) dnsmasqHostsFilePath(n string) string {
+	return fmt.Sprintf("/var/run/dnsmasq/%s", b.dnsmasqPName(n))
+}
+
+func (b *bridgeMgr) bridgeDnsMasqNetworking(bridge *netlink.Bridge, network *BridgeNetwork) (*netlink.Addr, error) {
 	var settings NetworkDnsMasqSettings
 	if err := json.Unmarshal(network.Settings, &settings); err != nil {
 		return nil, err
@@ -138,6 +159,10 @@ func bridgeDnsMasqNetworking(bridge *netlink.Bridge, network *BridgeNetwork) (*n
 		return nil, err
 	}
 
+	hostsFile := b.dnsmasqHostsFilePath(bridge.Name)
+	os.RemoveAll(hostsFile)
+	os.MkdirAll(hostsFile, 0755)
+
 	args := []string{
 		"--no-hosts",
 		"--keep-in-foreground",
@@ -146,12 +171,13 @@ func bridgeDnsMasqNetworking(bridge *netlink.Bridge, network *BridgeNetwork) (*n
 		fmt.Sprintf("--interface=%s", bridge.Name),
 		fmt.Sprintf("--dhcp-range=%s,%s,%s", settings.Start, settings.End, net.IP(addr.Mask)),
 		fmt.Sprintf("--dhcp-option=6,%s", addr.IP),
+		fmt.Sprintf("--dhcp-hostsfile=%s", hostsFile),
 		"--bind-interfaces",
 		"--except-interface=lo",
 	}
 
 	cmd := &core.Command{
-		ID:      fmt.Sprintf("dnsmasq-%s", bridge.Name),
+		ID:      b.dnsmasqPName(bridge.Name),
 		Command: process.CommandSystem,
 		Arguments: core.MustArguments(
 			process.SystemCommandArguments{
@@ -180,14 +206,47 @@ func bridgeDnsMasqNetworking(bridge *netlink.Bridge, network *BridgeNetwork) (*n
 	return addr, nil
 }
 
-func bridgeNetworking(bridge *netlink.Bridge, network *BridgeNetwork) error {
+func (b *bridgeMgr) addHost(cmd *core.Command) (interface{}, error) {
+	var args BridgeAddHost
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, err
+	}
+
+	name := b.dnsmasqPName(args.Bridge)
+	runner, ok := pm.GetManager().Runners()[name]
+	if !ok {
+		//either no bridge with that name, or this bridge does't have dnsmasq settings.
+		return nil, fmt.Errorf("not supported no dnsmasq process found")
+	}
+
+	//write file for the host
+	if err := ioutil.WriteFile(
+		path.Join(b.dnsmasqHostsFilePath(args.Bridge), args.IP),
+		[]byte(fmt.Sprintf("%s,%s", args.Mac, args.IP)),
+		0644,
+	); err != nil {
+		return nil, err
+	}
+
+	if signaler, ok := runner.Process().(process.Signaler); ok {
+		if err := signaler.Signal(syscall.SIGHUP); err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, fmt.Errorf("not supported dnsmasq-process is not signalable")
+	}
+
+	return nil, nil
+}
+
+func (b *bridgeMgr) bridgeNetworking(bridge *netlink.Bridge, network *BridgeNetwork) error {
 	var addr *netlink.Addr
 	var err error
 	switch network.Mode {
 	case StaticBridgeNetworkMode:
-		addr, err = bridgeStaticNetworking(bridge, network)
+		addr, err = b.bridgeStaticNetworking(bridge, network)
 	case DnsMasqBridgeNetworkMode:
-		addr, err = bridgeDnsMasqNetworking(bridge, network)
+		addr, err = b.bridgeDnsMasqNetworking(bridge, network)
 	case NoneBridgeNetworkMode:
 		return nil
 	default:
@@ -219,7 +278,7 @@ func bridgeNetworking(bridge *netlink.Bridge, network *BridgeNetwork) error {
 	return nil
 }
 
-func bridgeCreate(cmd *core.Command) (interface{}, error) {
+func (b *bridgeMgr) create(cmd *core.Command) (interface{}, error) {
 	var args BridgeCreateArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -250,7 +309,7 @@ func bridgeCreate(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	if err := bridgeNetworking(bridge, &args.Network); err != nil {
+	if err := b.bridgeNetworking(bridge, &args.Network); err != nil {
 		//delete bridge?
 		netlink.LinkDel(bridge)
 		return nil, err
@@ -259,7 +318,7 @@ func bridgeCreate(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func bridgeList(cmd *core.Command) (interface{}, error) {
+func (b *bridgeMgr) list(cmd *core.Command) (interface{}, error) {
 	links, err := netlink.LinkList()
 	if err != nil {
 		return nil, err
@@ -275,7 +334,7 @@ func bridgeList(cmd *core.Command) (interface{}, error) {
 	return bridges, nil
 }
 
-func bridgeDelete(cmd *core.Command) (interface{}, error) {
+func (b *bridgeMgr) delete(cmd *core.Command) (interface{}, error) {
 	var args BridgeDeleteArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
