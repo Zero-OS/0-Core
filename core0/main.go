@@ -14,7 +14,7 @@ import (
 	_ "github.com/g8os/core0/base/builtin"
 	_ "github.com/g8os/core0/core0/builtin"
 	"github.com/g8os/core0/core0/containers"
-	_ "github.com/g8os/core0/core0/kvm"
+	"github.com/g8os/core0/core0/kvm"
 	"github.com/g8os/core0/core0/options"
 	"github.com/g8os/core0/core0/stats"
 	"os"
@@ -132,6 +132,10 @@ func main() {
 	//start/register containers commands and process
 	if err := containers.ContainerSubsystem(sinks); err != nil {
 		log.Errorf("failed to intialize container subsystem", err)
+	}
+
+	if err := kvm.KVMSubsystem(); err != nil {
+		log.Errorf("failed to initialize kvm subsystem", err)
 	}
 
 	//start jobs sinks.

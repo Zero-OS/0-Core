@@ -16,18 +16,37 @@ import (
 	"github.com/g8os/core0/base/pm/process"
 	"github.com/pborman/uuid"
 	"github.com/vishvananda/netlink"
+	"sync"
 )
 
-type kvmManager struct{}
+const (
+	BaseMACAddress = "00:28:06:82:%x:%x"
+
+	BaseIPAddr = "172.19.%d.%d"
+)
+
+type kvmManager struct {
+	sequence uint16
+	m        sync.Mutex
+}
 
 var (
 	pattern = regexp.MustCompile(`^\s*(\d+)(.+)\s(\w+)$`)
+
+	ReservedSequences = []uint16{0x0, 0x1, 0xffff}
+	BridgeIP          = []byte{172, 19, 0, 1}
+	IPRangeStart      = fmt.Sprintf("%d.%d.%d.%d", BridgeIP[0], BridgeIP[1], 0, 2)
+	IPRangeEnd        = fmt.Sprintf("%d.%d.%d.%d", BridgeIP[0], BridgeIP[1], 255, 254)
+	DefaultBridgeIP   = fmt.Sprintf("%d.%d.%d.%d", BridgeIP[0], BridgeIP[1], BridgeIP[2], BridgeIP[3])
+	DefaultBridgeCIDR = fmt.Sprintf("%s/16", DefaultBridgeIP)
 )
 
 const (
 	kvmCreateCommand  = "kvm.create"
 	kvmDestroyCommand = "kvm.destroy"
 	kvmListCommand    = "kvm.list"
+
+	DefaultBridgeName = "kvm-0"
 )
 
 func KVMSubsystem() error {
@@ -53,7 +72,35 @@ type CreateParams struct {
 }
 
 func (m *kvmManager) init() error {
-	//create default bridge here.
+	//settings={'cidr': 'ip/net', 'start': 'ip', 'end': 'ip'}
+	cmd := &core.Command{
+		ID:      uuid.New(),
+		Command: "bridge.create",
+		Arguments: core.MustArguments(
+			core.M{
+				"name": DefaultBridgeName,
+				"network": core.M{
+					"nat":  true,
+					"mode": "dnsmasq",
+					"settings": core.M{
+						"cidr":  DefaultBridgeCIDR,
+						"start": IPRangeStart,
+						"end":   IPRangeEnd,
+					},
+				},
+			},
+		),
+	}
+
+	runner, err := pm.GetManager().RunCmd(cmd)
+	if err != nil {
+		return err
+	}
+	result := runner.Wait()
+	if result.State != core.StateSuccess {
+		return fmt.Errorf("failed to create default container bridge: %s", result.Data)
+	}
+
 	return nil
 }
 
@@ -128,11 +175,35 @@ func (m *kvmManager) mkDisk(img string, target string) DiskDevice {
 	}
 }
 
-func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
-	var params CreateParams
-	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
-		return nil, err
+func (m *kvmManager) getNextSequence() uint16 {
+	m.m.Lock()
+	defer m.m.Unlock()
+loop:
+	for {
+		m.sequence += 1
+		for _, r := range ReservedSequences {
+			if m.sequence == r {
+				continue loop
+			}
+		}
+		break
 	}
+
+	return m.sequence
+}
+
+func (m *kvmManager) macAddr(s uint16) string {
+	return fmt.Sprintf(BaseMACAddress,
+		(s & 0x0000FF00 >> 8),
+		(s & 0x000000FF),
+	)
+}
+
+func (m *kvmManager) ipAddr(s uint16) string {
+	return fmt.Sprintf("%d.%d.%d.%d", BridgeIP[0], BridgeIP[1], (s&0xff00)>>8, s&0x00ff)
+}
+
+func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error) {
 
 	domain := Domain{
 		Type: DomainTypeKVM,
@@ -208,9 +279,69 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 		})
 	}
 
+	//attach to default bridge.
+	domain.Devices.Devices = append(domain.Devices.Devices, InterfaceDevice{
+		Type: InterfaceDeviceTypeBridge,
+		Source: InterfaceDeviceSourceBridge{
+			Bridge: DefaultBridgeName,
+		},
+		Mac: InterfaceDeviceMac{
+			Address: m.macAddr(seq),
+		},
+		Model: InterfaceDeviceModel{
+			Type: "virtio",
+		},
+	})
+
 	for idx, image := range params.Images {
 		target := "vd" + string(97+idx)
 		domain.Devices.Devices = append(domain.Devices.Devices, m.mkDisk(image, target))
+	}
+
+	return &domain, nil
+}
+
+func (m *kvmManager) configureDhcpHost(seq uint16) error {
+	mac := m.macAddr(seq)
+	ip := m.ipAddr(seq)
+
+	runner, err := pm.GetManager().RunCmd(&core.Command{
+		ID:      uuid.New(),
+		Command: "bridge.add_host",
+		Arguments: core.MustArguments(map[string]interface{}{
+			"bridge": DefaultBridgeName,
+			"mac":    mac,
+			"ip":     ip,
+		}),
+	})
+
+	if err != nil {
+		return err
+	}
+	result := runner.Wait()
+
+	if result.State != core.StateSuccess {
+		return fmt.Errorf("failed to add host to dnsmasq: %s", result.Data)
+	}
+
+	return nil
+}
+
+func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
+	var params CreateParams
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, err
+	}
+
+	seq := m.getNextSequence()
+
+	domain, err := m.mkDomain(seq, &params)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := m.configureDhcpHost(seq); err != nil {
+		return nil, err
 	}
 
 	data, err := xml.MarshalIndent(domain, "", "  ")
