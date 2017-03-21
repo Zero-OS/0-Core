@@ -2,14 +2,10 @@ package bootstrap
 
 import (
 	"fmt"
+	"github.com/op/go-logging"
+	"github.com/vishvananda/netlink"
 	"os"
 	"syscall"
-
-	"github.com/g8os/core0/base/pm"
-	"github.com/g8os/core0/base/pm/core"
-	"github.com/g8os/core0/base/pm/process"
-	"github.com/op/go-logging"
-	"github.com/pborman/uuid"
 )
 
 var (
@@ -23,13 +19,30 @@ func NewBootstrap() *Bootstrap {
 	return &Bootstrap{}
 }
 
-//Bootstrap registers extensions and startup system services.
-func (b *Bootstrap) Bootstrap(hostname string) error {
-	log.Infof("Mounting proc")
+func (b *Bootstrap) setupLO() error {
+	link, err := netlink.LinkByName("lo")
+	if err != nil {
+		return err
+	}
+
+	addr, _ := netlink.ParseAddr("127.0.0.1/8")
+	if err := netlink.AddrAdd(link, addr); err != nil {
+		return err
+	}
+
+	return netlink.LinkSetUp(link)
+}
+
+func (o *Bootstrap) setupFS() error {
+	os.MkdirAll("/etc", 0755)
+	os.MkdirAll("/var/run", 0755)
+
+	os.MkdirAll("/proc", 0755)
 	if err := syscall.Mount("none", "/proc", "proc", 0, ""); err != nil {
 		return err
 	}
 
+	os.MkdirAll("/dev/pts", 0755)
 	if err := syscall.Mount("none", "/dev", "devtmpfs", 0, ""); err != nil {
 		return err
 	}
@@ -38,6 +51,22 @@ func (b *Bootstrap) Bootstrap(hostname string) error {
 		return err
 	}
 
+	return nil
+}
+
+//Bootstrap registers extensions and startup system services.
+func (b *Bootstrap) Bootstrap(hostname string) error {
+	log.Debugf("setting up lo device")
+	if err := b.setupLO(); err != nil {
+		return err
+	}
+
+	log.Debugf("setting up mounts")
+	if err := b.setupFS(); err != nil {
+		return err
+	}
+
+	log.Debugf("setting up hostname")
 	if err := updateHostname(hostname); err != nil {
 		return err
 	}
@@ -65,23 +94,5 @@ func updateHostname(hostname string) error {
 	fmt.Fprintf(fHosts, "127.0.0.1    %s.local %s\n", hostname, hostname)
 	fmt.Fprint(fHosts, "127.0.0.1    localhost.localdomain localhost\n")
 
-	// call hostname command
-	runner, err := pm.GetManager().RunCmd(&core.Command{
-		ID:      uuid.New(),
-		Command: process.CommandSystem,
-		Arguments: core.MustArguments(process.SystemCommandArguments{
-			Name: "hostname",
-			Args: []string{hostname},
-		}),
-	})
-
-	if err != nil {
-		return err
-	}
-	result := runner.Wait()
-	if result.State != core.StateSuccess {
-		return fmt.Errorf("failed to set hostname: %v", result.Streams)
-	}
-
-	return nil
+	return syscall.Sethostname([]byte(hostname))
 }
