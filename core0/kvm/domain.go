@@ -155,11 +155,16 @@ type InterfaceDeviceModel struct {
 	Type string `xml:"type,attr"`
 }
 
+type InterfaceDeviceMac struct {
+	Address string `xml:"address,attr"`
+}
+
 type InterfaceDevice struct {
 	XMLName xml.Name              `xml:"interface"`
 	Type    InterfaceDeviceType   `xml:"type,attr"`
 	Source  InterfaceDeviceSource `xml:"source"`
 	Model   InterfaceDeviceModel  `xml:"model"`
+	Mac     InterfaceDeviceMac    `xml:"mac"`
 }
 
 type SerialDeviceType string

@@ -30,12 +30,18 @@ const (
 	kvmListCommand    = "kvm.list"
 )
 
-func init() {
+func KVMSubsystem() error {
 	mgr := &kvmManager{}
+
+	if err := mgr.init(); err != nil {
+		return err
+	}
 
 	pm.CmdMap[kvmCreateCommand] = process.NewInternalProcessFactory(mgr.create)
 	pm.CmdMap[kvmDestroyCommand] = process.NewInternalProcessFactory(mgr.destroy)
 	pm.CmdMap[kvmListCommand] = process.NewInternalProcessFactory(mgr.list)
+
+	return nil
 }
 
 type CreateParams struct {
@@ -43,7 +49,12 @@ type CreateParams struct {
 	CPU    int      `json:"cpu"`
 	Memory int      `json:"memory"`
 	Images []string `json:"images"`
-	Bridge string   `json:"bridge"`
+	Bridge []string `json:"bridge"`
+}
+
+func (m *kvmManager) init() error {
+	//create default bridge here.
+	return nil
 }
 
 func (m *kvmManager) mkNBDDisk(u *url.URL, target string) DiskDevice {
@@ -180,22 +191,23 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 		},
 	}
 
-	if params.Bridge != "" {
-		_, err := netlink.LinkByName(params.Bridge)
+	for _, bridge := range params.Bridge {
+		_, err := netlink.LinkByName(bridge)
 		if err != nil {
-			return nil, fmt.Errorf("bridge '%s' not found", params.Bridge)
+			return nil, fmt.Errorf("bridge '%s' not found", bridge)
 		}
 
 		domain.Devices.Devices = append(domain.Devices.Devices, InterfaceDevice{
 			Type: InterfaceDeviceTypeBridge,
 			Source: InterfaceDeviceSourceBridge{
-				Bridge: params.Bridge,
+				Bridge: bridge,
 			},
 			Model: InterfaceDeviceModel{
 				Type: "virtio",
 			},
 		})
 	}
+
 	for idx, image := range params.Images {
 		target := "vd" + string(97+idx)
 		domain.Devices.Devices = append(domain.Devices.Devices, m.mkDisk(image, target))

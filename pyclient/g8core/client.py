@@ -917,7 +917,7 @@ class KvmManager:
         'images': [str],
         'cpu': int,
         'memory': int,
-        'bridge': typchk.Or(str, typchk.IsNone()),
+        'bridge': typchk.Or([str], typchk.IsNone()),
     })
 
     _destroy_chk = typchk.Checker({
@@ -928,6 +928,15 @@ class KvmManager:
         self._client = client
 
     def create(self, name, images, cpu=2, memory=512, bridge=None):
+        """
+
+        :param name: Name of the kvm domain
+        :param images: array of images to attach to the machine, where the first image is the boot device
+        :param cpu: number of vcpu cores
+        :param memory: memory in MiB
+        :param bridge: array of extra bridges to connect the domain with. the bridges must exist on the host
+        :return:
+        """
         args = {
             'name': name,
             'images': images,
