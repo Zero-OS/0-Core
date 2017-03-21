@@ -52,7 +52,7 @@ const (
 func KVMSubsystem() error {
 	mgr := &kvmManager{}
 
-	if err := mgr.init(); err != nil {
+	if err := mgr.setupDefaultGateway(); err != nil {
 		return err
 	}
 
@@ -64,15 +64,15 @@ func KVMSubsystem() error {
 }
 
 type CreateParams struct {
-	Name   string   `json:"name"`
-	CPU    int      `json:"cpu"`
-	Memory int      `json:"memory"`
-	Images []string `json:"images"`
-	Bridge []string `json:"bridge"`
+	Name   string      `json:"name"`
+	CPU    int         `json:"cpu"`
+	Memory int         `json:"memory"`
+	Images []string    `json:"images"`
+	Bridge []string    `json:"bridge"`
+	Port   map[int]int `json:"port"`
 }
 
-func (m *kvmManager) init() error {
-	//settings={'cidr': 'ip/net', 'start': 'ip', 'end': 'ip'}
+func (m *kvmManager) setupDefaultGateway() error {
 	cmd := &core.Command{
 		ID:      uuid.New(),
 		Command: "bridge.create",
@@ -327,6 +327,44 @@ func (m *kvmManager) configureDhcpHost(seq uint16) error {
 	return nil
 }
 
+func (m *kvmManager) forwardId(name string, host int) string {
+	return fmt.Sprintf("kvm-socat-%s-%d", name, host)
+}
+
+func (m *kvmManager) unPortForward(name string) {
+	for key, runner := range pm.GetManager().Runners() {
+		if strings.HasPrefix(key, fmt.Sprintf("kvm-socat-%s", name)) {
+			runner.Kill()
+		}
+	}
+}
+
+func (m *kvmManager) setPortForwards(seq uint16, params *CreateParams) error {
+	ip := m.ipAddr(seq)
+
+	for host, container := range params.Port {
+		//nft add rule nat prerouting iif eth0 tcp dport { 80, 443 } dnat 192.168.1.120
+		cmd := &core.Command{
+			ID:      m.forwardId(params.Name, host),
+			Command: process.CommandSystem,
+			Arguments: core.MustArguments(
+				process.SystemCommandArguments{
+					Name: "socat",
+					Args: []string{
+						fmt.Sprintf("tcp-listen:%d,reuseaddr,fork", host),
+						fmt.Sprintf("tcp-connect:%s:%d", ip, container),
+					},
+					NoOutput: true,
+				},
+			),
+		}
+
+		pm.GetManager().RunCmd(cmd)
+	}
+
+	return nil
+}
+
 func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 	var params CreateParams
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
@@ -384,6 +422,10 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, fmt.Errorf(result.Streams[1])
 	}
 
+	//start port forwarders
+	if err := m.setPortForwards(seq, &params); err != nil {
+		return nil, err
+	}
 	return nil, nil
 }
 
@@ -416,6 +458,9 @@ func (m *kvmManager) destroy(cmd *core.Command) (interface{}, error) {
 	if result.State != core.StateSuccess {
 		return nil, fmt.Errorf(result.Streams[1])
 	}
+
+	m.unPortForward(params.Name)
+
 	return nil, nil
 }
 
