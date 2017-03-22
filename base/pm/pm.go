@@ -3,12 +3,6 @@ package pm
 import (
 	"errors"
 	"fmt"
-	"github.com/g8os/core0/base/pm/core"
-	"github.com/g8os/core0/base/pm/process"
-	"github.com/g8os/core0/base/pm/stream"
-	"github.com/g8os/core0/base/settings"
-	"github.com/op/go-logging"
-	psutil "github.com/shirou/gopsutil/process"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -17,6 +11,14 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/g8os/core0/base/pm/core"
+	"github.com/g8os/core0/base/pm/process"
+	"github.com/g8os/core0/base/pm/stream"
+	"github.com/g8os/core0/base/settings"
+	"github.com/g8os/core0/base/utils"
+	"github.com/op/go-logging"
+	psutil "github.com/shirou/gopsutil/process"
 )
 
 const (
@@ -281,6 +283,22 @@ func (pm *PM) Run() {
 	go pm.processCmds()
 }
 
+func processArgs(args map[string]interface{}, values map[string]interface{}) {
+	for key, value := range args {
+		switch value := value.(type) {
+		case string:
+			args[key] = utils.Format(value, values)
+		case []string:
+			newstrlist := make([]string, len(value))
+			for _, strvalue := range value {
+				newstrlist = append(newstrlist, utils.Format(strvalue, values))
+			}
+			args[key] = newstrlist
+		}
+	}
+
+}
+
 /*
 RunSlice runs a slice of processes honoring dependencies. It won't just
 start in order, but will also make sure a service won't start until it's dependencies are
@@ -293,11 +311,14 @@ func (pm *PM) RunSlice(slice settings.StartupSlice) {
 	}
 
 	state := NewStateMachine(all...)
+	cmdline := utils.GetCmdLine()
 
 	for _, startup := range slice {
 		if startup.Args == nil {
 			startup.Args = make(map[string]interface{})
 		}
+
+		processArgs(startup.Args, cmdline)
 
 		cmd := &core.Command{
 			ID:              startup.Key(),
