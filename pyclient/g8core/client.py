@@ -919,7 +919,13 @@ class ZerotierManager:
 class KvmManager:
     _create_chk = typchk.Checker({
         'name': str,
-        'images': [str],
+        'media': [{
+            'type': typchk.Or(
+                typchk.Enum('disk', 'cdrom'),
+                typchk.Missing()
+            ),
+            'url': str,
+        }],
         'cpu': int,
         'memory': int,
         'bridge': typchk.Or([str], typchk.IsNone()),
@@ -936,11 +942,13 @@ class KvmManager:
     def __init__(self, client):
         self._client = client
 
-    def create(self, name, images, cpu=2, memory=512, port=None, bridge=None):
+    def create(self, name, media, cpu=2, memory=512, port=None, bridge=None):
         """
 
         :param name: Name of the kvm domain
-        :param images: array of images to attach to the machine, where the first image is the boot device
+        :param media: array of media objects to attach to the machine, where the first object is the boot device
+                      each media object is a dict of {url, and type} where type can be one of 'disk', or 'cdrom', or empty (default to disk)
+                      example: [{'url': 'nbd+unix:///test?socket=/tmp/ndb.socket'}, {'type': 'cdrom': '/somefile.iso'}
         :param cpu: number of vcpu cores
         :param memory: memory in MiB
         :param port: A dict of host_port: container_port pairs
@@ -952,7 +960,7 @@ class KvmManager:
         """
         args = {
             'name': name,
-            'images': images,
+            'media': media,
             'cpu': cpu,
             'memory': memory,
             'bridge': bridge,
