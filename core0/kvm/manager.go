@@ -66,6 +66,7 @@ func KVMSubsystem() error {
 type Media struct {
 	URL  string         `json:"url"`
 	Type DiskDeviceType `json:"type"`
+	Bus  string         `json:"bus"`
 }
 
 type CreateParams struct {
@@ -125,7 +126,6 @@ func (m *kvmManager) mkNBDDisk(idx int, u *url.URL) DiskDevice {
 			Type: DiskTypeNetwork,
 			Target: DiskTarget{
 				Dev: target,
-				Bus: "virtio",
 			},
 			Source: DiskSourceNetwork{
 				Protocol: "nbd",
@@ -142,7 +142,6 @@ func (m *kvmManager) mkNBDDisk(idx int, u *url.URL) DiskDevice {
 			Type: DiskTypeNetwork,
 			Target: DiskTarget{
 				Dev: target,
-				Bus: "virtio",
 			},
 			Source: DiskSourceNetwork{
 				Protocol: "nbd",
@@ -159,12 +158,11 @@ func (m *kvmManager) mkNBDDisk(idx int, u *url.URL) DiskDevice {
 }
 
 func (m *kvmManager) mkFileDisk(idx int, u *url.URL) DiskDevice {
-	target := "hd" + string(97+idx)
+	target := "vd" + string(97+idx)
 	return DiskDevice{
 		Type: DiskTypeFile,
 		Target: DiskTarget{
 			Dev: target,
-			Bus: "ide",
 		},
 		Source: DiskSourceFile{
 			File: u.String(),
@@ -182,7 +180,15 @@ func (m *kvmManager) mkDisk(idx int, media Media) DiskDevice {
 		disk = m.mkFileDisk(idx, u)
 	}
 
-	disk.Device = media.Type
+	disk.Device = DiskDeviceTypeDisk
+	if media.Type != DiskDeviceType("") {
+		disk.Device = media.Type
+	}
+
+	disk.Target.Bus = "virtio"
+	if media.Bus != "" {
+		disk.Target.Bus = media.Bus
+	}
 
 	//hack for cdrom, because it doesn't work well with virtio
 	if media.Type == DiskDeviceTypeCDROM {
@@ -312,10 +318,6 @@ func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error)
 	}
 
 	for idx, media := range params.Media {
-		if media.Type == DiskDeviceType("") {
-			media.Type = DiskDeviceTypeDisk
-		}
-
 		domain.Devices.Devices = append(domain.Devices.Devices, m.mkDisk(idx, media))
 	}
 
