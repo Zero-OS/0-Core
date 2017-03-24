@@ -3,13 +3,14 @@ package builtin
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"regexp"
+	"strconv"
+
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
 	"github.com/pborman/uuid"
-	"io/ioutil"
-	"regexp"
-	"strconv"
 )
 
 /*
@@ -41,12 +42,61 @@ type DiskFreeBlock struct {
 }
 
 type DiskInfoResult struct {
+	lsblkResult
 	Start     uint64          `json:"start"`
 	End       uint64          `json:"end"`
 	Size      uint64          `json:"size"`
 	BlockSize uint64          `json:"blocksize"`
 	Table     string          `json:"table"`
 	Free      []DiskFreeBlock `json:"free"`
+}
+
+type lsblkResult struct {
+	Name       string        `json:"name"`
+	Kname      string        `json:"kname"`
+	MajMin     string        `json:"maj:min"`
+	Fstype     interface{}   `json:"fstype"`
+	Mountpoint interface{}   `json:"mountpoint"`
+	Label      interface{}   `json:"label"`
+	UUID       interface{}   `json:"uuid"`
+	Parttype   interface{}   `json:"parttype"`
+	Partlabel  interface{}   `json:"partlabel"`
+	Partuuid   interface{}   `json:"partuuid"`
+	Partflags  interface{}   `json:"partflags"`
+	Ra         string        `json:"ra"`
+	Ro         string        `json:"ro"`
+	Rm         string        `json:"rm"`
+	Hotplug    string        `json:"hotplug"`
+	Model      string        `json:"model"`
+	Serial     string        `json:"serial"`
+	Size       string        `json:"size"`
+	State      interface{}   `json:"state"`
+	Owner      string        `json:"owner"`
+	Group      string        `json:"group"`
+	Mode       string        `json:"mode"`
+	Alignment  string        `json:"alignment"`
+	MinIo      string        `json:"min-io"`
+	OptIo      string        `json:"opt-io"`
+	PhySec     string        `json:"phy-sec"`
+	LogSec     string        `json:"log-sec"`
+	Rota       string        `json:"rota"`
+	Sched      interface{}   `json:"sched"`
+	RqSize     string        `json:"rq-size"`
+	Type       string        `json:"type"`
+	DiscAln    string        `json:"disc-aln"`
+	DiscGran   string        `json:"disc-gran"`
+	DiscMax    string        `json:"disc-max"`
+	DiscZero   string        `json:"disc-zero"`
+	Wsame      string        `json:"wsame"`
+	Wwn        interface{}   `json:"wwn"`
+	Rand       string        `json:"rand"`
+	Pkname     interface{}   `json:"pkname"`
+	Hctl       interface{}   `json:"hctl"`
+	Tran       string        `json:"tran"`
+	Subsystems string        `json:"subsystems"`
+	Rev        interface{}   `json:"rev"`
+	Vendor     interface{}   `json:"vendor"`
+	Children   []lsblkResult `json:"children"`
 }
 
 func (d *diskMgr) readUInt64(p string) (uint64, error) {
@@ -62,6 +112,45 @@ func (d *diskMgr) readUInt64(p string) (uint64, error) {
 	return r, nil
 }
 
+func (d *diskMgr) lsblk(dev string) (*lsblkResult, error) {
+
+	runner, err := pm.GetManager().RunCmd(&core.Command{
+		ID:      uuid.New(),
+		Command: process.CommandSystem,
+		Arguments: core.MustArguments(process.SystemCommandArguments{
+			Name: "lsblk",
+			Args: []string{"-O", "-J", fmt.Sprintf("/dev/%s", dev)},
+		}),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	cmdResult := runner.Wait()
+	if cmdResult.State != core.StateSuccess {
+		return nil, fmt.Errorf("failed to set run lsblk command: %v", cmdResult.Streams)
+	}
+
+	stdout := ""
+	if len(cmdResult.Streams) > 1 {
+		stdout = cmdResult.Streams[0]
+	}
+
+	cmdOutput := struct {
+		BlockDevices []lsblkResult `json:"blockdevices"`
+	}{}
+	if err := json.Unmarshal([]byte(stdout), &cmdOutput); err != nil {
+		return nil, err
+	}
+
+	if len(cmdOutput.BlockDevices) >= 1 {
+		return &cmdOutput.BlockDevices[0], nil
+
+	}
+	return nil, fmt.Errorf("not device with the name /dev/%s", dev)
+
+}
 func (d *diskMgr) blockSize(dev string) (uint64, error) {
 	runner, err := pm.GetManager().RunCmd(&core.Command{
 		ID:      uuid.New(),
@@ -143,7 +232,14 @@ func (d *diskMgr) getTableInfo(disk string) (string, []DiskFreeBlock, error) {
 }
 
 func (d *diskMgr) diskInfo(disk string) (*DiskInfoResult, error) {
+
 	var info DiskInfoResult
+
+	lsblk, err := d.lsblk(disk)
+	if err != nil {
+		return nil, err
+	}
+	info.lsblkResult = *lsblk
 
 	bs, err := d.blockSize(disk)
 	if err != nil {
@@ -171,6 +267,13 @@ func (d *diskMgr) diskInfo(disk string) (*DiskInfoResult, error) {
 
 func (d *diskMgr) partInfo(disk, part string) (*DiskInfoResult, error) {
 	var info DiskInfoResult
+
+	lsblk, err := d.lsblk(part)
+	if err != nil {
+		return nil, err
+	}
+	info.lsblkResult = *lsblk
+
 	bs, err := d.blockSize(part)
 	if err != nil {
 		return nil, err
