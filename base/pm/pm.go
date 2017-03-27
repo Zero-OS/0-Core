@@ -400,15 +400,17 @@ func (pm *PM) Killall() {
 	defer pm.runnersMux.Unlock()
 
 	for _, v := range pm.runners {
-		v.Kill()
+		v.Process().Kill()
 	}
 }
 
 //Kill kills a process by the cmd ID
-func (pm *PM) Kill(cmdID string) {
+func (pm *PM) Kill(cmdID string) error {
 	v, o := pm.runners[cmdID]
 	if o {
-		v.Kill()
+		return v.Process().Kill()
+	} else {
+		return fmt.Errorf("no process with id '%s' found", cmdID)
 	}
 }
 

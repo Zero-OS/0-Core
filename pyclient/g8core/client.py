@@ -4,6 +4,7 @@ import json
 import textwrap
 import shlex
 import base64
+import signal
 from g8core import typchk
 
 
@@ -86,7 +87,12 @@ class Return:
 class Response:
     def __init__(self, client, id):
         self._client = client
+        self._id = id
         self._queue = 'result:{}'.format(id)
+
+    @property
+    def id(self):
+        return self._id
 
     def get(self, timeout=None):
         if timeout is None:
@@ -124,6 +130,11 @@ class ProcessManager:
         'id': str,
     })
 
+    _kill_chk = typchk.Checker({
+        'id': str,
+        'signal': int,
+    })
+
     def __init__(self, client):
         self._client = client
 
@@ -137,7 +148,7 @@ class ProcessManager:
         self._process_chk.check(args)
         return self._client.json('process.list', args)
 
-    def kill(self, id):
+    def kill(self, id, signal=signal.SIGTERM):
         """
         Kill a process with given id
 
@@ -146,8 +157,11 @@ class ProcessManager:
 
         :param id: process id to kill
         """
-        args = {'id': id}
-        self._process_chk.check(args)
+        args = {
+            'id': id,
+            'signal': int(signal),
+        }
+        self._kill_chk.check(args)
         return self._client.json('process.kill', args)
 
 class FilesystemManager:

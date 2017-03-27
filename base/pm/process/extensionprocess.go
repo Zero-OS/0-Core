@@ -5,6 +5,7 @@ import (
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/stream"
 	"github.com/g8os/core0/base/utils"
+	"syscall"
 )
 
 type extensionProcess struct {
@@ -67,8 +68,12 @@ func (process *extensionProcess) Run() (<-chan *stream.Message, error) {
 	return process.system.Run()
 }
 
-func (process *extensionProcess) Kill() {
-	process.system.Kill()
+func (process *extensionProcess) Kill() error {
+	return process.system.Kill()
+}
+
+func (process *extensionProcess) Signal(sig syscall.Signal) error {
+	return process.system.Signal(sig)
 }
 
 func (process *extensionProcess) Stats() *ProcessStats {

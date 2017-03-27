@@ -20,7 +20,6 @@ const (
 type Runner interface {
 	Command() *core.Command
 	Run()
-	Kill()
 	Process() process.Process
 	Wait() *core.JobResult
 }

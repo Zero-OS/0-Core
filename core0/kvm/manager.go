@@ -357,7 +357,7 @@ func (m *kvmManager) forwardId(name string, host int) string {
 func (m *kvmManager) unPortForward(name string) {
 	for key, runner := range pm.GetManager().Runners() {
 		if strings.HasPrefix(key, fmt.Sprintf("kvm-socat-%s", name)) {
-			runner.Kill()
+			runner.Process().Kill()
 		}
 	}
 }

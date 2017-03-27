@@ -38,15 +38,12 @@ type ProcessStats struct {
 type Process interface {
 	Command() *core.Command
 	Run() (<-chan *stream.Message, error)
-	Kill()
+	Kill() error //==Signal(SIGTERM)
+	Signal(sig syscall.Signal) error
 }
 
 type Stater interface {
 	Stats() *ProcessStats
-}
-
-type Signaler interface {
-	Signal(sig syscall.Signal) error
 }
 
 type ProcessFactory func(PIDTable, *core.Command) Process

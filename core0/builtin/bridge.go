@@ -228,12 +228,8 @@ func (b *bridgeMgr) addHost(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	if signaler, ok := runner.Process().(process.Signaler); ok {
-		if err := signaler.Signal(syscall.SIGHUP); err != nil {
-			return nil, err
-		}
-	} else {
-		return nil, fmt.Errorf("not supported dnsmasq-process is not signalable")
+	if err := runner.Process().Signal(syscall.SIGHUP); err != nil {
+		return nil, err
 	}
 
 	return nil, nil

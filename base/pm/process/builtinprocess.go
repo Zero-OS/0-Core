@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/stream"
+	"syscall"
 )
 
 /*
@@ -90,6 +91,11 @@ func (process *internalProcess) Run() (<-chan *stream.Message, error) {
 /*
 Kill kills internal process (not implemented)
 */
-func (process *internalProcess) Kill() {
+func (process *internalProcess) Kill() error {
 	//you can't kill an internal process.
+	return nil
+}
+
+func (process *internalProcess) Signal(sig syscall.Signal) error {
+	return nil
 }

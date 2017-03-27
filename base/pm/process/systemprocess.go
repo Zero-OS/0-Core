@@ -23,20 +23,18 @@ type SystemCommandArguments struct {
 }
 
 type systemProcessImpl struct {
-	cmd      *core.Command
-	args     SystemCommandArguments
-	pid      int
-	process  *psutils.Process
-	children []*psutils.Process
+	cmd     *core.Command
+	args    SystemCommandArguments
+	pid     int
+	process *psutils.Process
 
 	table PIDTable
 }
 
 func NewSystemProcess(table PIDTable, cmd *core.Command) Process {
 	process := &systemProcessImpl{
-		cmd:      cmd,
-		children: make([]*psutils.Process, 0),
-		table:    table,
+		cmd:   cmd,
+		table: table,
 	}
 
 	json.Unmarshal(*cmd.Arguments, &process.args)
@@ -47,13 +45,9 @@ func (process *systemProcessImpl) Command() *core.Command {
 	return process.cmd
 }
 
-func (process *systemProcessImpl) Kill() {
+func (process *systemProcessImpl) Kill() error {
 	//should force system process to exit.
-	if process.process != nil {
-		process.process.Terminate()
-	}
-
-	process.killChildren()
+	return process.Signal(syscall.SIGTERM)
 }
 
 //GetStats gets stats of an external process
@@ -86,64 +80,14 @@ func (process *systemProcessImpl) Stats() *ProcessStats {
 
 	stats.Debug = fmt.Sprintf("%d", process.process.Pid)
 
-	for i := 0; i < len(process.children); i++ {
-		child := process.children[i]
-
-		childCPU, err := child.Percent(0)
-		if err != nil {
-			log.Errorf("%s", err)
-			//remove the dead process.
-			process.children = append(process.children[:i], process.children[i+1:]...)
-			continue
-		}
-
-		stats.CPU += childCPU
-		childMem, err := child.MemoryInfo()
-		if err == nil {
-			stats.Debug = fmt.Sprintf("%s %d", stats.Debug, child.Pid)
-			stats.RSS += childMem.RSS
-			stats.Swap += childMem.Swap
-			stats.VMS += childMem.VMS
-		} else {
-			log.Errorf("%s", err)
-		}
-	}
-
 	return &stats
-}
-
-func (process *systemProcessImpl) processInternalMessage(msg *stream.Message) {
-	if msg.Level == stream.LevelInternalMonitorPid {
-		childPid := 0
-		_, err := fmt.Sscanf(msg.Message, "%d", &childPid)
-		if err != nil {
-			// wrong message format, just ignore.
-			return
-		}
-		log.Infof("Tracking external process: %d", childPid)
-		child, err := psutils.NewProcess(int32(childPid))
-		if err != nil {
-			log.Errorf("%s", err)
-		}
-		process.children = append(process.children, child)
-	}
-}
-
-func (process *systemProcessImpl) killChildren() {
-	for _, child := range process.children {
-		//kill grand-child process.
-		log.Infof("Killing grandchild process '%d'", child.Pid)
-
-		err := child.Terminate()
-		if err != nil {
-			log.Errorf("Failed to kill child process: %s", err)
-		}
-	}
 }
 
 func (process *systemProcessImpl) Signal(sig syscall.Signal) error {
 	if process.process != nil {
-		return syscall.Kill(int(process.process.Pid), sig)
+		//send the signal to the entire process group
+		log.Debugf("Signaling process '%v' with %v", process.process.Pid, sig)
+		return syscall.Kill(-int(process.process.Pid), sig)
 	}
 
 	return fmt.Errorf("process not found")
@@ -156,6 +100,10 @@ func (process *systemProcessImpl) Run() (<-chan *stream.Message, error) {
 
 	for k, v := range process.args.Env {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%v=%v", k, v))
+	}
+
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setsid: true,
 	}
 
 	//preparing pipes for process communication
@@ -212,11 +160,6 @@ func (process *systemProcessImpl) Run() (<-chan *stream.Message, error) {
 				//the level exit state is for internal use only, shouldn't
 				//be sent by the app itself, if found, we change the level to err.
 				msg.Level = stream.LevelStderr
-			}
-
-			if msg.Level > stream.LevelInternal {
-				process.processInternalMessage(msg)
-				return
 			}
 
 			channel <- msg

@@ -42,11 +42,16 @@ func (process *containerProcessImpl) Command() *core.Command {
 	return process.cmd
 }
 
-func (process *containerProcessImpl) Kill() {
-	//should force system process to exit.
+func (process *containerProcessImpl) Signal(sig syscall.Signal) error {
 	if process.process != nil {
-		process.process.Terminate()
+		return syscall.Kill(int(process.process.Pid), sig)
 	}
+
+	return fmt.Errorf("process not found")
+}
+
+func (process *containerProcessImpl) Kill() error {
+	return process.Signal(syscall.SIGTERM)
 }
 
 //GetStats gets stats of an external process
@@ -96,7 +101,7 @@ func (process *containerProcessImpl) Run() (<-chan *stream.Message, error) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Chroot:     process.args.Chroot,
 		Cloneflags: flags,
-		Setpgid:    true,
+		Setsid:     true,
 	}
 
 	for k, v := range process.args.Env {
