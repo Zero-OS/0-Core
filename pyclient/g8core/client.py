@@ -820,6 +820,20 @@ class BtrfsManager:
 
         return json.loads(result.data)
 
+    def info(self, mountpoint):
+        """
+        Get btrfs fs info
+        """
+        result = self._client.raw('btrfs.info', {'mountpoint': mountpoint}).get()
+
+        if result.state != 'SUCCESS':
+            raise RuntimeError('failed to get btrfs info: %s' % result.stderr)
+
+        if result.level != 20:  # 20 is JSON output.
+            raise RuntimeError('invalid response type from btrfs.info command')
+
+        return json.loads(result.data)
+        
     def create(self, label, devices, metadata_profile="", data_profile=""):
         """
         Create a btrfs filesystem with the given label, devices, and profiles

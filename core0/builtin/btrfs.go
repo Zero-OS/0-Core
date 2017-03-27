@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/pborman/uuid"
@@ -14,11 +16,13 @@ import (
 )
 
 var (
-	errBtrfsNoFS = errors.New("No btrfs FS found")
+	errBtrfsNoFS        = errors.New("No btrfs FS found")
+	reBtrfsFilesystemDf = regexp.MustCompile(`(?m:(\w+),\s(\w+):\s+total=(\d+),\s+used=(\d+))`)
 )
 
 func init() {
 	pm.CmdMap["btrfs.list"] = process.NewInternalProcessFactory(btrfsList)
+	pm.CmdMap["btrfs.info"] = process.NewInternalProcessFactory(btrfsInfo)
 	pm.CmdMap["btrfs.create"] = process.NewInternalProcessFactory(btrfsCreate)
 	pm.CmdMap["btrfs.subvol_create"] = process.NewInternalProcessFactory(btrfsSubvolCreate)
 	pm.CmdMap["btrfs.subvol_delete"] = process.NewInternalProcessFactory(btrfsSubvolDelete)
@@ -31,6 +35,20 @@ type btrfsFS struct {
 	TotalDevices int           `json:"total_devices"`
 	Used         int64         `json:"used"`
 	Devices      []btrfsDevice `json:"devices"`
+}
+
+type btrfsDataInfo struct {
+	Profile string `json:"profile"`
+	Total   int64  `json:"total"`
+	Used    int64  `json:"used"`
+}
+
+type btrfsFSInfo struct {
+	btrfsFS
+	Data          btrfsDataInfo `json:"data"`
+	System        btrfsDataInfo `json:"system"`
+	MetaData      btrfsDataInfo `json:"metadata"`
+	GlobalReserve btrfsDataInfo `json:"globalreserve"`
 }
 
 type btrfsDevice struct {
@@ -60,6 +78,10 @@ type btrfsCreateArgument struct {
 	Metadata string   `json:"metadata"`
 	Data     string   `json:"data"`
 	Devices  []string `json:"devices"`
+}
+
+type btrfsInfoArgument struct {
+	Mountpoint string `json:"mountpoint"`
 }
 
 type btrfsSubvol struct {
@@ -116,22 +138,53 @@ func btrfsCreate(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
+func btrfsListCmd(cmd *core.Command, args []string) ([]btrfsFS, error) {
+	defaultargs := []string{"filesystem", "show", "--raw"}
+	result, err := runBtrfsCmd("btrfs", append(defaultargs, args...))
+	fss := make([]btrfsFS, 0)
+	if err != nil {
+		return fss, err
+	}
+
+	if result.State != core.StateSuccess || len(result.Streams) == 0 {
+		return nil, fmt.Errorf("error listing btrfs filesystem: %v", result.Streams)
+	}
+	fss, err = btrfsParseList(result.Streams[0])
+	if err != nil {
+		log.Error("failed to list btrfs=", err)
+	}
+	if fss == nil {
+		fss = make([]btrfsFS, 0)
+	}
+	return fss, err
+}
+
 // list btrfs FSs
 func btrfsList(cmd *core.Command) (interface{}, error) {
-	result, err := runBtrfsCmd("btrfs", []string{"filesystem", "show", "--raw"})
+	return btrfsListCmd(cmd, []string{})
+}
+
+// get btrfs info
+func btrfsInfo(cmd *core.Command) (interface{}, error) {
+	var args btrfsInfoArgument
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, err
+	}
+	fss, err := btrfsListCmd(cmd, []string{args.Mountpoint})
 	if err != nil {
 		return nil, err
 	}
 
-	if result.State != core.StateSuccess || len(result.Streams) == 0 {
-		return "", fmt.Errorf("error listing btrfs filesystem: %v", result.Streams)
-	}
-
-	fss, err := btrfsParseList(result.Streams[0])
+	result, err := runBtrfsCmd("btrfs", []string{"filesystem", "df", "--raw", args.Mountpoint})
 	if err != nil {
-		log.Error("failed to list btrfs=", err)
+		return nil, err
 	}
-	return fss, err
+	fsinfo := btrfsFSInfo{
+		btrfsFS: fss[0],
+	}
+	err = btrfsParserFilesystemDF(result.Streams[0], &fsinfo)
+	return fsinfo, err
+
 }
 
 type btrfsSubvolArgument struct {
@@ -240,6 +293,39 @@ func btrfsParseSubvolList(out string) ([]btrfsSubvol, error) {
 		svs = append(svs, sv)
 	}
 	return svs, nil
+}
+
+func btrfsParserFilesystemDF(output string, fsinfo *btrfsFSInfo) error {
+	var err error
+	lines := reBtrfsFilesystemDf.FindAllStringSubmatch(output, -1)
+	for _, line := range lines {
+		name := line[1]
+		var datainfo *btrfsDataInfo
+		switch name {
+		case "Data":
+			datainfo = &fsinfo.Data
+		case "System":
+			datainfo = &fsinfo.System
+		case "Metadata":
+			datainfo = &fsinfo.MetaData
+		case "GlobalReserve":
+			datainfo = &fsinfo.GlobalReserve
+		default:
+			continue
+		}
+		datainfo.Profile = line[2]
+		datainfo.Total, err = strconv.ParseInt(line[3], 10, 64)
+		if err != nil {
+			return err
+		}
+		datainfo.Used, err = strconv.ParseInt(line[4], 10, 64)
+		if err != nil {
+			return err
+		}
+
+	}
+
+	return err
 }
 
 // parse `btrfs filesystem show` output

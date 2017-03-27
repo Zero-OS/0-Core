@@ -38,6 +38,25 @@ func TestParseFS(t *testing.T) {
 }
 
 var (
+	dfString = `Data, single: total=8388608, used=65536
+System, single: total=4194304, used=16384
+Metadata, single: total=276824064, used=163840
+GlobalReserve, single: total=16777216, used=0
+`
+)
+
+func TestParseDF(t *testing.T) {
+	fsinfo := btrfsFSInfo{}
+	btrfsParserFilesystemDF(dfString, &fsinfo)
+	assert.Equal(t, "single", fsinfo.Data.Profile)
+	assert.Equal(t, int64(8388608), fsinfo.Data.Total)
+	assert.Equal(t, int64(65536), fsinfo.Data.Used)
+	assert.Equal(t, "single", fsinfo.System.Profile)
+	assert.Equal(t, int64(4194304), fsinfo.System.Total)
+	assert.Equal(t, int64(16384), fsinfo.System.Used)
+}
+
+var (
 	subvolStr = `ID 259 gen 14 top level 5 path svol
 ID 262 gen 21 top level 5 path cobavol
 
