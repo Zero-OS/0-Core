@@ -22,6 +22,7 @@ type Runner interface {
 	Run()
 	Process() process.Process
 	Wait() *core.JobResult
+	StartTime() int64
 }
 
 type runnerImpl struct {
@@ -30,8 +31,9 @@ type runnerImpl struct {
 	factory process.ProcessFactory
 	kill    chan int
 
-	process process.Process
-	hooks   []RunnerHook
+	process   process.Process
+	hooks     []RunnerHook
+	startTime time.Time
 
 	waitOnce sync.Once
 	result   *core.JobResult
@@ -81,15 +83,15 @@ func (runner *runnerImpl) timeout() <-chan time.Time {
 }
 
 func (runner *runnerImpl) run() (jobresult *core.JobResult) {
-	starttime := time.Now()
+	runner.startTime = time.Now()
 	jobresult = core.NewBasicJobResult(runner.command)
 	jobresult.State = core.StateError
 
 	defer func() {
-		jobresult.StartTime = int64(time.Duration(starttime.UnixNano()) / time.Millisecond)
+		jobresult.StartTime = int64(time.Duration(runner.startTime.UnixNano()) / time.Millisecond)
 		endtime := time.Now()
 
-		jobresult.Time = endtime.Sub(starttime).Nanoseconds() / int64(time.Millisecond)
+		jobresult.Time = endtime.Sub(runner.startTime).Nanoseconds() / int64(time.Millisecond)
 
 		if err := recover(); err != nil {
 			jobresult.State = core.StateError
@@ -133,7 +135,7 @@ loop:
 			jobresult.State = core.StateTimeout
 			break loop
 		case <-handlersTicker.C:
-			d := time.Now().Sub(starttime)
+			d := time.Now().Sub(runner.startTime)
 			for _, hook := range runner.hooks {
 				go hook.Tick(d)
 			}
@@ -162,9 +164,9 @@ loop:
 
 	runner.process = nil
 
-	//consume channel to the end to allow process to cleanup probabry
+	//consume channel to the end to allow process to cleanup properly
 	for _ = range channel {
-		//noop.
+		//loop.
 	}
 
 	if result != nil {
@@ -276,4 +278,8 @@ func (runner *runnerImpl) Register(g process.GetPID) error {
 
 func (runner *runnerImpl) WaitPID(pid int) syscall.WaitStatus {
 	return runner.manager.WaitPID(pid)
+}
+
+func (runner *runnerImpl) StartTime() int64 {
+	return int64(time.Duration(runner.startTime.UnixNano()) / time.Millisecond)
 }

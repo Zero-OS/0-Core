@@ -296,7 +296,6 @@ func (m *containerManager) list(cmd *core.Command) (interface{}, error) {
 		if ps != nil {
 			if stater, ok := ps.(process.Stater); ok {
 				state = *(stater.Stats())
-				state.Cmd = nil
 			}
 		}
 

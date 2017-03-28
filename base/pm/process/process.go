@@ -26,12 +26,11 @@ type PIDTable interface {
 
 //ProcessStats holds process cpu and memory usage
 type ProcessStats struct {
-	Cmd   *core.Command `json:"cmd,omitempty"`
-	CPU   float64       `json:"cpu"`
-	RSS   uint64        `json:"rss"`
-	VMS   uint64        `json:"vms"`
-	Swap  uint64        `json:"swap"`
-	Debug string        `json:"debug,ommitempty"`
+	CPU   float64 `json:"cpu"`
+	RSS   uint64  `json:"rss"`
+	VMS   uint64  `json:"vms"`
+	Swap  uint64  `json:"swap"`
+	Debug string  `json:"debug,ommitempty"`
 }
 
 //Process interface

@@ -20,6 +20,12 @@ type getProcessStatsData struct {
 	ID string `json:"id"`
 }
 
+type processData struct {
+	process.ProcessStats
+	StartTime int64         `json:"starttime"`
+	Cmd       *core.Command `json:"cmd,omitempty"`
+}
+
 func getProcessStats(cmd *core.Command) (interface{}, error) {
 	//load data
 	data := getProcessStatsData{}
@@ -28,7 +34,7 @@ func getProcessStats(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	stats := make([]*process.ProcessStats, 0, len(pm.GetManager().Runners()))
+	stats := make([]*processData, 0, len(pm.GetManager().Runners()))
 	var runners []pm.Runner
 
 	if data.ID != "" {
@@ -46,8 +52,9 @@ func getProcessStats(cmd *core.Command) (interface{}, error) {
 	}
 
 	for _, runner := range runners {
-		s := &process.ProcessStats{
-			Cmd: runner.Command(),
+		s := &processData{
+			Cmd:       runner.Command(),
+			StartTime: runner.StartTime(),
 		}
 
 		ps := runner.Process()

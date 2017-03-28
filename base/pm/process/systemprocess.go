@@ -53,7 +53,6 @@ func (process *systemProcessImpl) Kill() error {
 //GetStats gets stats of an external process
 func (process *systemProcessImpl) Stats() *ProcessStats {
 	stats := ProcessStats{}
-	stats.Cmd = process.cmd
 
 	defer func() {
 		if r := recover(); r != nil {
