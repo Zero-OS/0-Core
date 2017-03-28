@@ -815,7 +815,7 @@ class BtrfsManager:
         'devices': [str],
     })
 
-    _add_device_chk = typchk.Checker({
+    _device_chk = typchk.Checker({
         'mountpoint': str,
         'devices': (str,),
     })
@@ -893,12 +893,35 @@ class BtrfsManager:
             'devices': device,
         }
 
-        self._add_device_chk.check(args)
+        self._device_chk.check(args)
 
         result = self._client.raw('btrfs.add_device', args).get()
 
         if result.state != 'SUCCESS':
-            raise RuntimeError('failed to add device to btrfs FS %s' % result.data)
+            raise RuntimeError('failed to add device(s) to btrfs FS %s' % result.data)
+
+    def device_remove(self, mounpoint, *device):
+        """
+        Remove one or more devices from btrfs filesystem mounted under `mountpoint`
+
+        :param mounpoint: mount point of the btrfs system
+        :param devices: one ore more devices to remove
+        :return:
+        """
+        if len(device) == 0:
+            return
+
+        args = {
+            'mountpoint': mounpoint,
+            'devices': device,
+        }
+
+        self._device_chk.check(args)
+
+        result = self._client.raw('btrfs.remove_device', args).get()
+
+        if result.state != 'SUCCESS':
+            raise RuntimeError('failed to remove device(s) from btrfs FS %s' % result.data)
 
     def subvol_create(self, path):
         """

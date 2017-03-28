@@ -25,6 +25,7 @@ func init() {
 	pm.CmdMap["btrfs.info"] = process.NewInternalProcessFactory(btrfsInfo)
 	pm.CmdMap["btrfs.create"] = process.NewInternalProcessFactory(btrfsCreate)
 	pm.CmdMap["btrfs.add_device"] = process.NewInternalProcessFactory(btrfsAddDevice)
+	pm.CmdMap["btrfs.remove_device"] = process.NewInternalProcessFactory(btrfsRemoveDevice)
 	pm.CmdMap["btrfs.subvol_create"] = process.NewInternalProcessFactory(btrfsSubvolCreate)
 	pm.CmdMap["btrfs.subvol_delete"] = process.NewInternalProcessFactory(btrfsSubvolDelete)
 	pm.CmdMap["btrfs.subvol_list"] = process.NewInternalProcessFactory(btrfsSubvolList)
@@ -151,6 +152,27 @@ func btrfsAddDevice(cmd *core.Command) (interface{}, error) {
 	}
 
 	cmdArgs := []string{"device", "add", "-K", "-f"}
+	cmdArgs = append(cmdArgs, args.Devices...)
+	cmdArgs = append(cmdArgs, args.Mountpoint)
+	result, err := runBtrfsCmd("btrfs", cmdArgs)
+	if err != nil {
+		return nil, err
+	}
+
+	if result.State != core.StateSuccess {
+		return nil, fmt.Errorf("%v", result.Streams)
+	}
+
+	return nil, nil
+}
+
+func btrfsRemoveDevice(cmd *core.Command) (interface{}, error) {
+	var args btrfsAddDevicesArgument
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, err
+	}
+
+	cmdArgs := []string{"device", "remove"}
 	cmdArgs = append(cmdArgs, args.Devices...)
 	cmdArgs = append(cmdArgs, args.Mountpoint)
 	result, err := runBtrfsCmd("btrfs", cmdArgs)
