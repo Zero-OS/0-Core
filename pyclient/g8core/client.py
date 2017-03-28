@@ -877,11 +877,11 @@ class BtrfsManager:
         if result.state != 'SUCCESS':
             raise RuntimeError('failed to create btrfs FS %s' % result.data)
 
-    def device_add(self, mounpoint, *device):
+    def device_add(self, mountpoint, *device):
         """
         Add one or more devices to btrfs filesystem mounted under `mountpoint`
 
-        :param mounpoint: mount point of the btrfs system
+        :param mountpoint: mount point of the btrfs system
         :param devices: one ore more devices to add
         :return:
         """
@@ -889,7 +889,7 @@ class BtrfsManager:
             return
 
         args = {
-            'mountpoint': mounpoint,
+            'mountpoint': mountpoint,
             'devices': device,
         }
 
@@ -900,11 +900,11 @@ class BtrfsManager:
         if result.state != 'SUCCESS':
             raise RuntimeError('failed to add device(s) to btrfs FS %s' % result.data)
 
-    def device_remove(self, mounpoint, *device):
+    def device_remove(self, mountpoint, *device):
         """
         Remove one or more devices from btrfs filesystem mounted under `mountpoint`
 
-        :param mounpoint: mount point of the btrfs system
+        :param mountpoint: mount point of the btrfs system
         :param devices: one ore more devices to remove
         :return:
         """
@@ -912,7 +912,7 @@ class BtrfsManager:
             return
 
         args = {
-            'mountpoint': mounpoint,
+            'mountpoint': mountpoint,
             'devices': device,
         }
 
