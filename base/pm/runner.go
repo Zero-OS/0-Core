@@ -166,7 +166,7 @@ loop:
 
 	//consume channel to the end to allow process to cleanup properly
 	for _ = range channel {
-		//loop.
+		//noop.
 	}
 
 	if result != nil {

@@ -34,7 +34,7 @@ func getProcessStats(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	stats := make([]*processData, 0, len(pm.GetManager().Runners()))
+	stats := make([]processData, 0, len(pm.GetManager().Runners()))
 	var runners []pm.Runner
 
 	if data.ID != "" {
@@ -52,7 +52,7 @@ func getProcessStats(cmd *core.Command) (interface{}, error) {
 	}
 
 	for _, runner := range runners {
-		s := &processData{
+		s := processData{
 			Cmd:       runner.Command(),
 			StartTime: runner.StartTime(),
 		}
