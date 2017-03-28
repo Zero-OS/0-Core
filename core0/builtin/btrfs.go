@@ -24,6 +24,7 @@ func init() {
 	pm.CmdMap["btrfs.list"] = process.NewInternalProcessFactory(btrfsList)
 	pm.CmdMap["btrfs.info"] = process.NewInternalProcessFactory(btrfsInfo)
 	pm.CmdMap["btrfs.create"] = process.NewInternalProcessFactory(btrfsCreate)
+	pm.CmdMap["btrfs.add_device"] = process.NewInternalProcessFactory(btrfsAddDevice)
 	pm.CmdMap["btrfs.subvol_create"] = process.NewInternalProcessFactory(btrfsSubvolCreate)
 	pm.CmdMap["btrfs.subvol_delete"] = process.NewInternalProcessFactory(btrfsSubvolDelete)
 	pm.CmdMap["btrfs.subvol_list"] = process.NewInternalProcessFactory(btrfsSubvolList)
@@ -84,6 +85,11 @@ type btrfsInfoArgument struct {
 	Mountpoint string `json:"mountpoint"`
 }
 
+type btrfsAddDevicesArgument struct {
+	btrfsInfoArgument
+	Devices []string `json:"devices"`
+}
+
 type btrfsSubvol struct {
 	ID       int
 	Gen      int
@@ -138,24 +144,46 @@ func btrfsCreate(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
+func btrfsAddDevice(cmd *core.Command) (interface{}, error) {
+	var args btrfsAddDevicesArgument
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, err
+	}
+
+	cmdArgs := []string{"device", "add", "-K", "-f"}
+	cmdArgs = append(cmdArgs, args.Devices...)
+	cmdArgs = append(cmdArgs, args.Mountpoint)
+	result, err := runBtrfsCmd("btrfs", cmdArgs)
+	if err != nil {
+		return nil, err
+	}
+
+	if result.State != core.StateSuccess {
+		return nil, fmt.Errorf("%v", result.Streams)
+	}
+
+	return nil, nil
+}
+
 func btrfsListCmd(cmd *core.Command, args []string) ([]btrfsFS, error) {
 	defaultargs := []string{"filesystem", "show", "--raw"}
 	result, err := runBtrfsCmd("btrfs", append(defaultargs, args...))
-	fss := make([]btrfsFS, 0)
 	if err != nil {
-		return fss, err
+		return nil, err
 	}
 
 	if result.State != core.StateSuccess || len(result.Streams) == 0 {
 		return nil, fmt.Errorf("error listing btrfs filesystem: %v", result.Streams)
 	}
-	fss, err = btrfsParseList(result.Streams[0])
+	fss, err := btrfsParseList(result.Streams[0])
 	if err != nil {
-		log.Error("failed to list btrfs=", err)
+		return nil, err
 	}
+
 	if fss == nil {
 		fss = make([]btrfsFS, 0)
 	}
+
 	return fss, err
 }
 

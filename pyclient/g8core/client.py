@@ -815,6 +815,11 @@ class BtrfsManager:
         'devices': [str],
     })
 
+    _add_device_chk = typchk.Checker({
+        'mountpoint': str,
+        'devices': (str,),
+    })
+
     _subvol_chk = typchk.Checker({
         'path': str,
     })
@@ -871,6 +876,29 @@ class BtrfsManager:
 
         if result.state != 'SUCCESS':
             raise RuntimeError('failed to create btrfs FS %s' % result.data)
+
+    def device_add(self, mounpoint, *device):
+        """
+        Add one or more devices to btrfs filesystem mounted under `mountpoint`
+
+        :param mounpoint: mount point of the btrfs system
+        :param devices: one ore more devices to add
+        :return:
+        """
+        if len(device) == 0:
+            return
+
+        args = {
+            'mountpoint': mounpoint,
+            'devices': device,
+        }
+
+        self._add_device_chk.check(args)
+
+        result = self._client.raw('btrfs.add_device', args).get()
+
+        if result.state != 'SUCCESS':
+            raise RuntimeError('failed to add device to btrfs FS %s' % result.data)
 
     def subvol_create(self, path):
         """
