@@ -973,7 +973,7 @@ class BtrfsManager:
 
         self._device_chk.check(args)
 
-        result = self._client.raw('btrfs.add_device', args).get()
+        result = self._client.raw('btrfs.device_add', args).get()
 
         if result.state != 'SUCCESS':
             raise RuntimeError('failed to add device(s) to btrfs FS %s' % result.data)
@@ -996,7 +996,7 @@ class BtrfsManager:
 
         self._device_chk.check(args)
 
-        result = self._client.raw('btrfs.remove_device', args).get()
+        result = self._client.raw('btrfs.device_remove', args).get()
 
         if result.state != 'SUCCESS':
             raise RuntimeError('failed to remove device(s) from btrfs FS %s' % result.data)

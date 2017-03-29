@@ -1,4 +1,4 @@
-package builtin
+package btrfs
 
 import (
 	"testing"
@@ -18,7 +18,8 @@ Label: 'single'  uuid: 74595911-0f79-4c2e-925f-105d1279fb48
 )
 
 func TestParseFS(t *testing.T) {
-	fss, err := btrfsParseList(fsString)
+	var m btrfsManager
+	fss, err := m.parseList(fsString)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(fss))
 
@@ -46,8 +47,9 @@ GlobalReserve, single: total=16777216, used=0
 )
 
 func TestParseDF(t *testing.T) {
+	var m btrfsManager
 	fsinfo := btrfsFSInfo{}
-	btrfsParserFilesystemDF(dfString, &fsinfo)
+	m.parseFilesystemDF(dfString, &fsinfo)
 	assert.Equal(t, "single", fsinfo.Data.Profile)
 	assert.Equal(t, int64(8388608), fsinfo.Data.Total)
 	assert.Equal(t, int64(65536), fsinfo.Data.Used)
@@ -64,7 +66,8 @@ ID 262 gen 21 top level 5 path cobavol
 )
 
 func TestParseSubvolume(t *testing.T) {
-	svs, err := btrfsParseSubvolList(subvolStr)
+	var m btrfsManager
+	svs, err := m.parseSubvolList(subvolStr)
 
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(svs))

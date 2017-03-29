@@ -13,6 +13,7 @@ import (
 	"fmt"
 	_ "github.com/g8os/core0/base/builtin"
 	_ "github.com/g8os/core0/core0/builtin"
+	_ "github.com/g8os/core0/core0/builtin/btrfs"
 	"github.com/g8os/core0/core0/containers"
 	"github.com/g8os/core0/core0/kvm"
 	"github.com/g8os/core0/core0/options"
