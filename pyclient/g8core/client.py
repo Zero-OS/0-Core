@@ -902,6 +902,12 @@ class BtrfsManager:
         'path': str,
     })
 
+    _subvol_snapshot_chk = typchk.Checker({
+        'source': str,
+        'destination': str,
+        'read_only': bool,
+    })
+
     def __init__(self, client):
         self._client = client
 
@@ -909,29 +915,13 @@ class BtrfsManager:
         """
         List all btrfs filesystem
         """
-        result = self._client.raw('btrfs.list', {}).get()
-
-        if result.state != 'SUCCESS':
-            raise RuntimeError('failed to list btrfs: %s' % result.stderr)
-
-        if result.level != 20:  # 20 is JSON output.
-            raise RuntimeError('invalid response type from btrfs.list command')
-
-        return json.loads(result.data)
+        return self._client.json('btrfs.list', {})
 
     def info(self, mountpoint):
         """
         Get btrfs fs info
         """
-        result = self._client.raw('btrfs.info', {'mountpoint': mountpoint}).get()
-
-        if result.state != 'SUCCESS':
-            raise RuntimeError('failed to get btrfs info: %s' % result.stderr)
-
-        if result.level != 20:  # 20 is JSON output.
-            raise RuntimeError('invalid response type from btrfs.info command')
-
-        return json.loads(result.data)
+        return self._client.json('btrfs.info', {'mountpoint': mountpoint})
         
     def create(self, label, devices, metadata_profile="", data_profile=""):
         """
@@ -950,10 +940,7 @@ class BtrfsManager:
 
         self._create_chk.check(args)
 
-        result = self._client.raw('btrfs.create', args).get()
-
-        if result.state != 'SUCCESS':
-            raise RuntimeError('failed to create btrfs FS %s' % result.data)
+        self._client.sync('btrfs.create', args)
 
     def device_add(self, mountpoint, *device):
         """
@@ -973,10 +960,7 @@ class BtrfsManager:
 
         self._device_chk.check(args)
 
-        result = self._client.raw('btrfs.device_add', args).get()
-
-        if result.state != 'SUCCESS':
-            raise RuntimeError('failed to add device(s) to btrfs FS %s' % result.data)
+        self._client.sync('btrfs.device_add', args)
 
     def device_remove(self, mountpoint, *device):
         """
@@ -996,10 +980,7 @@ class BtrfsManager:
 
         self._device_chk.check(args)
 
-        result = self._client.raw('btrfs.device_remove', args).get()
-
-        if result.state != 'SUCCESS':
-            raise RuntimeError('failed to remove device(s) from btrfs FS %s' % result.data)
+        self._client.raw('btrfs.device_remove', args)
 
     def subvol_create(self, path):
         """
@@ -1010,27 +991,16 @@ class BtrfsManager:
             'path': path
         }
         self._subvol_chk.check(args)
-        result = self._client.raw('btrfs.subvol_create', args).get()
-
-        if result.state != 'SUCCESS':
-            raise RuntimeError('failed to create btrfs subvolume %s' % result.data)
+        self._client.sync('btrfs.subvol_create', args)
 
     def subvol_list(self, path):
         """
         List a btrfs subvolume in the specified path
         :param path: path to be listed
         """
-        result = self._client.raw('btrfs.subvol_list', {
+        return self._client.json('btrfs.subvol_list', {
             'path': path
-        }).get()
-
-        if result.state != 'SUCCESS':
-            raise RuntimeError('failed to list btrfs subvolume %s' % result.data)
-
-        if result.level != 20:  # 20 is JSON output.
-            raise RuntimeError('invalid response type from btrfs.subvol_list command')
-
-        return json.loads(result.data)
+        })
 
     def subvol_delete(self, path):
         """
@@ -1043,10 +1013,26 @@ class BtrfsManager:
 
         self._subvol_chk.check(args)
 
-        result = self._client.raw('btrfs.subvol_delete', args).get()
+        self._client.sync('btrfs.subvol_delete', args)
 
-        if result.state != 'SUCCESS':
-            raise RuntimeError('failed to list btrfs subvolume %s' % result.data)
+    def subvol_snapshot(self, source, destination, read_only=False):
+        """
+        Take a snapshot
+
+        :param source: source path of subvol
+        :param destination: destination path of snapshot
+        :param read_only: Set read-only on the snapshot
+        :return:
+        """
+
+        args = {
+            "source": source,
+            "destination": destination,
+            "read_only": read_only,
+        }
+
+        self._subvol_snapshot_chk.check(args)
+        self._client.sync('btrfs.subvol_snapshot', args)
 
 
 class ZerotierManager:

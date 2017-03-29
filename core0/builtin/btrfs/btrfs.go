@@ -31,6 +31,7 @@ func init() {
 	pm.CmdMap["btrfs.subvol_create"] = process.NewInternalProcessFactory(m.SubvolCreate)
 	pm.CmdMap["btrfs.subvol_delete"] = process.NewInternalProcessFactory(m.SubvolDelete)
 	pm.CmdMap["btrfs.subvol_list"] = process.NewInternalProcessFactory(m.SubvolList)
+	pm.CmdMap["btrfs.subvol_snapshot"] = process.NewInternalProcessFactory(m.SubvolSnapshot)
 }
 
 type btrfsFS struct {
@@ -63,9 +64,16 @@ type btrfsDevice struct {
 	Path    string `json:"path"`
 }
 
+type btrfsSubvol struct {
+	ID       int
+	Gen      int
+	TopLevel int
+	Path     string
+}
+
 var (
 	// valid btrfs data & metadata profiles
-	btrfsProfiles = map[string]struct{}{
+	Profiles = map[string]struct{}{
 		"raid0":  struct{}{},
 		"raid1":  struct{}{},
 		"raid5":  struct{}{},
@@ -77,44 +85,43 @@ var (
 	}
 )
 
-type btrfsCreateArgument struct {
+type CreateArgument struct {
 	Label    string   `json:"label"`
 	Metadata string   `json:"metadata"`
 	Data     string   `json:"data"`
 	Devices  []string `json:"devices"`
 }
 
-type btrfsInfoArgument struct {
+type InfoArgument struct {
 	Mountpoint string `json:"mountpoint"`
 }
 
-type btrfsAddDevicesArgument struct {
-	btrfsInfoArgument
+type DeviceAddArgument struct {
+	InfoArgument
 	Devices []string `json:"devices"`
 }
 
-type btrfsSubvol struct {
-	ID       int
-	Gen      int
-	TopLevel int
-	Path     string
+type SnapshotArgument struct {
+	Source      string `json:"source"`
+	Destination string `json:"destination"`
+	Readonly    bool   `json:"read_only"`
 }
 
-func (arg btrfsCreateArgument) Validate() error {
+func (arg CreateArgument) Validate() error {
 	if len(arg.Devices) == 0 {
 		return fmt.Errorf("need to specify devices to create btrfs")
 	}
-	if v, ok := btrfsProfiles[arg.Metadata]; !ok {
+	if v, ok := Profiles[arg.Metadata]; !ok {
 		return fmt.Errorf("invalid metadata profile:%v", v)
 	}
-	if v, ok := btrfsProfiles[arg.Data]; !ok {
+	if v, ok := Profiles[arg.Data]; !ok {
 		return fmt.Errorf("invalid data profile:%v", v)
 	}
 	return nil
 }
 
 func (m *btrfsManager) Create(cmd *core.Command) (interface{}, error) {
-	var args btrfsCreateArgument
+	var args CreateArgument
 	var opts []string
 
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
@@ -135,20 +142,16 @@ func (m *btrfsManager) Create(cmd *core.Command) (interface{}, error) {
 	}
 	opts = append(opts, args.Devices...)
 
-	result, err := m.exec("mkfs.btrfs", opts...)
+	_, err := m.exec("mkfs.btrfs", opts...)
 	if err != nil {
 		return nil, err
-	}
-
-	if result.State != core.StateSuccess {
-		return "", fmt.Errorf("error creating btrfs filesystem: %v", result.Streams)
 	}
 
 	return nil, nil
 }
 
 func (m *btrfsManager) DeviceAdd(cmd *core.Command) (interface{}, error) {
-	var args btrfsAddDevicesArgument
+	var args DeviceAddArgument
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
 	}
@@ -156,20 +159,16 @@ func (m *btrfsManager) DeviceAdd(cmd *core.Command) (interface{}, error) {
 	cmdArgs := []string{"device", "add", "-K", "-f"}
 	cmdArgs = append(cmdArgs, args.Devices...)
 	cmdArgs = append(cmdArgs, args.Mountpoint)
-	result, err := m.btrfs(cmdArgs...)
+	_, err := m.btrfs(cmdArgs...)
 	if err != nil {
 		return nil, err
-	}
-
-	if result.State != core.StateSuccess {
-		return nil, fmt.Errorf("%v", result.Streams)
 	}
 
 	return nil, nil
 }
 
 func (m *btrfsManager) DeviceRemove(cmd *core.Command) (interface{}, error) {
-	var args btrfsAddDevicesArgument
+	var args DeviceAddArgument
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
 	}
@@ -177,13 +176,9 @@ func (m *btrfsManager) DeviceRemove(cmd *core.Command) (interface{}, error) {
 	cmdArgs := []string{"device", "remove"}
 	cmdArgs = append(cmdArgs, args.Devices...)
 	cmdArgs = append(cmdArgs, args.Mountpoint)
-	result, err := m.btrfs(cmdArgs...)
+	_, err := m.btrfs(cmdArgs...)
 	if err != nil {
 		return nil, err
-	}
-
-	if result.State != core.StateSuccess {
-		return nil, fmt.Errorf("%v", result.Streams)
 	}
 
 	return nil, nil
@@ -197,9 +192,6 @@ func (m *btrfsManager) list(cmd *core.Command, args []string) ([]btrfsFS, error)
 		return nil, err
 	}
 
-	if result.State != core.StateSuccess || len(result.Streams) == 0 {
-		return nil, fmt.Errorf("error listing btrfs filesystem: %v", result.Streams)
-	}
 	fss, err := m.parseList(result.Streams[0])
 	if err != nil {
 		return nil, err
@@ -219,7 +211,7 @@ func (m *btrfsManager) List(cmd *core.Command) (interface{}, error) {
 
 // get btrfs info
 func (m *btrfsManager) Info(cmd *core.Command) (interface{}, error) {
-	var args btrfsInfoArgument
+	var args InfoArgument
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
 	}
@@ -240,13 +232,13 @@ func (m *btrfsManager) Info(cmd *core.Command) (interface{}, error) {
 
 }
 
-type btrfsSubvolArgument struct {
+type SubvolArgument struct {
 	Path string `json:"path"`
 }
 
 // create subvolume under a mount point
 func (m *btrfsManager) SubvolCreate(cmd *core.Command) (interface{}, error) {
-	var args btrfsSubvolArgument
+	var args SubvolArgument
 
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -255,20 +247,17 @@ func (m *btrfsManager) SubvolCreate(cmd *core.Command) (interface{}, error) {
 		return nil, fmt.Errorf("invalid path=%v", args.Path)
 	}
 
-	result, err := m.btrfs("subvolume", "create", args.Path)
+	_, err := m.btrfs("subvolume", "create", args.Path)
 	if err != nil {
 		return nil, err
 	}
 
-	if result.State != core.StateSuccess {
-		return nil, fmt.Errorf("error creating btrfs subvolume: %v:%v", result.Streams, result.Data)
-	}
 	return nil, nil
 }
 
 // delete subvolume under a mount point
 func (m *btrfsManager) SubvolDelete(cmd *core.Command) (interface{}, error) {
-	var args btrfsSubvolArgument
+	var args SubvolArgument
 
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -277,13 +266,30 @@ func (m *btrfsManager) SubvolDelete(cmd *core.Command) (interface{}, error) {
 		return nil, fmt.Errorf("invalid path=%v", args.Path)
 	}
 
-	result, err := m.btrfs("subvolume", "delete", args.Path)
+	_, err := m.btrfs("subvolume", "delete", args.Path)
 	if err != nil {
 		return nil, err
 	}
 
-	if result.State != core.StateSuccess {
-		return nil, fmt.Errorf("error deleting btrfs subvolume: %v:%v", result.Streams, result.Data)
+	return nil, nil
+}
+
+// make a subvol snapshot
+func (m *btrfsManager) SubvolSnapshot(cmd *core.Command) (interface{}, error) {
+	var args SnapshotArgument
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, err
+	}
+
+	in := []string{"subvolume", "snapshot"}
+	if args.Readonly {
+		in = append(in, "-r")
+	}
+	in = append(in, args.Source, args.Destination)
+
+	_, err := m.btrfs(in...)
+	if err != nil {
+		return nil, err
 	}
 
 	return nil, nil
@@ -291,7 +297,7 @@ func (m *btrfsManager) SubvolDelete(cmd *core.Command) (interface{}, error) {
 
 // list subvolume under a mount point
 func (m *btrfsManager) SubvolList(cmd *core.Command) (interface{}, error) {
-	var args btrfsSubvolArgument
+	var args SubvolArgument
 
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -303,10 +309,6 @@ func (m *btrfsManager) SubvolList(cmd *core.Command) (interface{}, error) {
 	result, err := m.btrfs("subvolume", "list", args.Path)
 	if err != nil {
 		return nil, err
-	}
-
-	if result.State != core.StateSuccess || len(result.Streams) != 2 {
-		return nil, fmt.Errorf("error list btrfs subvolume: %v:%v", result.Streams, result.Data)
 	}
 
 	return m.parseSubvolList(result.Streams[0])
