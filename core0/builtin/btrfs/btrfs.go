@@ -86,10 +86,11 @@ var (
 )
 
 type CreateArgument struct {
-	Label    string   `json:"label"`
-	Metadata string   `json:"metadata"`
-	Data     string   `json:"data"`
-	Devices  []string `json:"devices"`
+	Label     string   `json:"label"`
+	Metadata  string   `json:"metadata"`
+	Data      string   `json:"data"`
+	Devices   []string `json:"devices"`
+	Overwrite bool     `json:"overwrite"`
 }
 
 type InfoArgument struct {
@@ -131,6 +132,9 @@ func (m *btrfsManager) Create(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
+	if args.Overwrite {
+		opts = append(opts, "-f")
+	}
 	if args.Label != "" {
 		opts = append(opts, "-L", args.Label)
 	}
