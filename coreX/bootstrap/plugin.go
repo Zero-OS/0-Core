@@ -14,9 +14,29 @@ import (
 
 const (
 	PluginSearchPath = "/var/lib/corex/plugins"
+	ManifestSymbol   = "Manifest"
 	PluginSymbol     = "Plugin"
 	PluginExt        = ".so"
 )
+
+func (b *Bootstrap) pluginV1(domain string, p *plugin.Plugin) error {
+	sym, err := p.Lookup(PluginSymbol)
+	if err != nil {
+		return err
+	}
+
+	commands, ok := sym.(*pl.Commands)
+
+	if !ok {
+		return fmt.Errorf("plugin(v1) wrong plugin object")
+	}
+
+	for name, fn := range *commands {
+		pm.CmdMap[fmt.Sprintf("%s.%s", domain, name)] = process.NewInternalProcessFactory(fn)
+	}
+
+	return nil
+}
 
 func (b *Bootstrap) plugin(name string) error {
 	plgn, err := plugin.Open(name)
@@ -24,23 +44,27 @@ func (b *Bootstrap) plugin(name string) error {
 		return err
 	}
 
-	entry, err := plgn.Lookup(PluginSymbol)
+	sym, err := plgn.Lookup(ManifestSymbol)
 	if err != nil {
 		return err
 	}
 
-	if entry, ok := entry.(*pl.Plugin); ok {
-		domain := entry.Domain
-		if domain == "" {
-			d := path.Base(name)
-			domain = strings.TrimSuffix(d, PluginExt)
-		}
-
-		for name, fn := range entry.Commands {
-			pm.CmdMap[fmt.Sprintf("%s.%s", domain, name)] = process.NewInternalProcessFactory(fn)
-		}
-	} else {
+	man, ok := sym.(*pl.Manifest)
+	if !ok {
 		return fmt.Errorf("not a comptaible plugin")
+	}
+
+	domain := man.Domain
+	if domain == "" {
+		d := path.Base(name)
+		domain = strings.TrimSuffix(d, PluginExt)
+	}
+
+	switch man.Version {
+	case pl.Version_1:
+		fallthrough
+	default:
+		return b.pluginV1(domain, plgn)
 	}
 
 	return nil
