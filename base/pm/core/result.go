@@ -27,6 +27,7 @@ type JobResult struct {
 	StartTime int64    `json:"starttime"`
 	Time      int64    `json:"time"`
 	Tags      string   `json:"tags"`
+	Container uint64   `json:"container"`
 }
 
 //NewBasicJobResult creates a new job result from command

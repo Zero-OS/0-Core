@@ -76,6 +76,7 @@ func main() {
 
 	//handle process results. Forwards the result to the correct controller.
 	mgr.AddResultHandler(func(cmd *pmcore.Command, result *pmcore.JobResult) {
+		result.Container = opt.CoreID()
 		log.Infof("Job result for command '%s' is '%s'", cmd, result.State)
 	})
 
