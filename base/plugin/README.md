@@ -30,7 +30,7 @@ var Plugin = plugin.Commands{
 
 ```
 
->> It must be a `main` package
+> It must be a `main` package
 
 - *Manifest* sets the function domains, so the `ping` method will be callable as
 `test.ping` if the `Domain` is not set, the name of the `.so` file will be used instead.
