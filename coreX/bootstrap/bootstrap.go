@@ -112,6 +112,9 @@ func (b *Bootstrap) Bootstrap(hostname string) error {
 		log.Errorf("failed to startup container services: %s", err)
 	}
 
+	if err := b.plugins(); err != nil {
+		log.Errorf("failed to load plugins: %s", err)
+	}
 	return nil
 }
 
