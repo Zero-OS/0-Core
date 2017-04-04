@@ -39,8 +39,8 @@ func Plugin(commands Commands) {
 	cmd := args[0]
 
 	var input json.RawMessage
-	if len(args) == 1 {
-		in := args[0]
+	if len(args) == 2 {
+		in := args[1]
 		input = json.RawMessage([]byte(in))
 	}
 
