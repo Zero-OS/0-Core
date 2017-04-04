@@ -1004,6 +1004,11 @@ class BtrfsManager:
         'path': str,
     })
 
+    _subvol_quota_chk = typchk.Checker({
+        'path': str,
+        'limit': str,
+    })
+
     _subvol_snapshot_chk = typchk.Checker({
         'source': str,
         'destination': str,
@@ -1118,6 +1123,21 @@ class BtrfsManager:
         self._subvol_chk.check(args)
 
         self._client.sync('btrfs.subvol_delete', args)
+
+    def subvol_quota(self, path, limit):
+        """
+        Apply a quota to a btrfs subvolume in the specified path
+        :param path:  path to delete
+        :param limit: the limit to Apply
+        """
+        args = {
+            'path': path,
+            'limit': limit,
+        }
+
+        self._subvol_quota_chk.check(args)
+
+        self._client.sync('btrfs.subvol_quota', args)
 
     def subvol_snapshot(self, source, destination, read_only=False):
         """
