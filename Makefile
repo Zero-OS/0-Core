@@ -19,4 +19,4 @@ coreX: $(OUTPUT)
 $(OUTPUT):
 	mkdir -p $(OUTPUT)
 
-.PHONEY: $(OUTPUT) core0 coreX
+.PHONY: $(OUTPUT) core0 coreX

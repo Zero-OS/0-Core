@@ -75,7 +75,7 @@ func (o *Bootstrap) setupFS() error {
 	return nil
 }
 
-func (b *Bootstrap) startupServices() error {
+func (b *Bootstrap) startup() error {
 	var included settings.IncludedSettings
 	if err := utils.LoadTomlFile("/.startup.toml", &included); err != nil {
 		return err
@@ -108,13 +108,14 @@ func (b *Bootstrap) Bootstrap(hostname string) error {
 
 	log.Debugf("startup services")
 
-	if err := b.startupServices(); err != nil {
-		log.Errorf("failed to startup container services: %s", err)
-	}
-
 	if err := b.plugins(); err != nil {
 		log.Errorf("failed to load plugins: %s", err)
 	}
+
+	if err := b.startup(); err != nil {
+		log.Errorf("failed to startup container services: %s", err)
+	}
+
 	return nil
 }
 

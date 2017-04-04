@@ -2,14 +2,10 @@ package bootstrap
 
 import (
 	"fmt"
-	pl "github.com/g8os/core0/base/plugin"
 	"github.com/g8os/core0/base/pm"
+	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
-	"os"
-	"path"
-	"path/filepath"
-	"plugin"
-	"strings"
+	"github.com/g8os/core0/base/utils"
 )
 
 const (
@@ -19,73 +15,54 @@ const (
 	PluginExt        = ".so"
 )
 
-func (b *Bootstrap) pluginV1(domain string, p *plugin.Plugin) error {
-	sym, err := p.Lookup(PluginSymbol)
-	if err != nil {
-		return err
-	}
-
-	commands, ok := sym.(*pl.Commands)
-
-	if !ok {
-		return fmt.Errorf("plugin(v1) wrong plugin object")
-	}
-
-	for name, fn := range *commands {
-		pm.CmdMap[fmt.Sprintf("%s.%s", domain, name)] = process.NewInternalProcessFactory(fn)
-	}
-
-	return nil
+type Plugin struct {
+	Path    string
+	Exports []string
 }
 
-func (b *Bootstrap) plugin(name string) error {
-	plgn, err := plugin.Open(name)
-	if err != nil {
-		return err
-	}
+type PluginsSettings struct {
+	Plugin map[string]Plugin
+}
 
-	sym, err := plgn.Lookup(ManifestSymbol)
-	if err != nil {
-		return err
-	}
+func (b *Bootstrap) pluginFactory(path string, fn string) process.ProcessFactory {
+	return func(table process.PIDTable, srcCmd *core.Command) process.Process {
+		cmd := &core.Command{
+			ID:      srcCmd.ID,
+			Command: process.CommandSystem,
+			Arguments: core.MustArguments(process.SystemCommandArguments{
+				Name: path,
+				Args: []string{fn, string(*srcCmd.Arguments)},
+			}),
+			Queue:           srcCmd.Queue,
+			StatsInterval:   srcCmd.StatsInterval,
+			MaxTime:         srcCmd.MaxTime,
+			MaxRestart:      srcCmd.MaxRestart,
+			RecurringPeriod: srcCmd.RecurringPeriod,
+			LogLevels:       srcCmd.LogLevels,
+			Tags:            srcCmd.Tags,
+		}
 
-	man, ok := sym.(*pl.Manifest)
-	if !ok {
-		return fmt.Errorf("not a comptaible plugin")
+		return process.NewSystemProcess(table, cmd)
 	}
+}
 
-	domain := man.Domain
-	if domain == "" {
-		d := path.Base(name)
-		domain = strings.TrimSuffix(d, PluginExt)
+func (b *Bootstrap) plugin(domain string, plugin Plugin) {
+	for _, export := range plugin.Exports {
+		cmd := fmt.Sprintf("%s.%s", domain, export)
+
+		pm.CmdMap[cmd] = b.pluginFactory(plugin.Path, export)
 	}
-
-	switch man.Version {
-	case pl.Version_1:
-		fallthrough
-	default:
-		return b.pluginV1(domain, plgn)
-	}
-
-	return nil
 }
 
 func (b *Bootstrap) plugins() error {
-	walk := func(name string, info os.FileInfo, err error) error {
-		if info.IsDir() {
-			return nil
-		}
-		ext := path.Ext(name)
-		if ext != PluginExt {
-			return nil
-		}
-
-		if err := b.plugin(name); err != nil {
-			log.Errorf("failed to load plugin (%s): %s", name, err)
-		}
-
-		return nil
+	var plugins PluginsSettings
+	if err := utils.LoadTomlFile("/.plugin.toml", &plugins); err != nil {
+		return err
 	}
 
-	return filepath.Walk(PluginSearchPath, walk)
+	for domain, plugin := range plugins.Plugin {
+		b.plugin(domain, plugin)
+	}
+
+	return nil
 }
