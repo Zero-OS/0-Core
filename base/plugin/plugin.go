@@ -12,9 +12,9 @@ type Commands map[string]Runnable
 
 func output(o interface{}) {
 	encoder := json.NewEncoder(os.Stdout)
-	os.Stdout.WriteString("20:::\n")
+	os.Stdout.WriteString("20:::")
 	encoder.Encode(o)
-	os.Stdout.WriteString(":::\n")
+	os.Stdout.WriteString(":::")
 }
 
 func exitError(e error) {

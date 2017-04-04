@@ -11,44 +11,52 @@ To create a plugin create a new go package as follows
 package main
 
 import (
+	"encoding/json"
 	"github.com/g8os/core0/base/plugin"
-	"github.com/g8os/core0/base/pm/core"
 )
 
-func ping(cmd *core.Command) (interface{}, error) {
-	return "pong", nil
+const (
+	Version = "1.0alpha"
+)
+
+func version(input json.RawMessage) (interface{}, error) {
+	return Version, nil
 }
 
-var Manifest = plugin.Manifest{
-	Domain:  "test",
-	Version: plugin.Version_1,
-}
+var (
+	Plugin = plugin.Commands{
+		"version": version,
+	}
+)
 
-var Plugin = plugin.Commands{
-	"ping": ping,
+func main() {
+	plugin.Plugin(Plugin)
 }
-
 ```
-
-> It must be a `main` package
-
-- *Manifest* sets the function domains, so the `ping` method will be callable as
-`test.ping` if the `Domain` is not set, the name of the `.so` file will be used instead.
-- *Version* sets the plugin interface version, so coreX can support older plugin formats.
-- *Plugin* sets the map of commands
 
 ## Building a plugin
+Nothing special!
 ```bash
-go build -buildmode=plugin -o test.so
+go build
 ```
 
-By placing the output `.so` file under the plugin search path as defined above (inside the container image of-course)
-once you start the container, you can call the `test.ping` method as follows
+Place the outputed executable binary file in your container image.
+Then on the root of your image place a `.plugin.toml` file with the following content
+```toml
+[plugin.ovs]
+path = "/var/lib/corex/plugins/ovs-plugin"
+exports = ["version"]
+```
 
+> the exports, tells the container which methods are available for execution (in our example `version`)
+
+> `path` is the path to the plugin binary under your container image (absolute from the container image root)
+
+Calling the plugin method.
 ```python
 cl = g8core.Client("hostname")
 id = cl.container.create('url to image that has the plugin')
 container = cl.container.client(id)
 
-container.raw("test.ping", {}) ### returns "pong"
+container.raw("ovs.version", {}) ### returns "1.0alpha"
 ```
