@@ -41,9 +41,14 @@ var (
 )
 
 const (
-	kvmCreateCommand  = "kvm.create"
-	kvmDestroyCommand = "kvm.destroy"
-	kvmListCommand    = "kvm.list"
+	kvmCreateCommand   = "kvm.create"
+	kvmDestroyCommand  = "kvm.destroy"
+	kvmShutdownCommand = "kvm.shutdown"
+	kvmRebootCommand   = "kvm.reboot"
+	kvmResetCommand    = "kvm.reset"
+	kvmPauseCommand    = "kvm.pause"
+	kvmResumeCommand   = "kvm.resume"
+	kvmListCommand     = "kvm.list"
 
 	DefaultBridgeName = "kvm-0"
 )
@@ -57,6 +62,11 @@ func KVMSubsystem() error {
 
 	pm.CmdMap[kvmCreateCommand] = process.NewInternalProcessFactory(mgr.create)
 	pm.CmdMap[kvmDestroyCommand] = process.NewInternalProcessFactory(mgr.destroy)
+	pm.CmdMap[kvmShutdownCommand] = process.NewInternalProcessFactory(mgr.shutdown)
+	pm.CmdMap[kvmRebootCommand] = process.NewInternalProcessFactory(mgr.reboot)
+	pm.CmdMap[kvmResetCommand] = process.NewInternalProcessFactory(mgr.reset)
+	pm.CmdMap[kvmPauseCommand] = process.NewInternalProcessFactory(mgr.pause)
+	pm.CmdMap[kvmResumeCommand] = process.NewInternalProcessFactory(mgr.resume)
 	pm.CmdMap[kvmListCommand] = process.NewInternalProcessFactory(mgr.list)
 
 	return nil
@@ -452,12 +462,12 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-type DestroyParams struct {
+type DomainActionParams struct {
 	Name string `json:"name"`
 }
 
 func (m *kvmManager) destroy(cmd *core.Command) (interface{}, error) {
-	var params DestroyParams
+	var params DomainActionParams
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
@@ -477,6 +487,123 @@ func (m *kvmManager) destroy(cmd *core.Command) (interface{}, error) {
 	}
 
 	m.unPortForward(params.Name)
+
+	return nil, nil
+}
+
+func (m *kvmManager) shutdown(cmd *core.Command) (interface{}, error) {
+	var params DomainActionParams
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, err
+	}
+
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
+	}
+	defer conn.Close()
+
+	domain, err := conn.LookupDomainByName(params.Name)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't find domain with the name %s", params.Name)
+	}
+	if err := domain.Shutdown(); err != nil {
+		return nil, fmt.Errorf("failed to shutdown machine: %s", err)
+	}
+
+	m.unPortForward(params.Name)
+
+	return nil, nil
+}
+
+func (m *kvmManager) reboot(cmd *core.Command) (interface{}, error) {
+	var params DomainActionParams
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, err
+	}
+
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
+	}
+	defer conn.Close()
+
+	domain, err := conn.LookupDomainByName(params.Name)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't find domain with the name %s", params.Name)
+	}
+	if err := domain.Reboot(libvirt.DOMAIN_REBOOT_DEFAULT); err != nil {
+		return nil, fmt.Errorf("failed to reboot machine: %s", err)
+	}
+
+	return nil, nil
+}
+
+func (m *kvmManager) reset(cmd *core.Command) (interface{}, error) {
+	var params DomainActionParams
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, err
+	}
+
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
+	}
+	defer conn.Close()
+
+	domain, err := conn.LookupDomainByName(params.Name)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't find domain with the name %s", params.Name)
+	}
+	if err := domain.Reset(0); err != nil {
+		return nil, fmt.Errorf("failed to reset machine: %s", err)
+	}
+
+	return nil, nil
+}
+
+func (m *kvmManager) pause(cmd *core.Command) (interface{}, error) {
+	var params DomainActionParams
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, err
+	}
+
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
+	}
+	defer conn.Close()
+
+	domain, err := conn.LookupDomainByName(params.Name)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't find domain with the name %s", params.Name)
+	}
+	if err := domain.Suspend(); err != nil {
+		return nil, fmt.Errorf("failed to pause machine: %s", err)
+	}
+
+	return nil, nil
+}
+
+func (m *kvmManager) resume(cmd *core.Command) (interface{}, error) {
+	var params DomainActionParams
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, err
+	}
+
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
+	}
+	defer conn.Close()
+
+	domain, err := conn.LookupDomainByName(params.Name)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't find domain with the name %s", params.Name)
+	}
+	if err := domain.Resume(); err != nil {
+		return nil, fmt.Errorf("failed to resume machine: %s", err)
+	}
 
 	return nil, nil
 }

@@ -1235,7 +1235,7 @@ class KvmManager:
         ),
     })
 
-    _destroy_chk = typchk.Checker({
+    _domain_action_chk = typchk.Checker({
         'name': str,
     })
 
@@ -1279,9 +1279,74 @@ class KvmManager:
         args = {
             'name': name,
         }
-        self._destroy_chk.check(args)
+        self._domain_action_chk.check(args)
 
         self._client.sync('kvm.destroy', args)
+
+    def shutdown(self, name):
+        """
+        Shutdown a kvm domain by name
+        :param name: name of the kvm container (same as the used in create)
+        :return:
+        """
+        args = {
+            'name': name,
+        }
+        self._domain_action_chk.check(args)
+
+        self._client.sync('kvm.shutdown', args)
+
+    def reboot(self, name):
+        """
+        Reboot a kvm domain by name
+        :param name: name of the kvm container (same as the used in create)
+        :return:
+        """
+        args = {
+            'name': name,
+        }
+        self._domain_action_chk.check(args)
+
+        self._client.sync('kvm.reboot', args)
+
+    def reset(self, name):
+        """
+        Reset (Force reboot) a kvm domain by name
+        :param name: name of the kvm container (same as the used in create)
+        :return:
+        """
+        args = {
+            'name': name,
+        }
+        self._domain_action_chk.check(args)
+
+        self._client.sync('kvm.reset', args)
+
+    def pause(self, name):
+        """
+        Pause a kvm domain by name
+        :param name: name of the kvm container (same as the used in create)
+        :return:
+        """
+        args = {
+            'name': name,
+        }
+        self._domain_action_chk.check(args)
+
+        self._client.sync('kvm.pause', args)
+
+    def resume(self, name):
+        """
+        Resume a kvm domain by name
+        :param name: name of the kvm container (same as the used in create)
+        :return:
+        """
+        args = {
+            'name': name,
+        }
+        self._domain_action_chk.check(args)
+
+        self._client.sync('kvm.resume', args)
 
     def list(self):
         """
