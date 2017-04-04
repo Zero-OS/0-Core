@@ -4,16 +4,15 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	//"os"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
+	"github.com/libvirt/libvirt-go"
 	"github.com/pborman/uuid"
 	"github.com/vishvananda/netlink"
 	"sync"
@@ -76,6 +75,31 @@ type CreateParams struct {
 	Media  []Media     `json:"media"`
 	Bridge []string    `json:"bridge"`
 	Port   map[int]int `json:"port"`
+}
+
+func StateToString(state libvirt.DomainState) string {
+	var res string
+	switch state {
+	case libvirt.DOMAIN_NOSTATE:
+		res = "nostate"
+	case libvirt.DOMAIN_RUNNING:
+		res = "running"
+	case libvirt.DOMAIN_BLOCKED:
+		res = "blocked"
+	case libvirt.DOMAIN_PAUSED:
+		res = "paused"
+	case libvirt.DOMAIN_SHUTDOWN:
+		res = "shutdown"
+	case libvirt.DOMAIN_CRASHED:
+		res = "crashed"
+	case libvirt.DOMAIN_PMSUSPENDED:
+		res = "pmsuspended"
+	case libvirt.DOMAIN_SHUTOFF:
+		res = "shutoff"
+	default:
+		res = ""
+	}
+	return res
 }
 
 func (m *kvmManager) setupDefaultGateway() error {
@@ -410,39 +434,15 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, fmt.Errorf("failed to generate domain xml: %s", err)
 	}
 
-	tmp, err := ioutil.TempFile("/tmp", "kvm-domain")
-	if err != nil {
-		return nil, err
-	}
-	//defer os.Remove(tmp.Name())
-	defer tmp.Close()
-
-	if _, err := tmp.Write(data); err != nil {
-		return nil, fmt.Errorf("failed to write domain xml: %s", err)
-	}
-
-	tmp.Close()
-
 	//create domain
-	virsh := &core.Command{
-		ID:      uuid.New(),
-		Command: process.CommandSystem,
-		Arguments: core.MustArguments(
-			process.SystemCommandArguments{
-				Name: "virsh",
-				Args: []string{
-					"create", tmp.Name(),
-				},
-			},
-		),
-	}
-	runner, err := pm.GetManager().RunCmd(virsh)
+	conn, err := libvirt.NewConnect("qemu:///system")
 	if err != nil {
-		return nil, fmt.Errorf("failed to start virsh: %s", err)
+		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
 	}
-	result := runner.Wait()
-	if result.State != core.StateSuccess {
-		return nil, fmt.Errorf(result.Streams[1])
+	defer conn.Close()
+
+	if _, err := conn.DomainCreateXML(string(data[:]), libvirt.DOMAIN_NONE); err != nil {
+		return nil, fmt.Errorf("failed to create machine: %s", err)
 	}
 
 	//start port forwarders
@@ -461,25 +461,19 @@ func (m *kvmManager) destroy(cmd *core.Command) (interface{}, error) {
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
-	virsh := &core.Command{
-		ID:      uuid.New(),
-		Command: process.CommandSystem,
-		Arguments: core.MustArguments(
-			process.SystemCommandArguments{
-				Name: "virsh",
-				Args: []string{
-					"destroy", params.Name,
-				},
-			},
-		),
-	}
-	runner, err := pm.GetManager().RunCmd(virsh)
+
+	conn, err := libvirt.NewConnect("qemu:///system")
 	if err != nil {
-		return nil, fmt.Errorf("failed to destroy machine: %s", err)
+		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
 	}
-	result := runner.Wait()
-	if result.State != core.StateSuccess {
-		return nil, fmt.Errorf(result.Streams[1])
+	defer conn.Close()
+
+	domain, err := conn.LookupDomainByName(params.Name)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't find domain with the name %s", params.Name)
+	}
+	if err := domain.Destroy(); err != nil {
+		return nil, fmt.Errorf("failed to destroy machine: %s", err)
 	}
 
 	m.unPortForward(params.Name)
@@ -494,47 +488,36 @@ type Machine struct {
 }
 
 func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
-	virsh := &core.Command{
-		ID:      uuid.New(),
-		Command: process.CommandSystem,
-		Arguments: core.MustArguments(
-			process.SystemCommandArguments{
-				Name: "virsh",
-				Args: []string{
-					"list", "--all",
-				},
-			},
-		),
-	}
-	runner, err := pm.GetManager().RunCmd(virsh)
+	conn, err := libvirt.NewConnect("qemu:///system")
 	if err != nil {
-		return nil, fmt.Errorf("failed to destroy machine: %s", err)
+		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
 	}
-	result := runner.Wait()
-	if result.State != core.StateSuccess {
-		return nil, fmt.Errorf(result.Streams[1])
-	}
+	defer conn.Close()
 
-	out := result.Streams[0]
+	domains, err := conn.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE | libvirt.CONNECT_LIST_DOMAINS_INACTIVE)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list machines: %s", err)
+	}
 
 	found := make([]Machine, 0)
-	lines := strings.Split(out, "\n")
-	if len(lines) <= 3 {
-		return found, nil
-	}
 
-	lines = lines[2:]
-
-	for _, line := range lines {
-		match := pattern.FindStringSubmatch(line)
-		if len(match) != 4 {
-			continue
+	for _, domain := range domains {
+		id, err := domain.GetID()
+		if err != nil {
+			return nil, err
 		}
-		id, _ := strconv.ParseInt(match[1], 10, 32)
+		name, err := domain.GetName()
+		if err != nil {
+			return nil, err
+		}
+		state, _, err := domain.GetState()
+		if err != nil {
+			return nil, err
+		}
 		found = append(found, Machine{
 			ID:    int(id),
-			Name:  strings.TrimSpace(match[2]),
-			State: strings.TrimSpace(match[3]),
+			Name:  name,
+			State: StateToString(state),
 		})
 	}
 
