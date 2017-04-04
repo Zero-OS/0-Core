@@ -1,27 +1,27 @@
-#[startup."monitor.cpu"]
-#name = "monitor"
-#recurring_period = 30 #seconds
-#
-#[startup."monitor.cpu".args]
-#domain = "cpu"
-#
-#[startup."monitor.memory"]
-#name = "monitor"
-#recurring_period = 30 #seconds
-#
-#[startup."monitor.memory".args]
-#domain = "memory"
-#
-#[startup."monitor.disk"]
-#name = "monitor"
-#recurring_period = 30 #seconds
-#
-#[startup."monitor.disk".args]
-#domain = "disk"
-#
-#[startup."monitor.network"]
-#name = "monitor"
-#recurring_period = 30 #seconds
-#
-#[startup."monitor.network".args]
-#domain = "network"
+[startup."monitor.cpu"]
+name = "monitor"
+recurring_period = 30 #seconds
+
+[startup."monitor.cpu".args]
+domain = "cpu"
+
+[startup."monitor.memory"]
+name = "monitor"
+recurring_period = 30 #seconds
+
+[startup."monitor.memory".args]
+domain = "memory"
+
+[startup."monitor.disk"]
+name = "monitor"
+recurring_period = 30 #seconds
+
+[startup."monitor.disk".args]
+domain = "disk"
+
+[startup."monitor.network"]
+name = "monitor"
+recurring_period = 30 #seconds
+
+[startup."monitor.network".args]
+domain = "network"
