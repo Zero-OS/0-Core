@@ -17,6 +17,7 @@ const (
 
 type Plugin struct {
 	Path    string
+	Queue   bool
 	Exports []string
 }
 
@@ -24,16 +25,20 @@ type PluginsSettings struct {
 	Plugin map[string]Plugin
 }
 
-func (b *Bootstrap) pluginFactory(path string, fn string) process.ProcessFactory {
+func (b *Bootstrap) pluginFactory(domain string, plugin *Plugin, fn string) process.ProcessFactory {
 	return func(table process.PIDTable, srcCmd *core.Command) process.Process {
+		queue := srcCmd.Queue
+		if plugin.Queue {
+			queue = domain
+		}
 		cmd := &core.Command{
 			ID:      srcCmd.ID,
 			Command: process.CommandSystem,
 			Arguments: core.MustArguments(process.SystemCommandArguments{
-				Name: path,
+				Name: plugin.Path,
 				Args: []string{fn, string(*srcCmd.Arguments)},
 			}),
-			Queue:           srcCmd.Queue,
+			Queue:           queue,
 			StatsInterval:   srcCmd.StatsInterval,
 			MaxTime:         srcCmd.MaxTime,
 			MaxRestart:      srcCmd.MaxRestart,
@@ -50,7 +55,7 @@ func (b *Bootstrap) plugin(domain string, plugin Plugin) {
 	for _, export := range plugin.Exports {
 		cmd := fmt.Sprintf("%s.%s", domain, export)
 
-		pm.CmdMap[cmd] = b.pluginFactory(plugin.Path, export)
+		pm.CmdMap[cmd] = b.pluginFactory(domain, &plugin, export)
 	}
 }
 
