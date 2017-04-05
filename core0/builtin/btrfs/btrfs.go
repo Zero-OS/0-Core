@@ -30,6 +30,7 @@ func init() {
 	pm.CmdMap["btrfs.device_remove"] = process.NewInternalProcessFactory(m.DeviceRemove)
 	pm.CmdMap["btrfs.subvol_create"] = process.NewInternalProcessFactory(m.SubvolCreate)
 	pm.CmdMap["btrfs.subvol_delete"] = process.NewInternalProcessFactory(m.SubvolDelete)
+	pm.CmdMap["btrfs.subvol_quota"] = process.NewInternalProcessFactory(m.SubvolQuota)
 	pm.CmdMap["btrfs.subvol_list"] = process.NewInternalProcessFactory(m.SubvolList)
 	pm.CmdMap["btrfs.subvol_snapshot"] = process.NewInternalProcessFactory(m.SubvolSnapshot)
 }
@@ -86,10 +87,11 @@ var (
 )
 
 type CreateArgument struct {
-	Label    string   `json:"label"`
-	Metadata string   `json:"metadata"`
-	Data     string   `json:"data"`
-	Devices  []string `json:"devices"`
+	Label     string   `json:"label"`
+	Metadata  string   `json:"metadata"`
+	Data      string   `json:"data"`
+	Devices   []string `json:"devices"`
+	Overwrite bool     `json:"overwrite"`
 }
 
 type InfoArgument struct {
@@ -131,6 +133,9 @@ func (m *btrfsManager) Create(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
+	if args.Overwrite {
+		opts = append(opts, "-f")
+	}
 	if args.Label != "" {
 		opts = append(opts, "-L", args.Label)
 	}
@@ -236,6 +241,11 @@ type SubvolArgument struct {
 	Path string `json:"path"`
 }
 
+type SubvolQuotaArgument struct {
+	SubvolArgument
+	Limit string `json:"limit"`
+}
+
 // create subvolume under a mount point
 func (m *btrfsManager) SubvolCreate(cmd *core.Command) (interface{}, error) {
 	var args SubvolArgument
@@ -267,6 +277,36 @@ func (m *btrfsManager) SubvolDelete(cmd *core.Command) (interface{}, error) {
 	}
 
 	_, err := m.btrfs("subvolume", "delete", args.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+}
+
+// create quota for a subvolume
+func (m *btrfsManager) SubvolQuota(cmd *core.Command) (interface{}, error) {
+	var args SubvolQuotaArgument
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, err
+	}
+	if args.Path == "" || !strings.HasPrefix(args.Path, "/") {
+		return nil, fmt.Errorf("invalid path=%v", args.Path)
+	}
+
+	_, err := m.btrfs("quota", "enable", args.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := m.btrfs("qgroup", "show", "-f", args.Path)
+	if err != nil {
+		return nil, err
+	}
+	elems := strings.Fields(res.Streams[0])
+	qgroup := elems[len(elems)-3]
+	_, err = m.btrfs("qgroup", "limit", args.Limit, qgroup, args.Path)
 	if err != nil {
 		return nil, err
 	}

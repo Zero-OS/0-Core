@@ -992,6 +992,7 @@ class BtrfsManager:
         'metadata': typchk.Enum("raid0", "raid1", "raid5", "raid6", "raid10", "dup", "single", ""),
         'data': typchk.Enum("raid0", "raid1", "raid5", "raid6", "raid10", "dup", "single", ""),
         'devices': [str],
+        'overwrite': bool,
     })
 
     _device_chk = typchk.Checker({
@@ -1001,6 +1002,11 @@ class BtrfsManager:
 
     _subvol_chk = typchk.Checker({
         'path': str,
+    })
+
+    _subvol_quota_chk = typchk.Checker({
+        'path': str,
+        'limit': str,
     })
 
     _subvol_snapshot_chk = typchk.Checker({
@@ -1023,20 +1029,22 @@ class BtrfsManager:
         Get btrfs fs info
         """
         return self._client.json('btrfs.info', {'mountpoint': mountpoint})
-        
-    def create(self, label, devices, metadata_profile="", data_profile=""):
+
+    def create(self, label, devices, metadata_profile="", data_profile="", overwrite=False):
         """
         Create a btrfs filesystem with the given label, devices, and profiles
         :param label: name/label
         :param devices : array of devices (under /dev)
         :metadata_profile: raid0, raid1, raid5, raid6, raid10, dup or single
         :data_profile: same as metadata profile
+        :overwrite: force creation of the filesystem. Overwrite any existing filesystem
         """
         args = {
             'label': label,
             'metadata': metadata_profile,
             'data': data_profile,
-            'devices': devices
+            'devices': devices,
+            'overwrite': overwrite
         }
 
         self._create_chk.check(args)
@@ -1115,6 +1123,21 @@ class BtrfsManager:
         self._subvol_chk.check(args)
 
         self._client.sync('btrfs.subvol_delete', args)
+
+    def subvol_quota(self, path, limit):
+        """
+        Apply a quota to a btrfs subvolume in the specified path
+        :param path:  path to delete
+        :param limit: the limit to Apply
+        """
+        args = {
+            'path': path,
+            'limit': limit,
+        }
+
+        self._subvol_quota_chk.check(args)
+
+        self._client.sync('btrfs.subvol_quota', args)
 
     def subvol_snapshot(self, source, destination, read_only=False):
         """
