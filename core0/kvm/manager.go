@@ -41,14 +41,19 @@ var (
 )
 
 const (
-	kvmCreateCommand   = "kvm.create"
-	kvmDestroyCommand  = "kvm.destroy"
-	kvmShutdownCommand = "kvm.shutdown"
-	kvmRebootCommand   = "kvm.reboot"
-	kvmResetCommand    = "kvm.reset"
-	kvmPauseCommand    = "kvm.pause"
-	kvmResumeCommand   = "kvm.resume"
-	kvmListCommand     = "kvm.list"
+	kvmCreateCommand      = "kvm.create"
+	kvmDestroyCommand     = "kvm.destroy"
+	kvmShutdownCommand    = "kvm.shutdown"
+	kvmRebootCommand      = "kvm.reboot"
+	kvmResetCommand       = "kvm.reset"
+	kvmPauseCommand       = "kvm.pause"
+	kvmResumeCommand      = "kvm.resume"
+	kvmAttachDiskCommand  = "kvm.attachDisk"
+	kvmDetachDiskCommand  = "kvm.detachDisk"
+	kvmAddNicCommand      = "kvm.addNic"
+	kvmRemoveNicCommand   = "kvm.removeNic"
+	kvmLimitDiskIOCommand = "kvm.limitDiskIO"
+	kvmListCommand        = "kvm.list"
 
 	DefaultBridgeName = "kvm-0"
 )
@@ -67,6 +72,11 @@ func KVMSubsystem() error {
 	pm.CmdMap[kvmResetCommand] = process.NewInternalProcessFactory(mgr.reset)
 	pm.CmdMap[kvmPauseCommand] = process.NewInternalProcessFactory(mgr.pause)
 	pm.CmdMap[kvmResumeCommand] = process.NewInternalProcessFactory(mgr.resume)
+	pm.CmdMap[kvmAttachDiskCommand] = process.NewInternalProcessFactory(mgr.attachDisk)
+	pm.CmdMap[kvmDetachDiskCommand] = process.NewInternalProcessFactory(mgr.detachDisk)
+	pm.CmdMap[kvmAddNicCommand] = process.NewInternalProcessFactory(mgr.addNic)
+	pm.CmdMap[kvmRemoveNicCommand] = process.NewInternalProcessFactory(mgr.removeNic)
+	pm.CmdMap[kvmLimitDiskIOCommand] = process.NewInternalProcessFactory(mgr.limitDiskIO)
 	pm.CmdMap[kvmListCommand] = process.NewInternalProcessFactory(mgr.list)
 
 	return nil
@@ -85,6 +95,61 @@ type CreateParams struct {
 	Media  []Media     `json:"media"`
 	Bridge []string    `json:"bridge"`
 	Port   map[int]int `json:"port"`
+}
+
+type ManDiskParams struct {
+	Name  string `json:"name"`
+	Media Media  `json:"media"`
+}
+
+type ManNicParams struct {
+	Name   string `json:"name"`
+	Bridge string `json:"bridge"`
+}
+
+type LimitDiskIOParameters struct {
+	Name                      string `json:"name"`
+	TargetName                string `json:"targetname"`
+	TotalBytesSecSet          bool   `json:"totalbytessecset"`
+	TotalBytesSec             uint64 `json:"totalbytessec"`
+	ReadBytesSecSet           bool   `json:"readbytessecset"`
+	ReadBytesSec              uint64 `json:"readbytessec"`
+	WriteBytesSecSet          bool   `json:"writebytessecset"`
+	WriteBytesSec             uint64 `json:"writebytessec"`
+	TotalIopsSecSet           bool   `json:"totaliopssecset"`
+	TotalIopsSec              uint64 `json:"totaliopssec"`
+	ReadIopsSecSet            bool   `json:"readiopssecset"`
+	ReadIopsSec               uint64 `json:"readiopssec"`
+	WriteIopsSecSet           bool   `json:"writeiopssecset"`
+	WriteIopsSec              uint64 `json:"writeiopssec"`
+	TotalBytesSecMaxSet       bool   `json:"totalbytessecmaxset"`
+	TotalBytesSecMax          uint64 `json:"totalbytessecmax"`
+	ReadBytesSecMaxSet        bool   `json:"readbytessecmaxset"`
+	ReadBytesSecMax           uint64 `json:"readbytessecmax"`
+	WriteBytesSecMaxSet       bool   `json:"writebytessecmaxset"`
+	WriteBytesSecMax          uint64 `json:"writebytessecmax"`
+	TotalIopsSecMaxSet        bool   `json:"totaliopssecmaxset"`
+	TotalIopsSecMax           uint64 `json:"totaliopssecmax"`
+	ReadIopsSecMaxSet         bool   `json:"readiopssecmaxset"`
+	ReadIopsSecMax            uint64 `json:"readiopssecmax"`
+	WriteIopsSecMaxSet        bool   `json:"writeiopssecmaxset"`
+	WriteIopsSecMax           uint64 `json:"writeiopssecmax"`
+	TotalBytesSecMaxLengthSet bool   `json:"totalbytessecmaxlengthset"`
+	TotalBytesSecMaxLength    uint64 `json:"totalbytessecmaxlength"`
+	ReadBytesSecMaxLengthSet  bool   `json:"readbytessecmaxlengthset"`
+	ReadBytesSecMaxLength     uint64 `json:"readbytessecmaxlength"`
+	WriteBytesSecMaxLengthSet bool   `json:"writebytessecmaxlengthset"`
+	WriteBytesSecMaxLength    uint64 `json:"writebytessecmaxlength"`
+	TotalIopsSecMaxLengthSet  bool   `json:"totaliopssecmaxlengthset"`
+	TotalIopsSecMaxLength     uint64 `json:"totaliopssecmaxlength"`
+	ReadIopsSecMaxLengthSet   bool   `json:"readiopssecmaxlengthset"`
+	ReadIopsSecMaxLength      uint64 `json:"readiopssecmaxlength"`
+	WriteIopsSecMaxLengthSet  bool   `json:"writeiopssecmaxlengthset"`
+	WriteIopsSecMaxLength     uint64 `json:"writeiopssecmaxlength"`
+	SizeIopsSecSet            bool   `json:"sizeiopssecset"`
+	SizeIopsSec               uint64 `json:"sizeiopssec"`
+	GroupNameSet              bool   `json:"groupnameset"`
+	GroupName                 string `json:"groupname"`
 }
 
 func StateToString(state libvirt.DomainState) string {
@@ -279,7 +344,9 @@ func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error)
 			},
 		},
 		Devices: Devices{
-			Emulator: "/usr/bin/qemu-system-x86_64",
+			Emulator:   "/usr/bin/qemu-system-x86_64",
+			Disks:      []DiskDevice{},
+			Interfaces: []InterfaceDevice{},
 			Devices: []Device{
 				SerialDevice{
 					Type: SerialDeviceTypePTY,
@@ -340,7 +407,7 @@ func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error)
 			return nil, fmt.Errorf("bridge '%s' not found", bridge)
 		}
 
-		domain.Devices.Devices = append(domain.Devices.Devices, InterfaceDevice{
+		domain.Devices.Interfaces = append(domain.Devices.Interfaces, InterfaceDevice{
 			Type: InterfaceDeviceTypeBridge,
 			Source: InterfaceDeviceSourceBridge{
 				Bridge: bridge,
@@ -352,7 +419,7 @@ func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error)
 	}
 
 	for idx, media := range params.Media {
-		domain.Devices.Devices = append(domain.Devices.Devices, m.mkDisk(idx, media))
+		domain.Devices.Disks = append(domain.Devices.Disks, m.mkDisk(idx, media))
 	}
 
 	return &domain, nil
@@ -605,6 +672,204 @@ func (m *kvmManager) resume(cmd *core.Command) (interface{}, error) {
 		return nil, fmt.Errorf("failed to resume machine: %s", err)
 	}
 
+	return nil, nil
+}
+
+func (m *kvmManager) attachDevice(name, xml string) error {
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return fmt.Errorf("failed to start a qemu connection: %s", err)
+	}
+	defer conn.Close()
+
+	domain, err := conn.LookupDomainByName(name)
+	if err != nil {
+		return fmt.Errorf("couldn't find domain with the name %s", name)
+	}
+	if err := domain.AttachDeviceFlags(xml, libvirt.DOMAIN_DEVICE_MODIFY_LIVE); err != nil {
+		return fmt.Errorf("failed to attach device: %s", err)
+	}
+
+	return nil
+}
+
+func (m *kvmManager) detachDevice(name, xml string) error {
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return fmt.Errorf("failed to start a qemu connection: %s", err)
+	}
+	defer conn.Close()
+
+	domain, err := conn.LookupDomainByName(name)
+	if err != nil {
+		return fmt.Errorf("couldn't find domain with the name %s", name)
+	}
+	if err := domain.DetachDeviceFlags(xml, libvirt.DOMAIN_DEVICE_MODIFY_LIVE); err != nil {
+		return fmt.Errorf("failed to attach device: %s", err)
+	}
+
+	return nil
+}
+
+func (m *kvmManager) attachDisk(cmd *core.Command) (interface{}, error) {
+	var params ManDiskParams
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, err
+	}
+	// FIXME: get the number of already attached disks
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
+	}
+	defer conn.Close()
+
+	domain, err := conn.LookupDomainByName(params.Name)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't find domain with the name %s", params.Name)
+	}
+	domainxml, err := domain.GetXMLDesc(libvirt.DOMAIN_XML_INACTIVE)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get domain xml: %v", err)
+	}
+	domainstruct := Domain{}
+	err = xml.Unmarshal([]byte(domainxml), &domainstruct)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse the domain xml: %v", err)
+	}
+	count := len(domainstruct.Devices.Disks)
+	disk := m.mkDisk(count, params.Media)
+	diskxml, err := xml.MarshalIndent(disk, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("cannot marshal disk to xml")
+	}
+	return nil, m.attachDevice(params.Name, string(diskxml[:]))
+}
+
+func (m *kvmManager) detachDisk(cmd *core.Command) (interface{}, error) {
+	var params ManDiskParams
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, err
+	}
+	// FIXME: get the idx of the disk
+	idx := 0
+	media := params.Media
+	disk := m.mkDisk(idx, media)
+	diskxml, err := xml.MarshalIndent(disk, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("cannot marshal disk to xml")
+	}
+	return nil, m.detachDevice(params.Name, string(diskxml[:]))
+}
+
+func (m *kvmManager) addNic(cmd *core.Command) (interface{}, error) {
+	var params ManNicParams
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, err
+	}
+	bridge := params.Bridge
+	_, err := netlink.LinkByName(bridge)
+	if err != nil {
+		return nil, fmt.Errorf("bridge '%s' not found", bridge)
+	}
+
+	ifd := InterfaceDevice{
+		Type: InterfaceDeviceTypeBridge,
+		Source: InterfaceDeviceSourceBridge{
+			Bridge: bridge,
+		},
+		Model: InterfaceDeviceModel{
+			Type: "virtio",
+		},
+	}
+	ifxml, err := xml.MarshalIndent(ifd, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("cannot marshal nic to xml")
+	}
+	return nil, m.attachDevice(params.Name, string(ifxml[:]))
+}
+
+func (m *kvmManager) removeNic(cmd *core.Command) (interface{}, error) {
+	var params ManNicParams
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, err
+	}
+	bridge := params.Bridge
+	ifd := InterfaceDevice{
+		Type: InterfaceDeviceTypeBridge,
+		Source: InterfaceDeviceSourceBridge{
+			Bridge: bridge,
+		},
+		Model: InterfaceDeviceModel{
+			Type: "virtio",
+		},
+	}
+	ifxml, err := xml.MarshalIndent(ifd, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("cannot marshal nic to xml")
+	}
+	return nil, m.detachDevice(params.Name, string(ifxml[:]))
+}
+
+func (m *kvmManager) limitDiskIO(cmd *core.Command) (interface{}, error) {
+	var params LimitDiskIOParameters
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, err
+	}
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
+	}
+	defer conn.Close()
+
+	domain, err := conn.LookupDomainByName(params.Name)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't find domain with the name %s", params.Name)
+	}
+	blockParams := libvirt.DomainBlockIoTuneParameters{
+		TotalBytesSecSet:          params.TotalBytesSecSet,
+		TotalBytesSec:             params.TotalBytesSec,
+		ReadBytesSecSet:           params.ReadBytesSecSet,
+		ReadBytesSec:              params.ReadBytesSec,
+		WriteBytesSecSet:          params.WriteBytesSecSet,
+		WriteBytesSec:             params.WriteBytesSec,
+		TotalIopsSecSet:           params.TotalIopsSecSet,
+		TotalIopsSec:              params.TotalIopsSec,
+		ReadIopsSecSet:            params.ReadIopsSecSet,
+		ReadIopsSec:               params.ReadIopsSec,
+		WriteIopsSecSet:           params.WriteIopsSecSet,
+		WriteIopsSec:              params.WriteIopsSec,
+		TotalBytesSecMaxSet:       params.TotalBytesSecMaxSet,
+		TotalBytesSecMax:          params.TotalBytesSecMax,
+		ReadBytesSecMaxSet:        params.ReadBytesSecMaxSet,
+		ReadBytesSecMax:           params.ReadBytesSecMax,
+		WriteBytesSecMaxSet:       params.WriteBytesSecMaxSet,
+		WriteBytesSecMax:          params.WriteBytesSecMax,
+		TotalIopsSecMaxSet:        params.TotalIopsSecMaxSet,
+		TotalIopsSecMax:           params.TotalIopsSecMax,
+		ReadIopsSecMaxSet:         params.ReadIopsSecMaxSet,
+		ReadIopsSecMax:            params.ReadIopsSecMax,
+		WriteIopsSecMaxSet:        params.WriteIopsSecMaxSet,
+		WriteIopsSecMax:           params.WriteIopsSecMax,
+		TotalBytesSecMaxLengthSet: params.TotalBytesSecMaxLengthSet,
+		TotalBytesSecMaxLength:    params.TotalBytesSecMaxLength,
+		ReadBytesSecMaxLengthSet:  params.ReadBytesSecMaxLengthSet,
+		ReadBytesSecMaxLength:     params.ReadBytesSecMaxLength,
+		WriteBytesSecMaxLengthSet: params.WriteBytesSecMaxLengthSet,
+		WriteBytesSecMaxLength:    params.WriteBytesSecMaxLength,
+		TotalIopsSecMaxLengthSet:  params.TotalIopsSecMaxLengthSet,
+		TotalIopsSecMaxLength:     params.TotalIopsSecMaxLength,
+		ReadIopsSecMaxLengthSet:   params.ReadIopsSecMaxLengthSet,
+		ReadIopsSecMaxLength:      params.ReadIopsSecMaxLength,
+		WriteIopsSecMaxLengthSet:  params.WriteIopsSecMaxLengthSet,
+		WriteIopsSecMaxLength:     params.WriteIopsSecMaxLength,
+		SizeIopsSecSet:            params.SizeIopsSecSet,
+		SizeIopsSec:               params.SizeIopsSec,
+		GroupNameSet:              params.GroupNameSet,
+		GroupName:                 params.GroupName,
+	}
+	if err := domain.SetBlockIoTune(params.TargetName, &blockParams, libvirt.DOMAIN_AFFECT_LIVE); err != nil {
+		return nil, fmt.Errorf("failed to tune disk: %s", err)
+	}
 	return nil, nil
 }
 

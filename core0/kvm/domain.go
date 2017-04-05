@@ -80,8 +80,10 @@ const (
 )
 
 type Devices struct {
-	Emulator string `xml:"emulator"`
-	Devices  []Device
+	Emulator   string            `xml:"emulator"`
+	Disks      []DiskDevice      `xml:"disk"`
+	Interfaces []InterfaceDevice `xml:"interface"`
+	Devices    []Device
 }
 
 type DiskSource interface{}

@@ -1239,6 +1239,67 @@ class KvmManager:
         'name': str,
     })
 
+    _man_disk_action_chk = typchk.Checker({
+        'name': str,
+        'media': {
+            'type': typchk.Or(
+                typchk.Enum('disk', 'cdrom'),
+                typchk.Missing()
+            ),
+            'url': str,
+        },
+    })
+
+    _man_nic_action_chk = typchk.Checker({
+        'name': str,
+        'bridge': str,
+    })
+
+    _limit_disk_io_action_chk = typchk.Checker({
+        'name': str,
+        'targetname': str,
+        'totalbytessecset': bool,
+        'totalbytessec': int,
+        'readbytessecset': bool,
+        'readbytessec': int,
+        'writebytessecset': bool,
+        'writebytessec': int,
+        'totaliopssecset': bool,
+        'totaliopssec': int,
+        'readiopssecset': bool,
+        'readiopssec': int,
+        'writeiopssecset': bool,
+        'writeiopssec': int,
+        'totalbytessecmaxset': bool,
+        'totalbytessecmax': int,
+        'readbytessecmaxset': bool,
+        'readbytessecmax': int,
+        'writebytessecmaxset': bool,
+        'writebytessecmax': int,
+        'totaliopssecmaxset': bool,
+        'totaliopssecmax': int,
+        'readiopssecmaxset': bool,
+        'readiopssecmax': int,
+        'writeiopssecmaxset': bool,
+        'writeiopssecmax': int,
+        'totalbytessecmaxlengthset': bool,
+        'totalbytessecmaxlength': int,
+        'readbytessecmaxlengthset': bool,
+        'readbytessecmaxlength': int,
+        'writebytessecmaxlengthset': bool,
+        'writebytessecmaxlength': int,
+        'totaliopssecmaxlengthset': bool,
+        'totaliopssecmaxlength': int,
+        'readiopssecmaxlengthset': bool,
+        'readiopssecmaxlength': int,
+        'writeiopssecmaxlengthset': bool,
+        'writeiopssecmaxlength': int,
+        'sizeiopssecset': bool,
+        'sizeiopssec': int,
+        'groupnameset': bool,
+        'groupname': str,
+    })
+
     def __init__(self, client):
         self._client = client
 
@@ -1348,6 +1409,132 @@ class KvmManager:
 
         self._client.sync('kvm.resume', args)
 
+    def attachDisk(self, name, media):
+        """
+        Attach a disk to a mchine
+        :param name: name of the kvm container (same as the used in create)
+        :param media: the media object to attach to the machine
+                      media object is a dict of {url, and type} where type can be one of 'disk', or 'cdrom', or empty (default to disk)
+                      examples: {'url': 'nbd+unix:///test?socket=/tmp/ndb.socket'}, {'type': 'cdrom': '/somefile.iso'}
+        :return:
+        """
+        args = {
+            'name': name,
+            'media': media,
+        }
+        self._man_disk_action_chk.check(args)
+
+        self._client.sync('kvm.attachDisk', args)
+
+    def detachDisk(self, name, media):
+        """
+        Detach a disk from a machine
+        :param name: name of the kvm container (same as the used in create)
+        :param media: the media object to attach to the machine
+                      media object is a dict of {url, and type} where type can be one of 'disk', or 'cdrom', or empty (default to disk)
+                      examples: {'url': 'nbd+unix:///test?socket=/tmp/ndb.socket'}, {'type': 'cdrom': '/somefile.iso'}
+        :return:
+        """
+        args = {
+            'name': name,
+            'media': media,
+        }
+        self._man_disk_action_chk.check(args)
+
+        self._client.sync('kvm.detachDisk', args)
+
+    def addNic(self, name, bridge):
+        """
+        Add a nic to a machine
+        :param name: name of the kvm container (same as the used in create)
+        :param bridge: the name of the bridge to add. the bridge must exist on the host
+        :return:
+        """
+        args = {
+            'name': name,
+            'bridge': bridge,
+        }
+        self._man_nic_action_chk.check(args)
+
+        self._client.sync('kvm.addNic', args)
+
+    def removeNic(self, name, bridge):
+        """
+        Remove a nic from a machine
+        :param name: name of the kvm container (same as the used in create)
+        :param bridge: the name of the bridge to remove.
+        :return:
+        """
+        args = {
+            'name': name,
+            'bridge': bridge,
+        }
+        self._man_nic_action_chk.check(args)
+
+        self._client.sync('kvm.removeNic', args)
+
+    def limitDiskIO(self, name, targetname, totalbytessecset=False, totalbytessec=0, readbytessecset=False, readbytessec=0, writebytessecset=False,
+                    writebytessec=0, totaliopssecset=False, totaliopssec=0, readiopssecset=False, readiopssec=0, writeiopssecset=False, writeiopssec=0,
+                    totalbytessecmaxset=False, totalbytessecmax=0, readbytessecmaxset=False, readbytessecmax=0, writebytessecmaxset=False, writebytessecmax=0,
+                    totaliopssecmaxset=False, totaliopssecmax=0, readiopssecmaxset=False, readiopssecmax=0, writeiopssecmaxset=False, writeiopssecmax=0,
+                    totalbytessecmaxlengthset=False, totalbytessecmaxlength=0, readbytessecmaxlengthset=False, readbytessecmaxlength=0,
+                    writebytessecmaxlengthset=False, writebytessecmaxlength=0, totaliopssecmaxlengthset=False, totaliopssecmaxlength=0,
+                    readiopssecmaxlengthset=False, readiopssecmaxlength=0, writeiopssecmaxlengthset=False, writeiopssecmaxlength=0, sizeiopssecset=False,
+                    sizeiopssec=0, groupnameset=False, groupname=''):
+        """
+        Remove a nic from a machine
+        :param name: name of the kvm container (same as the used in create)
+        :param targetname: the name of the target disk
+        :return:
+        """
+        args = {
+            'name': name,
+            'targetname': targetname,
+            'totalbytessecset': totalbytessecset,
+            'totalbytessec': totalbytessec,
+            'readbytessecset': readbytessecset,
+            'readbytessec': readbytessec,
+            'writebytessecset': writebytessecset,
+            'writebytessec': writebytessec,
+            'totaliopssecset': totaliopssecset,
+            'totaliopssec': totaliopssec,
+            'readiopssecset': readiopssecset,
+            'readiopssec': readiopssec,
+            'writeiopssecset': writeiopssecset,
+            'writeiopssec': writeiopssec,
+            'totalbytessecmaxset': totalbytessecmaxset,
+            'totalbytessecmax': totalbytessecmax,
+            'readbytessecmaxset': readbytessecmaxset,
+            'readbytessecmax': readbytessecmax,
+            'writebytessecmaxset': writebytessecmaxset,
+            'writebytessecmax': writebytessecmax,
+            'totaliopssecmaxset': totaliopssecmaxset,
+            'totaliopssecmax': totaliopssecmax,
+            'readiopssecmaxset': readiopssecmaxset,
+            'readiopssecmax': readiopssecmax,
+            'writeiopssecmaxset': writeiopssecmaxset,
+            'writeiopssecmax': writeiopssecmax,
+            'totalbytessecmaxlengthset': totalbytessecmaxlengthset,
+            'totalbytessecmaxlength': totalbytessecmaxlength,
+            'readbytessecmaxlengthset': readbytessecmaxlengthset,
+            'readbytessecmaxlength': readbytessecmaxlength,
+            'writebytessecmaxlengthset': writebytessecmaxlengthset,
+            'writebytessecmaxlength': writebytessecmaxlength,
+            'totaliopssecmaxlengthset': totaliopssecmaxlengthset,
+            'totaliopssecmaxlength': totaliopssecmaxlength,
+            'readiopssecmaxlengthset': readiopssecmaxlengthset,
+            'readiopssecmaxlength': readiopssecmaxlength,
+            'writeiopssecmaxlengthset': writeiopssecmaxlengthset,
+            'writeiopssecmaxlength': writeiopssecmaxlength,
+            'sizeiopssecset': sizeiopssecset,
+            'sizeiopssec': sizeiopssec,
+            'groupnameset': groupnameset,
+            'groupname': groupname,
+        }
+        self._limit_disk_io_action_chk.check(args)
+
+        self._client.sync('kvm.limitDiskIO', args)
+
     def list(self):
         """
         List configured domains
@@ -1377,6 +1564,7 @@ class Client(BaseClient):
         self._btrfs_manager = BtrfsManager(self)
         self._zerotier = ZerotierManager(self)
         self._experimntal = Experimental(self)
+        self._kvm = KvmManager(self)
 
     @property
     def experimental(self):
@@ -1401,6 +1589,10 @@ class Client(BaseClient):
     @property
     def zerotier(self):
         return self._zerotier
+
+    @property
+    def kvm(self):
+        return self._kvm
 
     def raw(self, command, arguments):
         """
