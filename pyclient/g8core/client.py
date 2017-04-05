@@ -951,7 +951,7 @@ class DiskManager:
         """
 
         if len(options) == 0:
-            options = ['auto']
+            options = ['']
 
         args = {
             'options': ','.join(options),
