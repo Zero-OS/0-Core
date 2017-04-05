@@ -98,17 +98,17 @@ type CreateParams struct {
 }
 
 type ManDiskParams struct {
-	Name  string `json:"name"`
+	UUID  string `json:"uuid"`
 	Media Media  `json:"media"`
 }
 
 type ManNicParams struct {
-	Name   string `json:"name"`
+	UUID   string `json:"uuid"`
 	Bridge string `json:"bridge"`
 }
 
 type LimitDiskIOParameters struct {
-	Name                      string `json:"name"`
+	UUID                      string `json:"uuid"`
 	TargetName                string `json:"targetname"`
 	TotalBytesSecSet          bool   `json:"totalbytessecset"`
 	TotalBytesSec             uint64 `json:"totalbytessec"`
@@ -518,7 +518,8 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 	}
 	defer conn.Close()
 
-	if _, err := conn.DomainCreateXML(string(data[:]), libvirt.DOMAIN_NONE); err != nil {
+	dom, err := conn.DomainCreateXML(string(data[:]), libvirt.DOMAIN_NONE)
+	if err != nil {
 		return nil, fmt.Errorf("failed to create machine: %s", err)
 	}
 
@@ -526,11 +527,18 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 	if err := m.setPortForwards(seq, &params); err != nil {
 		return nil, err
 	}
-	return nil, nil
+
+	uuid, err := dom.GetUUIDString()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get machine uuid with the name %s", params.Name)
+	}
+	return struct {
+		UUID string `json:"uuid"`
+	}{uuid}, nil
 }
 
 type DomainActionParams struct {
-	Name string `json:"name"`
+	UUID string `json:"uuid"`
 }
 
 func (m *kvmManager) destroy(cmd *core.Command) (interface{}, error) {
@@ -545,15 +553,18 @@ func (m *kvmManager) destroy(cmd *core.Command) (interface{}, error) {
 	}
 	defer conn.Close()
 
-	domain, err := conn.LookupDomainByName(params.Name)
+	domain, err := conn.LookupDomainByUUIDString(params.UUID)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't find domain with the name %s", params.Name)
+		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
 	}
 	if err := domain.Destroy(); err != nil {
 		return nil, fmt.Errorf("failed to destroy machine: %s", err)
 	}
-
-	m.unPortForward(params.Name)
+	name, err := domain.GetName()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get machine name with the uuid %s", params.UUID)
+	}
+	m.unPortForward(name)
 
 	return nil, nil
 }
@@ -570,15 +581,19 @@ func (m *kvmManager) shutdown(cmd *core.Command) (interface{}, error) {
 	}
 	defer conn.Close()
 
-	domain, err := conn.LookupDomainByName(params.Name)
+	domain, err := conn.LookupDomainByUUIDString(params.UUID)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't find domain with the name %s", params.Name)
+		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
 	}
 	if err := domain.Shutdown(); err != nil {
 		return nil, fmt.Errorf("failed to shutdown machine: %s", err)
 	}
 
-	m.unPortForward(params.Name)
+	name, err := domain.GetName()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get machine name with the uuid %s", params.UUID)
+	}
+	m.unPortForward(name)
 
 	return nil, nil
 }
@@ -595,9 +610,9 @@ func (m *kvmManager) reboot(cmd *core.Command) (interface{}, error) {
 	}
 	defer conn.Close()
 
-	domain, err := conn.LookupDomainByName(params.Name)
+	domain, err := conn.LookupDomainByUUIDString(params.UUID)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't find domain with the name %s", params.Name)
+		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
 	}
 	if err := domain.Reboot(libvirt.DOMAIN_REBOOT_DEFAULT); err != nil {
 		return nil, fmt.Errorf("failed to reboot machine: %s", err)
@@ -618,9 +633,9 @@ func (m *kvmManager) reset(cmd *core.Command) (interface{}, error) {
 	}
 	defer conn.Close()
 
-	domain, err := conn.LookupDomainByName(params.Name)
+	domain, err := conn.LookupDomainByUUIDString(params.UUID)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't find domain with the name %s", params.Name)
+		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
 	}
 	if err := domain.Reset(0); err != nil {
 		return nil, fmt.Errorf("failed to reset machine: %s", err)
@@ -641,9 +656,9 @@ func (m *kvmManager) pause(cmd *core.Command) (interface{}, error) {
 	}
 	defer conn.Close()
 
-	domain, err := conn.LookupDomainByName(params.Name)
+	domain, err := conn.LookupDomainByUUIDString(params.UUID)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't find domain with the name %s", params.Name)
+		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
 	}
 	if err := domain.Suspend(); err != nil {
 		return nil, fmt.Errorf("failed to pause machine: %s", err)
@@ -664,9 +679,9 @@ func (m *kvmManager) resume(cmd *core.Command) (interface{}, error) {
 	}
 	defer conn.Close()
 
-	domain, err := conn.LookupDomainByName(params.Name)
+	domain, err := conn.LookupDomainByUUIDString(params.UUID)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't find domain with the name %s", params.Name)
+		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
 	}
 	if err := domain.Resume(); err != nil {
 		return nil, fmt.Errorf("failed to resume machine: %s", err)
@@ -675,16 +690,16 @@ func (m *kvmManager) resume(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func (m *kvmManager) attachDevice(name, xml string) error {
+func (m *kvmManager) attachDevice(uuid, xml string) error {
 	conn, err := libvirt.NewConnect("qemu:///system")
 	if err != nil {
 		return fmt.Errorf("failed to start a qemu connection: %s", err)
 	}
 	defer conn.Close()
 
-	domain, err := conn.LookupDomainByName(name)
+	domain, err := conn.LookupDomainByUUIDString(uuid)
 	if err != nil {
-		return fmt.Errorf("couldn't find domain with the name %s", name)
+		return fmt.Errorf("couldn't find domain with the uuid %s", uuid)
 	}
 	if err := domain.AttachDeviceFlags(xml, libvirt.DOMAIN_DEVICE_MODIFY_LIVE); err != nil {
 		return fmt.Errorf("failed to attach device: %s", err)
@@ -693,16 +708,16 @@ func (m *kvmManager) attachDevice(name, xml string) error {
 	return nil
 }
 
-func (m *kvmManager) detachDevice(name, xml string) error {
+func (m *kvmManager) detachDevice(uuid, xml string) error {
 	conn, err := libvirt.NewConnect("qemu:///system")
 	if err != nil {
 		return fmt.Errorf("failed to start a qemu connection: %s", err)
 	}
 	defer conn.Close()
 
-	domain, err := conn.LookupDomainByName(name)
+	domain, err := conn.LookupDomainByUUIDString(uuid)
 	if err != nil {
-		return fmt.Errorf("couldn't find domain with the name %s", name)
+		return fmt.Errorf("couldn't find domain with the uuid %s", uuid)
 	}
 	if err := domain.DetachDeviceFlags(xml, libvirt.DOMAIN_DEVICE_MODIFY_LIVE); err != nil {
 		return fmt.Errorf("failed to attach device: %s", err)
@@ -723,9 +738,9 @@ func (m *kvmManager) attachDisk(cmd *core.Command) (interface{}, error) {
 	}
 	defer conn.Close()
 
-	domain, err := conn.LookupDomainByName(params.Name)
+	domain, err := conn.LookupDomainByUUIDString(params.UUID)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't find domain with the name %s", params.Name)
+		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
 	}
 	domainxml, err := domain.GetXMLDesc(libvirt.DOMAIN_XML_INACTIVE)
 	if err != nil {
@@ -742,7 +757,7 @@ func (m *kvmManager) attachDisk(cmd *core.Command) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal disk to xml")
 	}
-	return nil, m.attachDevice(params.Name, string(diskxml[:]))
+	return nil, m.attachDevice(params.UUID, string(diskxml[:]))
 }
 
 func (m *kvmManager) detachDisk(cmd *core.Command) (interface{}, error) {
@@ -758,7 +773,7 @@ func (m *kvmManager) detachDisk(cmd *core.Command) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal disk to xml")
 	}
-	return nil, m.detachDevice(params.Name, string(diskxml[:]))
+	return nil, m.detachDevice(params.UUID, string(diskxml[:]))
 }
 
 func (m *kvmManager) addNic(cmd *core.Command) (interface{}, error) {
@@ -785,7 +800,7 @@ func (m *kvmManager) addNic(cmd *core.Command) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal nic to xml")
 	}
-	return nil, m.attachDevice(params.Name, string(ifxml[:]))
+	return nil, m.attachDevice(params.UUID, string(ifxml[:]))
 }
 
 func (m *kvmManager) removeNic(cmd *core.Command) (interface{}, error) {
@@ -807,7 +822,7 @@ func (m *kvmManager) removeNic(cmd *core.Command) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal nic to xml")
 	}
-	return nil, m.detachDevice(params.Name, string(ifxml[:]))
+	return nil, m.detachDevice(params.UUID, string(ifxml[:]))
 }
 
 func (m *kvmManager) limitDiskIO(cmd *core.Command) (interface{}, error) {
@@ -821,9 +836,9 @@ func (m *kvmManager) limitDiskIO(cmd *core.Command) (interface{}, error) {
 	}
 	defer conn.Close()
 
-	domain, err := conn.LookupDomainByName(params.Name)
+	domain, err := conn.LookupDomainByUUIDString(params.UUID)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't find domain with the name %s", params.Name)
+		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
 	}
 	blockParams := libvirt.DomainBlockIoTuneParameters{
 		TotalBytesSecSet:          params.TotalBytesSecSet,

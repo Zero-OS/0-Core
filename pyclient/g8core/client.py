@@ -1236,11 +1236,11 @@ class KvmManager:
     })
 
     _domain_action_chk = typchk.Checker({
-        'name': str,
+        'uuid': str,
     })
 
     _man_disk_action_chk = typchk.Checker({
-        'name': str,
+        'uuid': str,
         'media': {
             'type': typchk.Or(
                 typchk.Enum('disk', 'cdrom'),
@@ -1251,12 +1251,12 @@ class KvmManager:
     })
 
     _man_nic_action_chk = typchk.Checker({
-        'name': str,
+        'uuid': str,
         'bridge': str,
     })
 
     _limit_disk_io_action_chk = typchk.Checker({
-        'name': str,
+        'uuid': str,
         'targetname': str,
         'totalbytessecset': bool,
         'totalbytessec': int,
@@ -1317,7 +1317,7 @@ class KvmManager:
                         `port={8080: 80, 7000:7000}`
         :param bridge: array of extra bridges to connect the domain with. the bridges must exist on the host
                        By default, vm is automatically added to a default bridge.
-        :return:
+        :return: uuid of the virtual machine
         """
         args = {
             'name': name,
@@ -1329,151 +1329,152 @@ class KvmManager:
         }
         self._create_chk.check(args)
 
-        self._client.sync('kvm.create', args)
+        x = self._client.sync('kvm.create', args)
+        return x
 
-    def destroy(self, name):
+    def destroy(self, uuid):
         """
-        Destroy a kvm domain by name
-        :param name: name of the kvm container (same as the used in create)
+        Destroy a kvm domain by uuid
+        :param uuid: uuid of the kvm container (same as the used in create)
         :return:
         """
         args = {
-            'name': name,
+            'uuid': uuid,
         }
         self._domain_action_chk.check(args)
 
         self._client.sync('kvm.destroy', args)
 
-    def shutdown(self, name):
+    def shutdown(self, uuid):
         """
-        Shutdown a kvm domain by name
-        :param name: name of the kvm container (same as the used in create)
+        Shutdown a kvm domain by uuid
+        :param uuid: uuid of the kvm container (same as the used in create)
         :return:
         """
         args = {
-            'name': name,
+            'uuid': uuid,
         }
         self._domain_action_chk.check(args)
 
         self._client.sync('kvm.shutdown', args)
 
-    def reboot(self, name):
+    def reboot(self, uuid):
         """
-        Reboot a kvm domain by name
-        :param name: name of the kvm container (same as the used in create)
+        Reboot a kvm domain by uuid
+        :param uuid: uuid of the kvm container (same as the used in create)
         :return:
         """
         args = {
-            'name': name,
+            'uuid': uuid,
         }
         self._domain_action_chk.check(args)
 
         self._client.sync('kvm.reboot', args)
 
-    def reset(self, name):
+    def reset(self, uuid):
         """
-        Reset (Force reboot) a kvm domain by name
-        :param name: name of the kvm container (same as the used in create)
+        Reset (Force reboot) a kvm domain by uuid
+        :param uuid: uuid of the kvm container (same as the used in create)
         :return:
         """
         args = {
-            'name': name,
+            'uuid': uuid,
         }
         self._domain_action_chk.check(args)
 
         self._client.sync('kvm.reset', args)
 
-    def pause(self, name):
+    def pause(self, uuid):
         """
-        Pause a kvm domain by name
-        :param name: name of the kvm container (same as the used in create)
+        Pause a kvm domain by uuid
+        :param uuid: uuid of the kvm container (same as the used in create)
         :return:
         """
         args = {
-            'name': name,
+            'uuid': uuid,
         }
         self._domain_action_chk.check(args)
 
         self._client.sync('kvm.pause', args)
 
-    def resume(self, name):
+    def resume(self, uuid):
         """
-        Resume a kvm domain by name
-        :param name: name of the kvm container (same as the used in create)
+        Resume a kvm domain by uuid
+        :param uuid: uuid of the kvm container (same as the used in create)
         :return:
         """
         args = {
-            'name': name,
+            'uuid': uuid,
         }
         self._domain_action_chk.check(args)
 
         self._client.sync('kvm.resume', args)
 
-    def attachDisk(self, name, media):
+    def attachDisk(self, uuid, media):
         """
         Attach a disk to a mchine
-        :param name: name of the kvm container (same as the used in create)
+        :param uuid: uuid of the kvm container (same as the used in create)
         :param media: the media object to attach to the machine
                       media object is a dict of {url, and type} where type can be one of 'disk', or 'cdrom', or empty (default to disk)
                       examples: {'url': 'nbd+unix:///test?socket=/tmp/ndb.socket'}, {'type': 'cdrom': '/somefile.iso'}
         :return:
         """
         args = {
-            'name': name,
+            'uuid': uuid,
             'media': media,
         }
         self._man_disk_action_chk.check(args)
 
         self._client.sync('kvm.attachDisk', args)
 
-    def detachDisk(self, name, media):
+    def detachDisk(self, uuid, media):
         """
         Detach a disk from a machine
-        :param name: name of the kvm container (same as the used in create)
+        :param uuid: uuid of the kvm container (same as the used in create)
         :param media: the media object to attach to the machine
                       media object is a dict of {url, and type} where type can be one of 'disk', or 'cdrom', or empty (default to disk)
                       examples: {'url': 'nbd+unix:///test?socket=/tmp/ndb.socket'}, {'type': 'cdrom': '/somefile.iso'}
         :return:
         """
         args = {
-            'name': name,
+            'uuid': uuid,
             'media': media,
         }
         self._man_disk_action_chk.check(args)
 
         self._client.sync('kvm.detachDisk', args)
 
-    def addNic(self, name, bridge):
+    def addNic(self, uuid, bridge):
         """
         Add a nic to a machine
-        :param name: name of the kvm container (same as the used in create)
+        :param uuid: uuid of the kvm container (same as the used in create)
         :param bridge: the name of the bridge to add. the bridge must exist on the host
         :return:
         """
         args = {
-            'name': name,
+            'uuid': uuid,
             'bridge': bridge,
         }
         self._man_nic_action_chk.check(args)
 
         self._client.sync('kvm.addNic', args)
 
-    def removeNic(self, name, bridge):
+    def removeNic(self, uuid, bridge):
         """
         Remove a nic from a machine
-        :param name: name of the kvm container (same as the used in create)
+        :param uuid: uuid of the kvm container (same as the used in create)
         :param bridge: the name of the bridge to remove.
         :return:
         """
         args = {
-            'name': name,
+            'uuid': uuid,
             'bridge': bridge,
         }
         self._man_nic_action_chk.check(args)
 
         self._client.sync('kvm.removeNic', args)
 
-    def limitDiskIO(self, name, targetname, totalbytessecset=False, totalbytessec=0, readbytessecset=False, readbytessec=0, writebytessecset=False,
+    def limitDiskIO(self, uuid, targetname, totalbytessecset=False, totalbytessec=0, readbytessecset=False, readbytessec=0, writebytessecset=False,
                     writebytessec=0, totaliopssecset=False, totaliopssec=0, readiopssecset=False, readiopssec=0, writeiopssecset=False, writeiopssec=0,
                     totalbytessecmaxset=False, totalbytessecmax=0, readbytessecmaxset=False, readbytessecmax=0, writebytessecmaxset=False, writebytessecmax=0,
                     totaliopssecmaxset=False, totaliopssecmax=0, readiopssecmaxset=False, readiopssecmax=0, writeiopssecmaxset=False, writeiopssecmax=0,
@@ -1483,12 +1484,12 @@ class KvmManager:
                     sizeiopssec=0, groupnameset=False, groupname=''):
         """
         Remove a nic from a machine
-        :param name: name of the kvm container (same as the used in create)
+        :param uuid: uuid of the kvm container (same as the used in create)
         :param targetname: the name of the target disk
         :return:
         """
         args = {
-            'name': name,
+            'uuid': uuid,
             'targetname': targetname,
             'totalbytessecset': totalbytessecset,
             'totalbytessec': totalbytessec,
