@@ -19,7 +19,6 @@ import (
 	"github.com/garyburd/redigo/redis"
 	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
-	"github.com/vishvananda/netlink"
 )
 
 const (
@@ -63,16 +62,23 @@ func (s ContainerBridgeSettings) String() string {
 }
 
 type Network struct {
-	ZeroTier string                    `json:"zerotier,omitempty"`
-	Bridge   []ContainerBridgeSettings `json:"bridge,omitempty"`
+	Type      string `json:"type"`
+	ID        string `json:"id"`
+	HWAddress string `json:"hwaddr"`
+	Config    struct {
+		Dhcp    bool     `json:"dhcp"`
+		CIDR    string   `json:"cidr"`
+		Gateway string   `json:"gateway"`
+		DNS     []string `json:"dns"`
+	} `json:"config"`
 }
 
 type ContainerCreateArguments struct {
 	Root        string            `json:"root"`         //Root plist
 	Mount       map[string]string `json:"mount"`        //data disk mounts.
 	HostNetwork bool              `json:"host_network"` //share host networking stack
-	Network     Network           `json:"network"`      //network setup (only respected if HostNetwork is false)
-	Port        map[int]int       `json:"port"`         //port forwards
+	Network     []Network         `json:"network"`      //network setup (only respected if HostNetwork is false)
+	Port        map[int]int       `json:"port"`         //port forwards (only if default networking is enabled)
 	Hostname    string            `json:"hostname"`     //hostname
 	Storage     string            `json:"storage"`      //ardb storage needed for g8ufs mounts.
 }
@@ -114,17 +120,6 @@ func (c *ContainerCreateArguments) Valid() error {
 		}
 		if guest < 0 || guest > 65535 {
 			return fmt.Errorf("invalid guest port '%d'", guest)
-		}
-	}
-
-	for _, bridge := range c.Network.Bridge {
-		link, err := netlink.LinkByName(bridge.Name())
-		if err != nil {
-			return err
-		}
-
-		if link.Type() != "bridge" {
-			return fmt.Errorf("bridge '%s' doesn't exist", c.Network.Bridge)
 		}
 	}
 

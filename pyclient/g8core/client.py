@@ -572,16 +572,20 @@ class ContainerManager:
             typchk.IsNone()
         ),
         'host_network': bool,
-        'network': {
-            'zerotier': typchk.Or(
-                str,
-                typchk.IsNone()
-            ),
-            'bridge': typchk.Or(
-                [typchk.Length((str,), 2)],
-                typchk.IsNone()
-            ),  # list of tuples each of length 2 or None
-        },
+        'network': [{
+            'type': str,
+            'id': typchk.Or(str, typchk.Missing),
+            'hwaddr': typchk.Or(str, typchk.Missing),
+            'config': typchk.Or(
+                typchk.Missing,
+                {
+                    'dhcp': typchk.Or(bool, typchk.Missing),
+                    'cidr': typchk.Or(str, typchk.Missing),
+                    'gateway': typchk.Or(str, typchk.Missing),
+                    'dns': typchk.Or([str], typchk.Missing),
+                }
+            )
+        }],
         'port': typchk.Or(
             typchk.Map(int, int),
             typchk.IsNone()
@@ -597,10 +601,11 @@ class ContainerManager:
         'container': int
     })
 
+    DefaultNetworking = object()
     def __init__(self, client):
         self._client = client
 
-    def create(self, root_url, mount=None, host_network=False, zerotier=None, bridge=None, port=None, hostname=None, storage=None):
+    def create(self, root_url, mount=None, host_network=False, network=DefaultNetworking, port=None, hostname=None, storage=None):
         """
         Creater a new container with the given root plist, mount points and
         zerotier id, and connected to the given bridges
@@ -611,6 +616,7 @@ class ContainerManager:
         :param host_network: Specify if the container should share the same network stack as the host.
                              if True, container creation ignores both zerotier, bridge and ports arguments below. Not
                              giving errors if provided.
+        :param network:
         :param zerotier: An optional zerotier netowrk ID to join
         :param bridge: A list of tuples as ('bridge_name': 'network_setup')
                        where :network_setup: can be one of the following
@@ -634,15 +640,14 @@ class ContainerManager:
                         if not provided, the default one from core0 configuration will be used.
         """
 
+        if network == self.DefaultNetworking:
+            network = [{'type': 'default'}]
 
         args = {
             'root': root_url,
             'mount': mount,
             'host_network': host_network,
-            'network': {
-                'zerotier': zerotier,
-                'bridge': bridge,
-            },
+            'network': network,
             'port': port,
             'hostname': hostname,
             'storage': storage,

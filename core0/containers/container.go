@@ -158,9 +158,10 @@ func (c *container) cleanup() {
 	if !c.args.HostNetwork {
 		c.unPortForward()
 		//remove bridge links
-		for _, bridge := range c.args.Network.Bridge {
-			c.unbridge(bridge)
-		}
+		//TODO: unbridging here.
+		//for _, bridge := range c.args.Network.Bridge {
+		//	c.unbridge(bridge)
+		//}
 
 		pm.GetManager().Kill(fmt.Sprintf("net-%v", c.id))
 
@@ -198,7 +199,7 @@ func (c *container) namespace() error {
 	return nil
 }
 
-func (c *container) zeroTier(netID string) error {
+func (c *container) zerotier(netID string) error {
 	args := map[string]interface{}{
 		"netns":    c.id,
 		"zerotier": netID,
@@ -383,8 +384,9 @@ func (c *container) getDefaultIP() net.IP {
 	return net.IPv4(BridgeIP[0], BridgeIP[1], byte(base&0xff00>>8), byte(base&0x00ff))
 }
 
-func (c *container) setDefaultGateway() error {
+func (c *container) setDefaultGateway(idx int) error {
 	////setting the ip address
+	eth := fmt.Sprintf("eth%d", idx)
 	cmd := &core.Command{
 		ID:      uuid.New(),
 		Command: process.CommandSystem,
@@ -392,7 +394,7 @@ func (c *container) setDefaultGateway() error {
 			process.SystemCommandArguments{
 				Name: "ip",
 				Args: []string{"netns", "exec", fmt.Sprintf("%v", c.id),
-					"ip", "route", "add", "metric", "1000", "default", "via", DefaultBridgeIP, "dev", "eth0"},
+					"ip", "route", "add", "metric", "1000", "default", "via", DefaultBridgeIP, "dev", eth},
 			},
 		),
 	}
@@ -463,38 +465,19 @@ func (c *container) setPortForwards() error {
 	return nil
 }
 
-func (c *container) postStartIsolatedNetworking() error {
-	//only setup networking if host-network is false
-	if err := c.namespace(); err != nil {
-		return err
-	}
-
-	if c.args.Network.ZeroTier != "" {
-		log.Debugf("Joining zerotier networ '%s'", c.args.Network.ZeroTier)
-		if err := c.zeroTier(c.args.Network.ZeroTier); err != nil {
-			return err
-		}
-	}
-
-	for i, bridge := range c.args.Network.Bridge {
-		log.Debugf("Connecting container to bridge '%s'", bridge)
-		if err := c.bridge(i+1, bridge); err != nil {
-			return err
-		}
-	}
-
+func (c *container) setDefaultNetwork(i int, net *Network) error {
 	//Add to the default bridge
 	brdige := ContainerBridgeSettings{
 		DefaultBridgeName,
 		fmt.Sprintf("%s/16", c.getDefaultIP()),
 	}
 
-	if err := c.bridge(0, brdige); err != nil {
+	if err := c.bridge(i, brdige); err != nil {
 		return err
 	}
 
 	//set default gateway
-	if err := c.setDefaultGateway(); err != nil {
+	if err := c.setDefaultGateway(i); err != nil {
 		log.Errorf("Failed to set default gateway: %", err)
 	}
 
@@ -510,10 +493,41 @@ func (c *container) postStartIsolatedNetworking() error {
 	return nil
 }
 
+func (c *container) postStartIsolatedNetworking() error {
+	//only setup networking if host-network is false
+	if err := c.namespace(); err != nil {
+		return err
+	}
+
+	for idx, network := range c.args.Network {
+		switch network.Type {
+		case "vxlan":
+			//TODO: ensure vxlan, and get the bridge name
+		case "vlan":
+			//TODO: ensure vlan, and get the bridge name
+		case "zerotier":
+			if err := c.zerotier(network.ID); err != nil {
+				return err
+			}
+		case "default":
+			if err := c.setDefaultNetwork(idx, &network); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func (c *container) postStart() error {
 	if c.args.HostNetwork {
 		return nil
 	}
 
-	return c.postStartIsolatedNetworking()
+	if err := c.postStartIsolatedNetworking(); err != nil {
+		log.Errorf("isolated networking error: %s", err)
+		return err
+	}
+
+	return nil
 }
