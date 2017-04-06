@@ -32,6 +32,8 @@ var (
 	DuplicateIDErr    = errors.New("duplicate job id")
 )
 
+type PreProcessor func(cmd *core.Command)
+
 //MeterHandler represents a callback type
 type MeterHandler func(cmd *core.Command, p *psutil.Process)
 
@@ -53,6 +55,7 @@ type PM struct {
 	maxJobs    int
 	jobsCond   *sync.Cond
 
+	preProcessors       []PreProcessor
 	msgHandlers         []MessageHandler
 	resultHandlers      []ResultHandler
 	routeResultHandlers map[core.Route][]ResultHandler
@@ -109,19 +112,26 @@ func saveMid(midfile string, mid uint32) {
 	ioutil.WriteFile(midfile, []byte(fmt.Sprintf("%d", mid)), 0644)
 }
 
-//RunCmd runs and manage command
+//PushCmd schedules a command to run, might block if no free slots available
+//it also runs all the preprocessors
 func (pm *PM) PushCmd(cmd *core.Command) {
-	pm.cmds <- cmd
+	for _, processor := range pm.preProcessors {
+		processor(cmd)
+	}
+
+	if cmd.Queue == "" {
+		pm.cmds <- cmd
+	} else {
+		pm.pushCmdToQueue(cmd)
+	}
 }
 
-/*
-RunCmdQueued Same as RunCmdAsync put will queue the command for later execution when there are no
-other commands runs on the same queue.
-
-The queue name is retrieved from cmd.Args[queue]
-*/
-func (pm *PM) PushCmdToQueue(cmd *core.Command) {
+func (pm *PM) pushCmdToQueue(cmd *core.Command) {
 	pm.queueMgr.Push(cmd)
+}
+
+func (pm *PM) AddPreProcessor(processor PreProcessor) {
+	pm.preProcessors = append(pm.preProcessors, processor)
 }
 
 //AddMessageHandler adds handlers for messages that are captured from sub processes. Logger can use this to
@@ -161,6 +171,7 @@ func (pm *PM) NewRunner(cmd *core.Command, factory process.ProcessFactory, hooks
 	return runner, nil
 }
 
+//RunCmd runs a command immediately (no pre-processors)
 func (pm *PM) RunCmd(cmd *core.Command, hooks ...RunnerHook) (Runner, error) {
 	factory := GetProcessFactory(cmd)
 	if factory == nil {

@@ -6,6 +6,7 @@ import (
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
 	"github.com/g8os/core0/base/utils"
+	"strings"
 )
 
 const (
@@ -25,20 +26,15 @@ type PluginsSettings struct {
 	Plugin map[string]Plugin
 }
 
-func (b *Bootstrap) pluginFactory(domain string, plugin *Plugin, fn string) process.ProcessFactory {
+func (b *Bootstrap) pluginFactory(plugin *Plugin, fn string) process.ProcessFactory {
 	return func(table process.PIDTable, srcCmd *core.Command) process.Process {
-		queue := srcCmd.Queue
-		if plugin.Queue {
-			queue = domain
-		}
 		cmd := &core.Command{
-			ID:      srcCmd.ID,
-			Command: process.CommandSystem,
+			ID: srcCmd.ID,
 			Arguments: core.MustArguments(process.SystemCommandArguments{
 				Name: plugin.Path,
 				Args: []string{fn, string(*srcCmd.Arguments)},
 			}),
-			Queue:           queue,
+			Queue:           srcCmd.Queue,
 			StatsInterval:   srcCmd.StatsInterval,
 			MaxTime:         srcCmd.MaxTime,
 			MaxRestart:      srcCmd.MaxRestart,
@@ -52,10 +48,20 @@ func (b *Bootstrap) pluginFactory(domain string, plugin *Plugin, fn string) proc
 }
 
 func (b *Bootstrap) plugin(domain string, plugin Plugin) {
+	if plugin.Queue {
+		//if plugin requires queuing we make sure when a command is pushed (from a cient)
+		//that we force a queue on it.
+		pm.GetManager().AddPreProcessor(func(cmd *core.Command) {
+			if strings.HasPrefix(cmd.Command, domain+".") {
+				log.Debugf("setting command queue to: %s", domain)
+				cmd.Queue = domain
+			}
+		})
+	}
+
 	for _, export := range plugin.Exports {
 		cmd := fmt.Sprintf("%s.%s", domain, export)
-
-		pm.CmdMap[cmd] = b.pluginFactory(domain, &plugin, export)
+		pm.CmdMap[cmd] = b.pluginFactory(&plugin, export)
 	}
 }
 

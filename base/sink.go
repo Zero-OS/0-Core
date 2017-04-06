@@ -65,11 +65,7 @@ func (poll *sinkImpl) run() {
 
 		log.Infof("Starting command %s", &command)
 
-		if command.Queue == "" {
-			poll.mgr.PushCmd(&command)
-		} else {
-			poll.mgr.PushCmdToQueue(&command)
-		}
+		poll.mgr.PushCmd(&command)
 	}
 }
 
