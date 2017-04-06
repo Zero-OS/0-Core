@@ -125,7 +125,8 @@ type containerManager struct {
 
 	pool *redis.Pool
 
-	sinks map[string]base.SinkClient
+	internal *internalRouter
+	sinks    map[string]base.SinkClient
 }
 
 /*
@@ -142,6 +143,7 @@ func ContainerSubsystem(sinks map[string]base.SinkClient) error {
 		pool:       utils.NewRedisPool("unix", redisSocketSrc, ""),
 		containers: make(map[uint16]*container),
 		sinks:      sinks,
+		internal:   newInternalRouter(),
 	}
 
 	script, err := assets.Asset("scripts/network.sh")
@@ -220,7 +222,9 @@ func (m *containerManager) forwardNext() error {
 	}
 
 	//use command tags for routing.
-	if sink, ok := m.sinks[result.Tags]; ok {
+	if result.Tags == string(InternalRoute) {
+		m.internal.Route(&result)
+	} else if sink, ok := m.sinks[result.Tags]; ok {
 		log.Debugf("Forwarding job result to %s", result.Tags)
 		return sink.Respond(&result)
 	} else {
@@ -314,6 +318,20 @@ func (m *containerManager) getCoreXQueue(id uint16) string {
 	return fmt.Sprintf("core:%v", id)
 }
 
+func (m *containerManager) pushToContainer(container uint16, cmd *core.Command) error {
+	db := m.pool.Get()
+	defer db.Close()
+
+	data, err := json.Marshal(cmd)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Do("RPUSH", m.getCoreXQueue(container), string(data))
+
+	return err
+}
+
 func (m *containerManager) dispatch(cmd *core.Command) (interface{}, error) {
 	var args ContainerDispatchArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
@@ -324,7 +342,11 @@ func (m *containerManager) dispatch(cmd *core.Command) (interface{}, error) {
 		return nil, fmt.Errorf("invalid container id")
 	}
 
-	if _, ok := pm.GetManager().Runners()[fmt.Sprintf("core-%d", args.Container)]; !ok {
+	m.conM.RLock()
+	_, ok := m.containers[args.Container]
+	m.conM.RUnlock()
+
+	if !ok {
 		return nil, fmt.Errorf("container does not exist")
 	}
 
@@ -332,17 +354,28 @@ func (m *containerManager) dispatch(cmd *core.Command) (interface{}, error) {
 	args.Command.ID = id
 	args.Command.Tags = string(cmd.Route)
 
-	db := m.pool.Get()
-	defer db.Close()
-
-	data, err := json.Marshal(args.Command)
-	if err != nil {
+	if err := m.pushToContainer(args.Container, &args.Command); err != nil {
 		return nil, err
 	}
 
-	_, err = db.Do("RPUSH", m.getCoreXQueue(args.Container), string(data))
+	return id, nil
+}
 
-	return id, err
+//used internally to execute commands inside containers synchronusly
+func (m *containerManager) dispatchSync(args *ContainerDispatchArguments) (*core.JobResult, error) {
+	id := uuid.New()
+	args.Command.ID = id
+	args.Command.Tags = string(InternalRoute)
+
+	m.internal.Prepare(id)
+	if err := m.pushToContainer(args.Container, &args.Command); err != nil {
+		return nil, err
+	}
+	job := m.internal.Get(id)
+	if job == nil {
+		return nil, fmt.Errorf("timeout")
+	}
+	return job, nil
 }
 
 type ContainerTerminateArguments struct {

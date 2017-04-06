@@ -1,6 +1,7 @@
 package containers
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
@@ -17,7 +18,8 @@ import (
 )
 
 const (
-	OVSTag = "ovs"
+	OVSTag       = "ovs"
+	OVSBackPlane = "backplane"
 )
 
 var (
@@ -237,14 +239,10 @@ func (c *container) zerotier(netID string) error {
 //	return netlink.LinkDel(link)
 //}
 
-func (c *container) bridge(index int, bridge string, n *Network) error {
+func (c *container) bridge(index int, bridge string, n *Network, ovs *container) error {
 	link, err := netlink.LinkByName(bridge)
 	if err != nil {
 		return err
-	}
-
-	if link.Type() != "bridge" {
-		return fmt.Errorf("'%s' is not a bridge", link.Attrs().Name)
 	}
 
 	name := fmt.Sprintf("%s-%v", bridge, c.id)
@@ -252,17 +250,50 @@ func (c *container) bridge(index int, bridge string, n *Network) error {
 
 	veth := &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{
-			Name:        name,
-			Flags:       net.FlagUp,
-			MTU:         1500,
-			TxQLen:      1000,
-			MasterIndex: link.Attrs().Index,
+			Name:   name,
+			Flags:  net.FlagUp,
+			MTU:    1500,
+			TxQLen: 1000,
 		},
 		PeerName: peerName,
 	}
 
 	if err := netlink.LinkAdd(veth); err != nil {
 		return fmt.Errorf("create link: %s", err)
+	}
+
+	//setting the master
+	if ovs == nil {
+		//no ovs
+		if link.Type() != "bridge" {
+			return fmt.Errorf("'%s' is not a bridge", bridge)
+		}
+		br := link.(*netlink.Bridge)
+		if err := netlink.LinkSetMaster(veth, br); err != nil {
+			return err
+		}
+	} else {
+		//with ovs
+		result, err := c.mgr.dispatchSync(&ContainerDispatchArguments{
+			Container: ovs.id,
+			Command: core.Command{
+				Command: "ovs.port-add",
+				Arguments: core.MustArguments(
+					map[string]interface{}{
+						"bridge": bridge,
+						"port":   name,
+					},
+				),
+			},
+		})
+
+		if err != nil {
+			return fmt.Errorf("ovs dispatch error: %s", err)
+		}
+
+		if result.State != core.StateSuccess {
+			return fmt.Errorf("failed to attach veth to bridge: %s", result.Data)
+		}
 	}
 
 	peer, err := netlink.LinkByName(peerName)
@@ -505,7 +536,7 @@ func (c *container) setDefaultNetwork(i int, net *Network) error {
 		},
 	}
 
-	if err := c.bridge(i, DefaultBridgeName, defnet); err != nil {
+	if err := c.bridge(i, DefaultBridgeName, defnet, nil); err != nil {
 		return err
 	}
 
@@ -516,7 +547,7 @@ func (c *container) setDefaultNetwork(i int, net *Network) error {
 	return nil
 }
 
-func (c *container) vlan(net *Network) error {
+func (c *container) vlan(idx int, net *Network) error {
 	vlanID, err := strconv.ParseInt(net.ID, 10, 16)
 	if err != nil {
 		return err
@@ -524,13 +555,41 @@ func (c *container) vlan(net *Network) error {
 	if vlanID == 0 || vlanID >= 4095 {
 		return fmt.Errorf("invalid vlan id (1-4094)")
 	}
+	//find the container with OVS tag
+
 	ovs := c.mgr.getOneWithTags(OVSTag)
 	if ovs == nil {
 		return fmt.Errorf("ovs is needed for VLAN network type")
 	}
 
 	//ensure that a bridge is available with that vlan tag.
-	return nil
+	//we dispatch the ovs.vlan-ensure command to container.
+	result, err := c.mgr.dispatchSync(&ContainerDispatchArguments{
+		Container: ovs.id,
+		Command: core.Command{
+			Command: "ovs.vlan-ensure",
+			Arguments: core.MustArguments(map[string]interface{}{
+				"master": OVSBackPlane,
+				"vlan":   vlanID,
+			}),
+		},
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if result.State != core.StateSuccess {
+		return fmt.Errorf("failed to ensure vlan bridge: %v", result.Data)
+	}
+	//brname:
+	var bridge string
+	if err := json.Unmarshal([]byte(result.Data), &bridge); err != nil {
+		return fmt.Errorf("failed to load vlan-ensure result: %s", err)
+	}
+	log.Debugf("vlan bridge name: %d", bridge)
+	//we have the vlan bridge name
+	return c.bridge(idx, bridge, net, ovs)
 }
 
 func (c *container) postStartIsolatedNetworking() error {
@@ -545,6 +604,9 @@ func (c *container) postStartIsolatedNetworking() error {
 			//TODO: ensure vxlan, and get the bridge name
 		case "vlan":
 			//TODO: ensure vlan, and get the bridge name
+			if err := c.vlan(idx, &network); err != nil {
+				return err
+			}
 		case "zerotier":
 			//TODO: needs refactoring to support multiple
 			//zerotier networks
