@@ -20,6 +20,7 @@ import (
 const (
 	OVSTag       = "ovs"
 	OVSBackPlane = "backplane"
+	OVSVXBackend = "vxbackend"
 )
 
 var (
@@ -245,8 +246,8 @@ func (c *container) bridge(index int, bridge string, n *Network, ovs *container)
 		return err
 	}
 
-	name := fmt.Sprintf("%s-%v", bridge, c.id)
-	peerName := fmt.Sprintf("%s-%v-eth%d", bridge, c.id, index)
+	name := fmt.Sprintf("cont%d-%d", c.id, index)
+	peerName := fmt.Sprintf("%sp", name)
 
 	veth := &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{
@@ -259,7 +260,7 @@ func (c *container) bridge(index int, bridge string, n *Network, ovs *container)
 	}
 
 	if err := netlink.LinkAdd(veth); err != nil {
-		return fmt.Errorf("create link: %s", err)
+		return fmt.Errorf("create veth pair fail: %s", err)
 	}
 
 	//setting the master
@@ -547,6 +548,47 @@ func (c *container) setDefaultNetwork(i int, net *Network) error {
 	return nil
 }
 
+func (c *container) vxlan(idx int, net *Network) error {
+	vxlan, err := strconv.ParseInt(net.ID, 10, 64)
+	if err != nil {
+		return err
+	}
+	//find the container with OVS tag
+	ovs := c.mgr.getOneWithTags(OVSTag)
+	if ovs == nil {
+		return fmt.Errorf("ovs is needed for VLAN network type")
+	}
+
+	//ensure that a bridge is available with that vlan tag.
+	//we dispatch the ovs.vlan-ensure command to container.
+	result, err := c.mgr.dispatchSync(&ContainerDispatchArguments{
+		Container: ovs.id,
+		Command: core.Command{
+			Command: "ovs.vxlan-ensure",
+			Arguments: core.MustArguments(map[string]interface{}{
+				"master": OVSVXBackend,
+				"vxlan":  vxlan,
+			}),
+		},
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if result.State != core.StateSuccess {
+		return fmt.Errorf("failed to ensure vlan bridge: %v", result.Data)
+	}
+	//brname:
+	var bridge string
+	if err := json.Unmarshal([]byte(result.Data), &bridge); err != nil {
+		return fmt.Errorf("failed to load vlan-ensure result: %s", err)
+	}
+	log.Debugf("vxlan bridge name: %d", bridge)
+	//we have the vxlan bridge name
+	return c.bridge(idx, bridge, net, ovs)
+}
+
 func (c *container) vlan(idx int, net *Network) error {
 	vlanID, err := strconv.ParseInt(net.ID, 10, 16)
 	if err != nil {
@@ -593,30 +635,27 @@ func (c *container) vlan(idx int, net *Network) error {
 }
 
 func (c *container) postStartIsolatedNetworking() error {
-	//only setup networking if host-network is false
 	if err := c.namespace(); err != nil {
 		return err
 	}
 
 	for idx, network := range c.Arguments.Network {
+		var err error
 		switch network.Type {
 		case "vxlan":
-			//TODO: ensure vxlan, and get the bridge name
+			err = c.vxlan(idx, &network)
 		case "vlan":
-			//TODO: ensure vlan, and get the bridge name
-			if err := c.vlan(idx, &network); err != nil {
-				return err
-			}
+			err = c.vlan(idx, &network)
 		case "zerotier":
 			//TODO: needs refactoring to support multiple
 			//zerotier networks
-			if err := c.zerotier(network.ID); err != nil {
-				return err
-			}
+			err = c.zerotier(network.ID)
 		case "default":
-			if err := c.setDefaultNetwork(idx, &network); err != nil {
-				return err
-			}
+			err = c.setDefaultNetwork(idx, &network)
+		}
+
+		if err != nil {
+			log.Errorf("failed to initialize network '%v': %s", network, err)
 		}
 	}
 

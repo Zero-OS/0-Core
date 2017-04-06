@@ -35,7 +35,7 @@ const (
 	zeroTierCommand    = "_zerotier_"
 	zeroTierScriptPath = "/tmp/zerotier.sh"
 
-	DefaultBridgeName = "core-0"
+	DefaultBridgeName = "core0"
 )
 
 var (
