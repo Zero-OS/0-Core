@@ -553,8 +553,13 @@ func (m *kvmManager) action(cmd *core.Command) (*libvirt.Domain, *libvirt.Connec
 
 	domain, err := conn.LookupDomainByUUIDString(params.UUID)
 	if err != nil {
+		conn.Close()
 		return nil, nil, params.UUID, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
 	}
+	// we don't close the connection here because it is supposed to be used outside
+	// so we expect the caller to close it
+	// so if anything is to be added in this method that can return an error
+	// the connection has to be closed before the return
 	return domain, conn, params.UUID, err
 }
 
@@ -680,7 +685,6 @@ func (m *kvmManager) attachDisk(cmd *core.Command) (interface{}, error) {
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
-	// FIXME: get the number of already attached disks
 	conn, err := libvirt.NewConnect("qemu:///system")
 	if err != nil {
 		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
