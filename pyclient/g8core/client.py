@@ -1255,6 +1255,11 @@ class KvmManager:
         'bridge': str,
     })
 
+    _migrate_action_chk = typchk.Checker({
+        'uuid': str,
+        'desturi': str,
+    })
+
     _limit_disk_io_action_chk = typchk.Checker({
         'uuid': str,
         'targetname': str,
@@ -1534,6 +1539,21 @@ class KvmManager:
         self._limit_disk_io_action_chk.check(args)
 
         self._client.sync('kvm.limitDiskIO', args)
+
+    def migrate(self, uuid, desturi):
+        """
+        Migrate a vm to another node
+        :param uuid: uuid of the kvm container (same as the used in create)
+        :param desturi: the uri of the destination node
+        :return:
+        """
+        args = {
+            'uuid': uuid,
+            'desturi': desturi,
+        }
+        self._migrate_action_chk.check(args)
+
+        self._client.sync('kvm.migrate', args)
 
     def list(self):
         """

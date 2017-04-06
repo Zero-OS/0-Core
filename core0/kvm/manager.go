@@ -53,6 +53,7 @@ const (
 	kvmAddNicCommand      = "kvm.addNic"
 	kvmRemoveNicCommand   = "kvm.removeNic"
 	kvmLimitDiskIOCommand = "kvm.limitDiskIO"
+	kvmMigrateCommand     = "kvm.migrate"
 	kvmListCommand        = "kvm.list"
 
 	DefaultBridgeName = "kvm-0"
@@ -77,6 +78,7 @@ func KVMSubsystem() error {
 	pm.CmdMap[kvmAddNicCommand] = process.NewInternalProcessFactory(mgr.addNic)
 	pm.CmdMap[kvmRemoveNicCommand] = process.NewInternalProcessFactory(mgr.removeNic)
 	pm.CmdMap[kvmLimitDiskIOCommand] = process.NewInternalProcessFactory(mgr.limitDiskIO)
+	pm.CmdMap[kvmMigrateCommand] = process.NewInternalProcessFactory(mgr.migrate)
 	pm.CmdMap[kvmListCommand] = process.NewInternalProcessFactory(mgr.list)
 
 	return nil
@@ -111,7 +113,12 @@ type ManNicParams struct {
 	Bridge string `json:"bridge"`
 }
 
-type LimitDiskIOParameters struct {
+type MigrateParams struct {
+	UUID    string `json:"uuid"`
+	DestURI string `json:"desturi"`
+}
+
+type LimitDiskIOParams struct {
 	UUID                      string `json:"uuid"`
 	TargetName                string `json:"targetname"`
 	TotalBytesSecSet          bool   `json:"totalbytessecset"`
@@ -540,7 +547,7 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 	return DomainUUID{uuid}, nil
 }
 
-func (m *kvmManager) action(cmd *core.Command) (*libvirt.Domain, *libvirt.Connect, string, error) {
+func (m *kvmManager) getDomain(cmd *core.Command) (*libvirt.Domain, *libvirt.Connect, string, error) {
 	var params DomainUUID
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, nil, "", err
@@ -564,7 +571,7 @@ func (m *kvmManager) action(cmd *core.Command) (*libvirt.Domain, *libvirt.Connec
 }
 
 func (m *kvmManager) destroy(cmd *core.Command) (interface{}, error) {
-	domain, conn, uuid, err := m.action(cmd)
+	domain, conn, uuid, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -578,7 +585,7 @@ func (m *kvmManager) destroy(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) shutdown(cmd *core.Command) (interface{}, error) {
-	domain, conn, uuid, err := m.action(cmd)
+	domain, conn, uuid, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -593,7 +600,7 @@ func (m *kvmManager) shutdown(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) reboot(cmd *core.Command) (interface{}, error) {
-	domain, conn, _, err := m.action(cmd)
+	domain, conn, _, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -606,7 +613,7 @@ func (m *kvmManager) reboot(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) reset(cmd *core.Command) (interface{}, error) {
-	domain, conn, _, err := m.action(cmd)
+	domain, conn, _, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -619,7 +626,7 @@ func (m *kvmManager) reset(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) pause(cmd *core.Command) (interface{}, error) {
-	domain, conn, _, err := m.action(cmd)
+	domain, conn, _, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -632,7 +639,7 @@ func (m *kvmManager) pause(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) resume(cmd *core.Command) (interface{}, error) {
-	domain, conn, _, err := m.action(cmd)
+	domain, conn, _, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -779,7 +786,7 @@ func (m *kvmManager) removeNic(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) limitDiskIO(cmd *core.Command) (interface{}, error) {
-	var params LimitDiskIOParameters
+	var params LimitDiskIOParams
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
@@ -837,6 +844,35 @@ func (m *kvmManager) limitDiskIO(cmd *core.Command) (interface{}, error) {
 	}
 	if err := domain.SetBlockIoTune(params.TargetName, &blockParams, libvirt.DOMAIN_AFFECT_LIVE); err != nil {
 		return nil, fmt.Errorf("failed to tune disk: %s", err)
+	}
+	return nil, nil
+}
+
+func (m *kvmManager) migrate(cmd *core.Command) (interface{}, error) {
+	domain, conn, _, err := m.getDomain(cmd)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	var params MigrateParams
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, err
+	}
+	dconn, err := libvirt.NewConnect(params.DestURI)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
+	}
+	defer dconn.Close()
+	dxml, err := domain.GetXMLDesc(libvirt.DOMAIN_XML_MIGRATABLE)
+	if err != nil {
+		return nil, err
+	}
+	name, err := domain.GetName()
+	if err != nil {
+		return nil, err
+	}
+	if _, err = domain.Migrate2(dconn, dxml, libvirt.MIGRATE_LIVE|libvirt.MIGRATE_UNDEFINE_SOURCE, name, "", 10000000000); err != nil {
+		return nil, err
 	}
 	return nil, nil
 }
