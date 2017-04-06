@@ -203,7 +203,7 @@ func (c *container) mountPList(src string, target string) error {
 		return err
 	}
 
-	storageUrl := c.args.Storage
+	storageUrl := c.Arguments.Storage
 	if storageUrl == "" {
 		storageUrl = settings.Settings.Globals.Get("fuse_storage", "ardb://home.maxux.net:26379")
 	}
@@ -266,11 +266,11 @@ func (c *container) mount() error {
 	log.Debugf("Container root: %s", root)
 	os.RemoveAll(root)
 
-	if err := c.mountPList(c.args.Root, root); err != nil {
+	if err := c.mountPList(c.Arguments.Root, root); err != nil {
 		return fmt.Errorf("mount-root-plist(%s)", err)
 	}
 
-	for src, dst := range c.args.Mount {
+	for src, dst := range c.Arguments.Mount {
 		target := path.Join(root, dst)
 		if err := os.MkdirAll(target, 0755); err != nil {
 			return fmt.Errorf("mkdirAll(%s)", err)

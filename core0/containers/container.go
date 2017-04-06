@@ -20,19 +20,23 @@ var (
 )
 
 type container struct {
-	id    uint16
-	route core.Route
-	args  *ContainerCreateArguments
-
-	pid int
+	id        uint16
+	mgr       *containerManager
+	route     core.Route
+	Arguments ContainerCreateArguments `json:"arguments"`
+	Root      string                   `json:"root"`
+	pid       int
 }
 
-func newContainer(id uint16, route core.Route, args *ContainerCreateArguments) *container {
-	return &container{
-		id:    id,
-		route: route,
-		args:  args,
+func newContainer(mgr *containerManager, id uint16, route core.Route, args ContainerCreateArguments) *container {
+	c := &container{
+		mgr:       mgr,
+		id:        id,
+		route:     route,
+		Arguments: args,
 	}
+	c.Root = c.root()
+	return c
 }
 
 func (c *container) Start() error {
@@ -59,12 +63,12 @@ func (c *container) Start() error {
 				Name:        "/coreX",
 				Chroot:      c.root(),
 				Dir:         "/",
-				HostNetwork: c.args.HostNetwork,
+				HostNetwork: c.Arguments.HostNetwork,
 				Args: []string{
 					"-core-id", fmt.Sprintf("%d", c.id),
 					"-redis-socket", "/redis.socket",
 					"-reply-to", coreXResponseQueue,
-					"-hostname", c.args.Hostname,
+					"-hostname", c.Arguments.Hostname,
 				},
 				Env: map[string]string{
 					"PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
@@ -132,7 +136,7 @@ func (c *container) preStart() error {
 		return err
 	}
 
-	if c.args.HostNetwork {
+	if c.Arguments.HostNetwork {
 		return c.preStartHostNetworking()
 	}
 
@@ -154,8 +158,9 @@ func (c *container) onexit(state bool) {
 
 func (c *container) cleanup() {
 	log.Debugf("cleaning up container-%d", c.id)
+	defer c.mgr.cleanup(c.id)
 
-	if !c.args.HostNetwork {
+	if !c.Arguments.HostNetwork {
 		c.unPortForward()
 		//remove bridge links
 		//TODO: unbridging here.
@@ -428,7 +433,7 @@ func (c *container) forwardId(host int, container int) string {
 }
 
 func (c *container) unPortForward() {
-	for host, container := range c.args.Port {
+	for host, container := range c.Arguments.Port {
 		pm.GetManager().Kill(c.forwardId(host, container))
 	}
 }
@@ -436,7 +441,7 @@ func (c *container) unPortForward() {
 func (c *container) setPortForwards() error {
 	ip := c.getDefaultIP()
 
-	for host, container := range c.args.Port {
+	for host, container := range c.Arguments.Port {
 		//nft add rule nat prerouting iif eth0 tcp dport { 80, 443 } dnat 192.168.1.120
 		cmd := &core.Command{
 			ID:      c.forwardId(host, container),
@@ -499,7 +504,7 @@ func (c *container) postStartIsolatedNetworking() error {
 		return err
 	}
 
-	for idx, network := range c.args.Network {
+	for idx, network := range c.Arguments.Network {
 		switch network.Type {
 		case "vxlan":
 			//TODO: ensure vxlan, and get the bridge name
@@ -520,7 +525,7 @@ func (c *container) postStartIsolatedNetworking() error {
 }
 
 func (c *container) postStart() error {
-	if c.args.HostNetwork {
+	if c.Arguments.HostNetwork {
 		return nil
 	}
 

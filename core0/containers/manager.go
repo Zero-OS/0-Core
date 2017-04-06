@@ -26,6 +26,7 @@ const (
 	cmdContainerList      = "corex.list"
 	cmdContainerDispatch  = "corex.dispatch"
 	cmdContainerTerminate = "corex.terminate"
+	cmdContainerFind      = "corex.find"
 
 	coreXResponseQueue = "corex:results"
 	coreXBinaryName    = "coreX"
@@ -81,6 +82,7 @@ type ContainerCreateArguments struct {
 	Port        map[int]int       `json:"port"`         //port forwards (only if default networking is enabled)
 	Hostname    string            `json:"hostname"`     //hostname
 	Storage     string            `json:"storage"`      //ardb storage needed for g8ufs mounts.
+	Tags        []string          `json:"tags"`         //for searching containers
 }
 
 type ContainerDispatchArguments struct {
@@ -128,10 +130,12 @@ func (c *ContainerCreateArguments) Valid() error {
 
 type containerManager struct {
 	sequence uint16
-	mutex    sync.Mutex
+	seqM     sync.Mutex
 
-	pool   *redis.Pool
-	ensure sync.Once
+	containers map[uint16]*container
+	conM       sync.RWMutex
+
+	pool *redis.Pool
 
 	sinks map[string]base.SinkClient
 }
@@ -147,8 +151,9 @@ TODO:
 
 func ContainerSubsystem(sinks map[string]base.SinkClient) error {
 	containerMgr := &containerManager{
-		pool:  utils.NewRedisPool("unix", redisSocketSrc, ""),
-		sinks: sinks,
+		pool:       utils.NewRedisPool("unix", redisSocketSrc, ""),
+		containers: make(map[uint16]*container),
+		sinks:      sinks,
 	}
 
 	script, err := assets.Asset("scripts/network.sh")
@@ -170,6 +175,7 @@ func ContainerSubsystem(sinks map[string]base.SinkClient) error {
 	pm.CmdMap[cmdContainerList] = process.NewInternalProcessFactory(containerMgr.list)
 	pm.CmdMap[cmdContainerDispatch] = process.NewInternalProcessFactory(containerMgr.dispatch)
 	pm.CmdMap[cmdContainerTerminate] = process.NewInternalProcessFactory(containerMgr.terminate)
+	pm.CmdMap[cmdContainerFind] = process.NewInternalProcessFactory(containerMgr.find)
 
 	if err := containerMgr.setUpDefaultBridge(); err != nil {
 		return err
@@ -247,8 +253,8 @@ func (m *containerManager) startForwarder() {
 }
 
 func (m *containerManager) getNextSequence() uint16 {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	m.seqM.Lock()
+	defer m.seqM.Unlock()
 	m.sequence += 1
 	return m.sequence
 }
@@ -264,7 +270,11 @@ func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
 	}
 
 	id := m.getNextSequence()
-	c := newContainer(id, cmd.Route, &args)
+	c := newContainer(m, id, cmd.Route, args)
+
+	m.conM.Lock()
+	m.containers[id] = c
+	m.conM.Unlock()
 
 	if err := c.Start(); err != nil {
 		return nil, err
@@ -273,17 +283,27 @@ func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
 	return id, nil
 }
 
+//cleanup is called when a container terminates.
+func (m *containerManager) cleanup(id uint16) {
+	m.conM.Lock()
+	defer m.conM.Unlock()
+	delete(m.containers, id)
+}
+
 type ContainerInfo struct {
 	process.ProcessStats
-	Root string `json:"root"`
+	Container *container `json:"container"`
 }
 
 func (m *containerManager) list(cmd *core.Command) (interface{}, error) {
-	containers := make(map[uint64]ContainerInfo)
+	containers := make(map[uint16]ContainerInfo)
 
-	for name, runner := range pm.GetManager().Runners() {
-		var id uint64
-		if n, err := fmt.Sscanf(name, "core-%d", &id); err != nil || n != 1 {
+	m.conM.RLock()
+	defer m.conM.RUnlock()
+	for id, c := range m.containers {
+		name := fmt.Sprintf("core-%d", id)
+		runner, ok := pm.GetManager().Runners()[name]
+		if !ok {
 			continue
 		}
 		ps := runner.Process()
@@ -293,10 +313,9 @@ func (m *containerManager) list(cmd *core.Command) (interface{}, error) {
 				state = *(stater.Stats())
 			}
 		}
-
 		containers[id] = ContainerInfo{
 			ProcessStats: state,
-			Root:         path.Join(ContainerBaseRootDir, fmt.Sprintf("container-%d", id)),
+			Container:    c,
 		}
 	}
 
@@ -352,4 +371,66 @@ func (m *containerManager) terminate(cmd *core.Command) (interface{}, error) {
 	pm.GetManager().Kill(coreID)
 
 	return nil, nil
+}
+
+type ContainerFindArguments struct {
+	Tags []string `json:"tags"`
+}
+
+func (m *containerManager) find(cmd *core.Command) (interface{}, error) {
+	var args ContainerFindArguments
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, err
+	}
+
+	containers := m.getWithTags(args.Tags...)
+	result := make(map[uint16]ContainerInfo)
+	for _, c := range containers {
+		name := fmt.Sprintf("core-%d", c.id)
+		runner, ok := pm.GetManager().Runners()[name]
+		if !ok {
+			continue
+		}
+		ps := runner.Process()
+		var state process.ProcessStats
+		if ps != nil {
+			if stater, ok := ps.(process.Stater); ok {
+				state = *(stater.Stats())
+			}
+		}
+
+		result[c.id] = ContainerInfo{
+			ProcessStats: state,
+			Container:    c,
+		}
+	}
+
+	return result, nil
+}
+
+func (m *containerManager) getWithTags(tags ...string) []*container {
+	m.conM.RLock()
+	defer m.conM.RUnlock()
+
+	var result []*container
+loop:
+	for _, c := range m.containers {
+		for _, tag := range tags {
+			if !utils.InString(c.Arguments.Tags, tag) {
+				continue loop
+			}
+		}
+		result = append(result, c)
+	}
+
+	return result
+}
+
+func (m *containerManager) getOneWithTags(tags ...string) *container {
+	result := m.getWithTags(tags...)
+	if len(result) > 0 {
+		return result[0]
+	}
+
+	return nil
 }

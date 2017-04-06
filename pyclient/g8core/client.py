@@ -574,15 +574,15 @@ class ContainerManager:
         'host_network': bool,
         'network': [{
             'type': str,
-            'id': typchk.Or(str, typchk.Missing),
-            'hwaddr': typchk.Or(str, typchk.Missing),
+            'id': typchk.Or(str, typchk.Missing()),
+            'hwaddr': typchk.Or(str, typchk.Missing()),
             'config': typchk.Or(
                 typchk.Missing,
                 {
-                    'dhcp': typchk.Or(bool, typchk.Missing),
-                    'cidr': typchk.Or(str, typchk.Missing),
-                    'gateway': typchk.Or(str, typchk.Missing),
-                    'dns': typchk.Or([str], typchk.Missing),
+                    'dhcp': typchk.Or(bool, typchk.Missing()),
+                    'cidr': typchk.Or(str, typchk.Missing()),
+                    'gateway': typchk.Or(str, typchk.Missing()),
+                    'dns': typchk.Or([str], typchk.Missing()),
                 }
             )
         }],
@@ -595,6 +595,7 @@ class ContainerManager:
             typchk.IsNone()
         ),
         'storage': typchk.Or(str, typchk.IsNone()),
+        'tags': typchk.Or([str], typchk.IsNone())
     })
 
     _terminate_chk = typchk.Checker({
@@ -605,7 +606,7 @@ class ContainerManager:
     def __init__(self, client):
         self._client = client
 
-    def create(self, root_url, mount=None, host_network=False, network=DefaultNetworking, port=None, hostname=None, storage=None):
+    def create(self, root_url, mount=None, host_network=False, network=DefaultNetworking, port=None, hostname=None, storage=None, tags=None):
         """
         Creater a new container with the given root plist, mount points and
         zerotier id, and connected to the given bridges
@@ -651,6 +652,7 @@ class ContainerManager:
             'port': port,
             'hostname': hostname,
             'storage': storage,
+            'tags': tags,
         }
 
         #validate input
@@ -669,13 +671,16 @@ class ContainerManager:
         List running containers
         :return: a dict with {container_id: <container info object>}
         """
-        response = self._client.raw('corex.list', {})
+        return self._client.json('corex.list', {})
 
-        result = response.get()
-        if result.state != 'SUCCESS':
-            raise RuntimeError('failed to list containers: %s' % result.data)
-
-        return json.loads(result.data)
+    def find(self, *tags):
+        """
+        Find containers that matches set of tags
+        :param tags:
+        :return:
+        """
+        tags = list(map(str, tags))
+        return self._client.json('corex.find', {'tags': tags})
 
     def terminate(self, container):
         """
