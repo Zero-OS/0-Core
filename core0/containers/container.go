@@ -12,7 +12,12 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"syscall"
+)
+
+const (
+	OVSTag = "ovs"
 )
 
 var (
@@ -220,19 +225,20 @@ func (c *container) zerotier(netID string) error {
 	return err
 }
 
-func (c *container) unbridge(bridge ContainerBridgeSettings) error {
-	name := fmt.Sprintf("%s-%v", bridge.Name(), c.id)
+//
+//func (c *container) unbridge(bridge ContainerBridgeSettings) error {
+//	name := fmt.Sprintf("%s-%v", bridge.Name(), c.id)
+//
+//	link, err := netlink.LinkByName(name)
+//	if err != nil {
+//		return err
+//	}
+//
+//	return netlink.LinkDel(link)
+//}
 
-	link, err := netlink.LinkByName(name)
-	if err != nil {
-		return err
-	}
-
-	return netlink.LinkDel(link)
-}
-
-func (c *container) bridge(index int, bridge ContainerBridgeSettings) error {
-	link, err := netlink.LinkByName(bridge.Name())
+func (c *container) bridge(index int, bridge string, n *Network) error {
+	link, err := netlink.LinkByName(bridge)
 	if err != nil {
 		return err
 	}
@@ -241,8 +247,8 @@ func (c *container) bridge(index int, bridge ContainerBridgeSettings) error {
 		return fmt.Errorf("'%s' is not a bridge", link.Attrs().Name)
 	}
 
-	name := fmt.Sprintf("%s-%v", bridge.Name(), c.id)
-	peerName := fmt.Sprintf("%s-%v-eth%d", bridge.Name(), c.id, index)
+	name := fmt.Sprintf("%s-%v", bridge, c.id)
+	peerName := fmt.Sprintf("%s-%v-eth%d", bridge, c.id, index)
 
 	veth := &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{
@@ -262,6 +268,16 @@ func (c *container) bridge(index int, bridge ContainerBridgeSettings) error {
 	peer, err := netlink.LinkByName(peerName)
 	if err != nil {
 		return fmt.Errorf("get peer: %s", err)
+	}
+	if n.HWAddress != "" {
+		mac, err := net.ParseMAC(n.HWAddress)
+		if err == nil {
+			if err := netlink.LinkSetHardwareAddr(peer, mac); err != nil {
+				return fmt.Errorf("failed to setup hw address: %s", err)
+			}
+		} else {
+			log.Errorf("parse hwaddr error: %s", err)
+		}
 	}
 
 	if err := netlink.LinkSetUp(peer); err != nil {
@@ -302,11 +318,7 @@ func (c *container) bridge(index int, bridge ContainerBridgeSettings) error {
 		return fmt.Errorf("failed to rename device: %s", result.Streams)
 	}
 
-	//setting up bridged networking
-	switch bridge.Setup() {
-	case "":
-	case "none":
-	case "dhcp":
+	if n.Config.Dhcp {
 		//start a dhcpc inside the container.
 		dhcpc := &core.Command{
 			ID:      uuid.New(),
@@ -324,9 +336,8 @@ func (c *container) bridge(index int, bridge ContainerBridgeSettings) error {
 			),
 		}
 		pm.GetManager().RunCmd(dhcpc)
-	default:
-		//set static ip
-		if _, _, err := net.ParseCIDR(bridge.Setup()); err != nil {
+	} else if n.Config.CIDR != "" {
+		if _, _, err := net.ParseCIDR(n.Config.CIDR); err != nil {
 			return err
 		}
 
@@ -365,7 +376,7 @@ func (c *container) bridge(index int, bridge ContainerBridgeSettings) error {
 				Arguments: core.MustArguments(
 					process.SystemCommandArguments{
 						Name: "ip",
-						Args: []string{"netns", "exec", fmt.Sprintf("%v", c.id), "ip", "address", "add", bridge.Setup(), "dev", dev},
+						Args: []string{"netns", "exec", fmt.Sprintf("%v", c.id), "ip", "address", "add", n.Config.CIDR, "dev", dev},
 					},
 				),
 			}
@@ -380,6 +391,19 @@ func (c *container) bridge(index int, bridge ContainerBridgeSettings) error {
 			}
 		}
 	}
+
+	if n.Config.Gateway != "" {
+		if err := c.setGateway(index, n.Config.Gateway); err != nil {
+			return err
+		}
+	}
+
+	for _, dns := range n.Config.DNS {
+		if err := c.setDNS(dns); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -389,41 +413,14 @@ func (c *container) getDefaultIP() net.IP {
 	return net.IPv4(BridgeIP[0], BridgeIP[1], byte(base&0xff00>>8), byte(base&0x00ff))
 }
 
-func (c *container) setDefaultGateway(idx int) error {
-	////setting the ip address
-	eth := fmt.Sprintf("eth%d", idx)
-	cmd := &core.Command{
-		ID:      uuid.New(),
-		Command: process.CommandSystem,
-		Arguments: core.MustArguments(
-			process.SystemCommandArguments{
-				Name: "ip",
-				Args: []string{"netns", "exec", fmt.Sprintf("%v", c.id),
-					"ip", "route", "add", "metric", "1000", "default", "via", DefaultBridgeIP, "dev", eth},
-			},
-		),
-	}
-
-	runner, err := pm.GetManager().RunCmd(cmd)
-	if err != nil {
-		return err
-	}
-
-	result := runner.Wait()
-	if result.State != core.StateSuccess {
-		return fmt.Errorf("error settings interface ip: %v", result.Streams)
-	}
-	return nil
-}
-
-func (c *container) setDefaultDNS() error {
+func (c *container) setDNS(dns string) error {
 	file, err := os.OpenFile(path.Join(c.root(), "etc", "resolv.conf"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
 
 	defer file.Close()
-	_, err = file.WriteString(fmt.Sprintf("\nnameserver %s\n", DefaultBridgeIP))
+	_, err = file.WriteString(fmt.Sprintf("\nnameserver %s\n", dns))
 
 	return err
 }
@@ -470,31 +467,69 @@ func (c *container) setPortForwards() error {
 	return nil
 }
 
-func (c *container) setDefaultNetwork(i int, net *Network) error {
-	//Add to the default bridge
-	brdige := ContainerBridgeSettings{
-		DefaultBridgeName,
-		fmt.Sprintf("%s/16", c.getDefaultIP()),
+func (c *container) setGateway(idx int, gw string) error {
+	////setting the ip address
+	eth := fmt.Sprintf("eth%d", idx)
+	cmd := &core.Command{
+		ID:      uuid.New(),
+		Command: process.CommandSystem,
+		Arguments: core.MustArguments(
+			process.SystemCommandArguments{
+				Name: "ip",
+				Args: []string{"netns", "exec", fmt.Sprintf("%v", c.id),
+					"ip", "route", "add", "metric", "1000", "default", "via", gw, "dev", eth},
+			},
+		),
 	}
 
-	if err := c.bridge(i, brdige); err != nil {
+	runner, err := pm.GetManager().RunCmd(cmd)
+	if err != nil {
 		return err
 	}
 
-	//set default gateway
-	if err := c.setDefaultGateway(i); err != nil {
-		log.Errorf("Failed to set default gateway: %", err)
+	result := runner.Wait()
+	if result.State != core.StateSuccess {
+		return fmt.Errorf("error settings interface ip: %v", result.Streams)
+	}
+	return nil
+}
+
+func (c *container) setDefaultNetwork(i int, net *Network) error {
+	//Add to the default bridge
+
+	defnet := &Network{
+		Config: NetworkConfig{
+			CIDR:    fmt.Sprintf("%s/16", c.getDefaultIP().String()),
+			Gateway: DefaultBridgeIP,
+			DNS:     []string{DefaultBridgeIP},
+		},
 	}
 
-	//set nameserver.
-	if err := c.setDefaultDNS(); err != nil {
-		log.Errorf("Failed to set default nameserver: %s", err)
+	if err := c.bridge(i, DefaultBridgeName, defnet); err != nil {
+		return err
 	}
 
 	if err := c.setPortForwards(); err != nil {
 		log.Errorf("Failed to setup port forwarding: %s", err)
 	}
 
+	return nil
+}
+
+func (c *container) vlan(net *Network) error {
+	vlanID, err := strconv.ParseInt(net.ID, 10, 16)
+	if err != nil {
+		return err
+	}
+	if vlanID == 0 || vlanID >= 4095 {
+		return fmt.Errorf("invalid vlan id (1-4094)")
+	}
+	ovs := c.mgr.getOneWithTags(OVSTag)
+	if ovs == nil {
+		return fmt.Errorf("ovs is needed for VLAN network type")
+	}
+
+	//ensure that a bridge is available with that vlan tag.
 	return nil
 }
 
@@ -511,6 +546,8 @@ func (c *container) postStartIsolatedNetworking() error {
 		case "vlan":
 			//TODO: ensure vlan, and get the bridge name
 		case "zerotier":
+			//TODO: needs refactoring to support multiple
+			//zerotier networks
 			if err := c.zerotier(network.ID); err != nil {
 				return err
 			}

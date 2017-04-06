@@ -48,30 +48,18 @@ var (
 	log = logging.MustGetLogger("containers")
 )
 
-type ContainerBridgeSettings [2]string
-
-func (s ContainerBridgeSettings) Name() string {
-	return s[0]
-}
-
-func (s ContainerBridgeSettings) Setup() string {
-	return s[1]
-}
-
-func (s ContainerBridgeSettings) String() string {
-	return fmt.Sprintf("%v:%v", s[0], s[1])
+type NetworkConfig struct {
+	Dhcp    bool     `json:"dhcp"`
+	CIDR    string   `json:"cidr"`
+	Gateway string   `json:"gateway"`
+	DNS     []string `json:"dns"`
 }
 
 type Network struct {
-	Type      string `json:"type"`
-	ID        string `json:"id"`
-	HWAddress string `json:"hwaddr"`
-	Config    struct {
-		Dhcp    bool     `json:"dhcp"`
-		CIDR    string   `json:"cidr"`
-		Gateway string   `json:"gateway"`
-		DNS     []string `json:"dns"`
-	} `json:"config"`
+	Type      string        `json:"type"`
+	ID        string        `json:"id"`
+	HWAddress string        `json:"hwaddr"`
+	Config    NetworkConfig `json:"config"`
 }
 
 type ContainerCreateArguments struct {
