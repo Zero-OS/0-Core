@@ -97,6 +97,10 @@ type CreateParams struct {
 	Port   map[int]int `json:"port"`
 }
 
+type DomainUUID struct {
+	UUID string `json:"uuid"`
+}
+
 type ManDiskParams struct {
 	UUID  string `json:"uuid"`
 	Media Media  `json:"media"`
@@ -451,25 +455,25 @@ func (m *kvmManager) configureDhcpHost(seq uint16) error {
 	return nil
 }
 
-func (m *kvmManager) forwardId(name string, host int) string {
-	return fmt.Sprintf("kvm-socat-%s-%d", name, host)
+func (m *kvmManager) forwardId(uuid string, host int) string {
+	return fmt.Sprintf("kvm-socat-%s-%d", uuid, host)
 }
 
-func (m *kvmManager) unPortForward(name string) {
+func (m *kvmManager) unPortForward(uuid string) {
 	for key, runner := range pm.GetManager().Runners() {
-		if strings.HasPrefix(key, fmt.Sprintf("kvm-socat-%s", name)) {
+		if strings.HasPrefix(key, fmt.Sprintf("kvm-socat-%s", uuid)) {
 			runner.Terminate()
 		}
 	}
 }
 
-func (m *kvmManager) setPortForwards(seq uint16, params *CreateParams) error {
+func (m *kvmManager) setPortForwards(uuid string, seq uint16, port map[int]int) error {
 	ip := m.ipAddr(seq)
 
-	for host, container := range params.Port {
+	for host, container := range port {
 		//nft add rule nat prerouting iif eth0 tcp dport { 80, 443 } dnat 192.168.1.120
 		cmd := &core.Command{
-			ID:      m.forwardId(params.Name, host),
+			ID:      m.forwardId(uuid, host),
 			Command: process.CommandSystem,
 			Arguments: core.MustArguments(
 				process.SystemCommandArguments{
@@ -523,97 +527,72 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, fmt.Errorf("failed to create machine: %s", err)
 	}
 
-	//start port forwarders
-	if err := m.setPortForwards(seq, &params); err != nil {
-		return nil, err
-	}
-
 	uuid, err := dom.GetUUIDString()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get machine uuid with the name %s", params.Name)
 	}
-	return struct {
-		UUID string `json:"uuid"`
-	}{uuid}, nil
-}
 
-type DomainActionParams struct {
-	UUID string `json:"uuid"`
-}
-
-func (m *kvmManager) destroy(cmd *core.Command) (interface{}, error) {
-	var params DomainActionParams
-	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+	//start port forwarders
+	if err := m.setPortForwards(uuid, seq, params.Port); err != nil {
 		return nil, err
+	}
+
+	return DomainUUID{uuid}, nil
+}
+
+func (m *kvmManager) action(cmd *core.Command) (*libvirt.Domain, *libvirt.Connect, string, error) {
+	var params DomainUUID
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, nil, "", err
 	}
 
 	conn, err := libvirt.NewConnect("qemu:///system")
 	if err != nil {
-		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
+		return nil, nil, params.UUID, fmt.Errorf("failed to start a qemu connection: %s", err)
 	}
-	defer conn.Close()
 
 	domain, err := conn.LookupDomainByUUIDString(params.UUID)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
+		return nil, nil, params.UUID, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
 	}
+	return domain, conn, params.UUID, err
+}
+
+func (m *kvmManager) destroy(cmd *core.Command) (interface{}, error) {
+	domain, conn, uuid, err := m.action(cmd)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
 	if err := domain.Destroy(); err != nil {
 		return nil, fmt.Errorf("failed to destroy machine: %s", err)
 	}
-	name, err := domain.GetName()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get machine name with the uuid %s", params.UUID)
-	}
-	m.unPortForward(name)
+	m.unPortForward(uuid)
 
 	return nil, nil
 }
 
 func (m *kvmManager) shutdown(cmd *core.Command) (interface{}, error) {
-	var params DomainActionParams
-	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+	domain, conn, uuid, err := m.action(cmd)
+	if err != nil {
 		return nil, err
 	}
-
-	conn, err := libvirt.NewConnect("qemu:///system")
-	if err != nil {
-		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
-	}
 	defer conn.Close()
-
-	domain, err := conn.LookupDomainByUUIDString(params.UUID)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
-	}
 	if err := domain.Shutdown(); err != nil {
 		return nil, fmt.Errorf("failed to shutdown machine: %s", err)
 	}
 
-	name, err := domain.GetName()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get machine name with the uuid %s", params.UUID)
-	}
-	m.unPortForward(name)
+	m.unPortForward(uuid)
 
 	return nil, nil
 }
 
 func (m *kvmManager) reboot(cmd *core.Command) (interface{}, error) {
-	var params DomainActionParams
-	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+	domain, conn, _, err := m.action(cmd)
+	if err != nil {
 		return nil, err
 	}
-
-	conn, err := libvirt.NewConnect("qemu:///system")
-	if err != nil {
-		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
-	}
 	defer conn.Close()
-
-	domain, err := conn.LookupDomainByUUIDString(params.UUID)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
-	}
 	if err := domain.Reboot(libvirt.DOMAIN_REBOOT_DEFAULT); err != nil {
 		return nil, fmt.Errorf("failed to reboot machine: %s", err)
 	}
@@ -622,21 +601,11 @@ func (m *kvmManager) reboot(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) reset(cmd *core.Command) (interface{}, error) {
-	var params DomainActionParams
-	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+	domain, conn, _, err := m.action(cmd)
+	if err != nil {
 		return nil, err
 	}
-
-	conn, err := libvirt.NewConnect("qemu:///system")
-	if err != nil {
-		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
-	}
 	defer conn.Close()
-
-	domain, err := conn.LookupDomainByUUIDString(params.UUID)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
-	}
 	if err := domain.Reset(0); err != nil {
 		return nil, fmt.Errorf("failed to reset machine: %s", err)
 	}
@@ -645,21 +614,11 @@ func (m *kvmManager) reset(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) pause(cmd *core.Command) (interface{}, error) {
-	var params DomainActionParams
-	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+	domain, conn, _, err := m.action(cmd)
+	if err != nil {
 		return nil, err
 	}
-
-	conn, err := libvirt.NewConnect("qemu:///system")
-	if err != nil {
-		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
-	}
 	defer conn.Close()
-
-	domain, err := conn.LookupDomainByUUIDString(params.UUID)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
-	}
 	if err := domain.Suspend(); err != nil {
 		return nil, fmt.Errorf("failed to pause machine: %s", err)
 	}
@@ -668,21 +627,11 @@ func (m *kvmManager) pause(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) resume(cmd *core.Command) (interface{}, error) {
-	var params DomainActionParams
-	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+	domain, conn, _, err := m.action(cmd)
+	if err != nil {
 		return nil, err
 	}
-
-	conn, err := libvirt.NewConnect("qemu:///system")
-	if err != nil {
-		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
-	}
 	defer conn.Close()
-
-	domain, err := conn.LookupDomainByUUIDString(params.UUID)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
-	}
 	if err := domain.Resume(); err != nil {
 		return nil, fmt.Errorf("failed to resume machine: %s", err)
 	}
@@ -890,6 +839,7 @@ func (m *kvmManager) limitDiskIO(cmd *core.Command) (interface{}, error) {
 
 type Machine struct {
 	ID    int    `json:"id"`
+	UUID  string `json:"uuid"`
 	Name  string `json:"name"`
 	State string `json:"state"`
 }
@@ -913,6 +863,10 @@ func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
+		uuid, err := domain.GetUUIDString()
+		if err != nil {
+			return nil, err
+		}
 		name, err := domain.GetName()
 		if err != nil {
 			return nil, err
@@ -923,6 +877,7 @@ func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
 		}
 		found = append(found, Machine{
 			ID:    int(id),
+			UUID:  uuid,
 			Name:  name,
 			State: StateToString(state),
 		})

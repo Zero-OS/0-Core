@@ -1329,8 +1329,7 @@ class KvmManager:
         }
         self._create_chk.check(args)
 
-        x = self._client.sync('kvm.create', args)
-        return x
+        return self._client.sync('kvm.create', args)
 
     def destroy(self, uuid):
         """
@@ -1547,11 +1546,7 @@ class KvmManager:
 
 class Experimental:
     def __init__(self, client):
-        self._kvm = KvmManager(client)
-
-    @property
-    def kvm(self):
-        return self._kvm
+        pass
 
 
 class Client(BaseClient):
