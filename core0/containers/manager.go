@@ -358,7 +358,7 @@ func (m *containerManager) dispatch(cmd *core.Command) (interface{}, error) {
 }
 
 type ContainerTerminateArguments struct {
-	Container uint64 `json:"container"`
+	Container uint16 `json:"container"`
 }
 
 func (m *containerManager) terminate(cmd *core.Command) (interface{}, error) {
@@ -368,9 +368,7 @@ func (m *containerManager) terminate(cmd *core.Command) (interface{}, error) {
 	}
 
 	coreID := fmt.Sprintf("core-%d", args.Container)
-	pm.GetManager().Kill(coreID)
-
-	return nil, nil
+	return nil, pm.GetManager().Kill(coreID)
 }
 
 type ContainerFindArguments struct {
