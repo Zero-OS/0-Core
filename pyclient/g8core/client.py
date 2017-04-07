@@ -126,7 +126,7 @@ class InfoManager:
 
 
 class JobManager:
-    _process_chk = typchk.Checker({
+    _job_chk = typchk.Checker({
         'id': str,
     })
 
@@ -145,7 +145,7 @@ class JobManager:
         :param id: optional ID for the job to list
         """
         args = {'id': id}
-        self._process_chk.check(args)
+        self._job_chk.check(args)
         return self._client.json('job.list', args)
 
     def kill(self, id, signal=signal.SIGTERM):
@@ -162,6 +162,46 @@ class JobManager:
         }
         self._kill_chk.check(args)
         return self._client.json('job.kill', args)
+
+
+class ProcessManager:
+    _process_chk = typchk.Checker({
+        'pid': int,
+    })
+
+    _kill_chk = typchk.Checker({
+        'pid': int,
+        'signal': int,
+    })
+
+    def __init__(self, client):
+        self._client = client
+
+    def list(self, id=None):
+        """
+        List all running processes
+
+        :param id: optional PID for the process to list
+        """
+        args = {'pid': id}
+        self._process_chk.check(args)
+        return self._client.json('process.list', args)
+
+    def kill(self, pid, signal=signal.SIGTERM):
+        """
+        Kill a process with given pid
+
+        :WARNING: beware of what u kill, if u killed redis for example core0 or coreX won't be reachable
+
+        :param pid: PID to kill
+        """
+        args = {
+            'pid': pid,
+            'signal': int(signal),
+        }
+        self._kill_chk.check(args)
+        return self._client.json('process.kill', args)
+
 
 class FilesystemManager:
     def __init__(self, client):
@@ -406,6 +446,7 @@ class BaseClient:
             self.timeout = DefaultTimeout
         self._info = InfoManager(self)
         self._job = JobManager(self)
+        self._process = ProcessManager(self)
         self._filesystem = FilesystemManager(self)
 
     @property
@@ -415,6 +456,10 @@ class BaseClient:
     @property
     def job(self):
         return self._job
+
+    @property
+    def process(self):
+        return self._process
 
     @property
     def filesystem(self):
