@@ -125,7 +125,7 @@ class InfoManager:
         return self._client.json('info.os', {})
 
 
-class ProcessManager:
+class JobManager:
     _process_chk = typchk.Checker({
         'id': str,
     })
@@ -140,29 +140,28 @@ class ProcessManager:
 
     def list(self, id=None):
         """
-        List all running process (the ones that were started by the core itself)
+        List all running jobs
 
-        :param id: optional ID for the process to list
+        :param id: optional ID for the job to list
         """
         args = {'id': id}
         self._process_chk.check(args)
-        return self._client.json('process.list', args)
+        return self._client.json('job.list', args)
 
     def kill(self, id, signal=signal.SIGTERM):
         """
-        Kill a process with given id
+        Kill a job with given id
 
         :WARNING: beware of what u kill, if u killed redis for example core0 or coreX won't be reachable
 
-
-        :param id: process id to kill
+        :param id: job id to kill
         """
         args = {
             'id': id,
             'signal': int(signal),
         }
         self._kill_chk.check(args)
-        return self._client.json('process.kill', args)
+        return self._client.json('job.kill', args)
 
 class FilesystemManager:
     def __init__(self, client):
@@ -406,7 +405,7 @@ class BaseClient:
         if timeout is None:
             self.timeout = DefaultTimeout
         self._info = InfoManager(self)
-        self._process = ProcessManager(self)
+        self._job = JobManager(self)
         self._filesystem = FilesystemManager(self)
 
     @property
@@ -414,8 +413,8 @@ class BaseClient:
         return self._info
 
     @property
-    def process(self):
-        return self._process
+    def job(self):
+        return self._job
 
     @property
     def filesystem(self):
