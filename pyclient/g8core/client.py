@@ -421,7 +421,7 @@ class BaseClient:
     def filesystem(self):
         return self._filesystem
 
-    def raw(self, command, arguments):
+    def raw(self, command, arguments, queue=None):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -524,6 +524,7 @@ class ContainerClient(BaseClient):
         'command': {
             'command': str,
             'arguments': typchk.Any(),
+            'queue': typchk.Or(str, typchk.IsNone())
         }
     })
 
@@ -533,7 +534,7 @@ class ContainerClient(BaseClient):
         self._client = client
         self._container = container
 
-    def raw(self, command, arguments):
+    def raw(self, command, arguments, queue=None):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -548,6 +549,7 @@ class ContainerClient(BaseClient):
             'command': {
                 'command': command,
                 'arguments': arguments,
+                'queue': queue,
             },
         }
 
@@ -1347,7 +1349,7 @@ class Client(BaseClient):
     def zerotier(self):
         return self._zerotier
 
-    def raw(self, command, arguments):
+    def raw(self, command, arguments, queue=None):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -1363,6 +1365,7 @@ class Client(BaseClient):
             'id': id,
             'command': command,
             'arguments': arguments,
+            'queue': queue,
         }
 
         self._redis.rpush('core:default', json.dumps(payload))
