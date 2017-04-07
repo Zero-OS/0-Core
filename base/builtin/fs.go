@@ -116,7 +116,7 @@ func (fs *filesystem) mode(m string) (int, error) {
 		case 'r':
 			mode |= os.O_RDONLY
 		case 'w':
-			mode |= os.O_WRONLY
+			mode |= os.O_WRONLY | os.O_TRUNC
 		case '+':
 			mode |= os.O_RDWR
 		case 'x':

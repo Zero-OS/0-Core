@@ -178,7 +178,7 @@ class FilesystemManager:
 
         mode:
           'r' read only
-          'w' write only
+          'w' write only (truncate)
           '+' read/write
           'x' create if not exist
           'a' append
