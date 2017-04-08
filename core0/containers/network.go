@@ -45,18 +45,6 @@ func (c *container) postZerotierNetwork(netID string) error {
 	return err
 }
 
-//
-//func (c *container) unbridge(bridge ContainerBridgeSettings) error {
-//	name := fmt.Sprintf("%s-%v", bridge.Name(), c.id)
-//
-//	link, err := netlink.LinkByName(name)
-//	if err != nil {
-//		return err
-//	}
-//
-//	return netlink.LinkDel(link)
-//}
-
 func (c *container) postBridge(index int, n *Network) error {
 	name := fmt.Sprintf(containerLinkNameFmt, c.id, index)
 	peerName := fmt.Sprintf(containerPeerNameFmt, name)
@@ -535,30 +523,61 @@ func (c *container) preStartIsolatedNetworking() error {
 	return nil
 }
 
-func (c *container) destroyNetwork(){
+func (c *container) unBridge(idx int, n *Network, ovs *container) {
+	name := fmt.Sprintf(containerLinkNameFmt, c.id, idx)
+	if ovs != nil {
+		_, err := c.mgr.dispatchSync(&ContainerDispatchArguments{
+			Container: ovs.id,
+			Command: core.Command{
+				Command: "ovs.port-del",
+				Arguments: core.MustArguments(map[string]interface{}{
+					"port": name,
+				}),
+			},
+		})
+		if err != nil {
+			log.Errorf("failed to delete port %s: %s", name, err)
+		}
+		return
+	}
+
+	link, err := netlink.LinkByName(name)
+	if err != nil {
+		return
+	}
+
+	netlink.LinkDel(link)
+}
+
+func (c *container) destroyNetwork() {
+	log.Debugf("destroying networking for container: %s", c.id)
 	if c.Arguments.HostNetwork {
 		//nothing to do.
 		return
 	}
 
-
-	if !c.Arguments.HostNetwork {
-		c.unPortForward()
-		//remove bridge links
-		//TODO: unbridging here.
-		//for _, bridge := range c.args.Network.Bridge {
-		//	c.unbridge(bridge)
-		//}
-
-		pm.GetManager().Kill(fmt.Sprintf("net-%v", c.id))
-
-		if c.pid > 0 {
-			targetNs := fmt.Sprintf("/run/netns/%v", c.id)
-
-			if err := syscall.Unmount(targetNs, 0); err != nil {
-				log.Errorf("Failed to unmount %s: %s", targetNs, err)
-			}
-			os.RemoveAll(targetNs)
+	for idx, network := range c.Arguments.Network {
+		switch network.Type {
+		case "vxlan":
+			fallthrough
+		case "vlan":
+			ovs := c.mgr.getOneWithTags(OVSTag)
+			c.unBridge(idx, &network, ovs)
+		case "zerotier":
+			pm.GetManager().Kill(fmt.Sprintf("net-%v", c.id))
+		case "default":
+			c.unBridge(idx, &network, nil)
+			c.unPortForward()
 		}
+	}
+
+	//clean up namespace
+	if c.pid > 0 {
+		targetNs := fmt.Sprintf("/run/netns/%v", c.id)
+
+		if err := syscall.Unmount(targetNs, 0); err != nil {
+			log.Errorf("Failed to unmount %s: %s", targetNs, err)
+		}
+		os.RemoveAll(targetNs)
 	}
 }

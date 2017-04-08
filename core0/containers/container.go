@@ -40,19 +40,23 @@ func newContainer(mgr *containerManager, id uint16, route core.Route, args Conta
 	return c
 }
 
-func (c *container) Start() error {
+func (c *container) Start() (err error) {
 	coreID := fmt.Sprintf("core-%d", c.id)
 
-	if err := c.sandbox(); err != nil {
-		c.cleanup()
+	defer func() {
+		if err != nil {
+			c.cleanup()
+		}
+	}()
+
+	if err = c.sandbox(); err != nil {
 		log.Errorf("error in container mount: %s", err)
-		return err
+		return
 	}
 
-	if err := c.preStart(); err != nil {
-		c.cleanup()
+	if err = c.preStart(); err != nil {
 		log.Errorf("error in container prestart: %s", err)
-		return err
+		return
 	}
 
 	mgr := pm.GetManager()
@@ -87,14 +91,13 @@ func (c *container) Start() error {
 		Action: c.onexit,
 	}
 
-	_, err := mgr.NewRunner(extCmd, process.NewContainerProcess, onpid, onexit)
+	_, err = mgr.NewRunner(extCmd, process.NewContainerProcess, onpid, onexit)
 	if err != nil {
-		c.cleanup()
 		log.Errorf("error in container runner: %s", err)
-		return err
+		return
 	}
 
-	return nil
+	return
 }
 
 func (c *container) preStart() error {
