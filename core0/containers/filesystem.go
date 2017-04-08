@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"sort"
 	"strings"
@@ -255,7 +256,7 @@ func (c *container) root() string {
 	return path.Join(ContainerBaseRootDir, c.name())
 }
 
-func (c *container) mount() error {
+func (c *container) sandbox() error {
 	//mount root plist.
 	//prepare root folder.
 
@@ -291,6 +292,34 @@ func (c *container) mount() error {
 				return fmt.Errorf("mount-bind-plist(%s)", err)
 			}
 		}
+	}
+
+	redisSocketTarget := path.Join(root, "redis.socket")
+	coreXTarget := path.Join(root, coreXBinaryName)
+
+	if f, err := os.Create(redisSocketTarget); err == nil {
+		f.Close()
+	} else {
+		log.Errorf("Failed to touch file '%s': %s", redisSocketTarget, err)
+	}
+
+	if f, err := os.Create(coreXTarget); err == nil {
+		f.Close()
+	} else {
+		log.Errorf("Failed to touch file '%s': %s", coreXTarget, err)
+	}
+
+	if err := syscall.Mount(redisSocketSrc, redisSocketTarget, "", syscall.MS_BIND, ""); err != nil {
+		return err
+	}
+
+	coreXSrc, err := exec.LookPath(coreXBinaryName)
+	if err != nil {
+		return err
+	}
+
+	if err := syscall.Mount(coreXSrc, coreXTarget, "", syscall.MS_BIND, ""); err != nil {
+		return err
 	}
 
 	return nil

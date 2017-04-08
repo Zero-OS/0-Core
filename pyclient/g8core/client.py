@@ -534,6 +534,10 @@ class ContainerClient(BaseClient):
         self._client = client
         self._container = container
 
+    @property
+    def container(self):
+        return self._container
+
     def raw(self, command, arguments, queue=None):
         """
         Implements the low level command call, this needs to build the command structure
