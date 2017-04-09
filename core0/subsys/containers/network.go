@@ -58,7 +58,7 @@ func (c *container) postBridge(index int, n *Nic) error {
 		return fmt.Errorf("set peer up: %s", err)
 	}
 
-	if err := netlink.LinkSetNsPid(peer, c.pid); err != nil {
+	if err := netlink.LinkSetNsPid(peer, c.PID); err != nil {
 		return fmt.Errorf("set ns pid: %s", err)
 	}
 
@@ -181,7 +181,7 @@ func (c *container) postBridge(index int, n *Nic) error {
 	return nil
 }
 
-func (c *container) preBridge(index int, bridge string, n *Nic, ovs *container) error {
+func (c *container) preBridge(index int, bridge string, n *Nic, ovs Container) error {
 	link, err := netlink.LinkByName(bridge)
 	if err != nil {
 		return fmt.Errorf("bridge '%s' not found: %s", bridge, err)
@@ -216,17 +216,14 @@ func (c *container) preBridge(index int, bridge string, n *Nic, ovs *container) 
 		}
 	} else {
 		//with ovs
-		result, err := c.mgr.dispatchSync(&ContainerDispatchArguments{
-			Container: ovs.id,
-			Command: core.Command{
-				Command: "ovs.port-add",
-				Arguments: core.MustArguments(
-					map[string]interface{}{
-						"bridge": bridge,
-						"port":   name,
-					},
-				),
-			},
+		result, err := c.mgr.Dispatch(ovs.ID(), &core.Command{
+			Command: "ovs.port-add",
+			Arguments: core.MustArguments(
+				map[string]interface{}{
+					"bridge": bridge,
+					"port":   name,
+				},
+			),
 		})
 
 		if err != nil {
@@ -280,7 +277,7 @@ func (c *container) forwardId(host int, container int) string {
 }
 
 func (c *container) unPortForward() {
-	for host, container := range c.Arguments.Port {
+	for host, container := range c.Args.Port {
 		pm.GetManager().Kill(c.forwardId(host, container))
 	}
 }
@@ -288,7 +285,7 @@ func (c *container) unPortForward() {
 func (c *container) setPortForwards() error {
 	ip := c.getDefaultIP()
 
-	for host, container := range c.Arguments.Port {
+	for host, container := range c.Args.Port {
 		//nft add rule nat prerouting iif eth0 tcp dport { 80, 443 } dnat 192.168.1.120
 		cmd := &core.Command{
 			ID:      c.forwardId(host, container),
@@ -385,22 +382,19 @@ func (c *container) preVxlanNetwork(idx int, net *Nic) error {
 		return err
 	}
 	//find the container with OVS tag
-	ovs := c.mgr.getOneWithTags(OVSTag)
+	ovs := c.mgr.GetOneWithTags(OVSTag)
 	if ovs == nil {
 		return fmt.Errorf("ovs is needed for VLAN network type")
 	}
 
 	//ensure that a bridge is available with that vlan tag.
 	//we dispatch the ovs.vlan-ensure command to container.
-	result, err := c.mgr.dispatchSync(&ContainerDispatchArguments{
-		Container: ovs.id,
-		Command: core.Command{
-			Command: "ovs.vxlan-ensure",
-			Arguments: core.MustArguments(map[string]interface{}{
-				"master": OVSVXBackend,
-				"vxlan":  vxlan,
-			}),
-		},
+	result, err := c.mgr.Dispatch(ovs.ID(), &core.Command{
+		Command: "ovs.vxlan-ensure",
+		Arguments: core.MustArguments(map[string]interface{}{
+			"master": OVSVXBackend,
+			"vxlan":  vxlan,
+		}),
 	})
 
 	if err != nil {
@@ -435,22 +429,19 @@ func (c *container) preVlanNetwork(idx int, net *Nic) error {
 	}
 	//find the container with OVS tag
 
-	ovs := c.mgr.getOneWithTags(OVSTag)
+	ovs := c.mgr.GetOneWithTags(OVSTag)
 	if ovs == nil {
 		return fmt.Errorf("ovs is needed for VLAN network type")
 	}
 
 	//ensure that a bridge is available with that vlan tag.
 	//we dispatch the ovs.vlan-ensure command to container.
-	result, err := c.mgr.dispatchSync(&ContainerDispatchArguments{
-		Container: ovs.id,
-		Command: core.Command{
-			Command: "ovs.vlan-ensure",
-			Arguments: core.MustArguments(map[string]interface{}{
-				"master": OVSBackPlane,
-				"vlan":   vlanID,
-			}),
-		},
+	result, err := c.mgr.Dispatch(ovs.ID(), &core.Command{
+		Command: "ovs.vlan-ensure",
+		Arguments: core.MustArguments(map[string]interface{}{
+			"master": OVSBackPlane,
+			"vlan":   vlanID,
+		}),
 	})
 
 	if err != nil {
@@ -479,7 +470,7 @@ func (c *container) postStartIsolatedNetworking() error {
 		return err
 	}
 
-	for idx, network := range c.Arguments.Nics {
+	for idx, network := range c.Args.Nics {
 		var err error
 		switch network.Type {
 		case "vxlan":
@@ -503,7 +494,7 @@ func (c *container) postStartIsolatedNetworking() error {
 }
 
 func (c *container) preStartIsolatedNetworking() error {
-	for idx, network := range c.Arguments.Nics {
+	for idx, network := range c.Args.Nics {
 		switch network.Type {
 		case "vxlan":
 			if err := c.preVxlanNetwork(idx, &network); err != nil {
@@ -526,18 +517,16 @@ func (c *container) preStartIsolatedNetworking() error {
 	return nil
 }
 
-func (c *container) unBridge(idx int, n *Nic, ovs *container) {
+func (c *container) unBridge(idx int, n *Nic, ovs Container) {
 	name := fmt.Sprintf(containerLinkNameFmt, c.id, idx)
 	if ovs != nil {
-		_, err := c.mgr.dispatchSync(&ContainerDispatchArguments{
-			Container: ovs.id,
-			Command: core.Command{
-				Command: "ovs.port-del",
-				Arguments: core.MustArguments(map[string]interface{}{
-					"port": name,
-				}),
-			},
+		_, err := c.mgr.Dispatch(ovs.ID(), &core.Command{
+			Command: "ovs.port-del",
+			Arguments: core.MustArguments(map[string]interface{}{
+				"port": name,
+			}),
 		})
+
 		if err != nil {
 			log.Errorf("failed to delete port %s: %s", name, err)
 		}
@@ -554,17 +543,17 @@ func (c *container) unBridge(idx int, n *Nic, ovs *container) {
 
 func (c *container) destroyNetwork() {
 	log.Debugf("destroying networking for container: %s", c.id)
-	if c.Arguments.HostNetwork {
+	if c.Args.HostNetwork {
 		//nothing to do.
 		return
 	}
 
-	for idx, network := range c.Arguments.Nics {
+	for idx, network := range c.Args.Nics {
 		switch network.Type {
 		case "vxlan":
 			fallthrough
 		case "vlan":
-			ovs := c.mgr.getOneWithTags(OVSTag)
+			ovs := c.mgr.GetOneWithTags(OVSTag)
 			c.unBridge(idx, &network, ovs)
 		case "zerotier":
 			pm.GetManager().Kill(fmt.Sprintf("net-%v", c.id))
@@ -575,7 +564,7 @@ func (c *container) destroyNetwork() {
 	}
 
 	//clean up namespace
-	if c.pid > 0 {
+	if c.PID > 0 {
 		targetNs := fmt.Sprintf("/run/netns/%v", c.id)
 
 		if err := syscall.Unmount(targetNs, 0); err != nil {

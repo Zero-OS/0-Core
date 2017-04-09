@@ -14,10 +14,10 @@ import (
 	_ "github.com/g8os/core0/base/builtin"
 	_ "github.com/g8os/core0/core0/builtin"
 	_ "github.com/g8os/core0/core0/builtin/btrfs"
-	"github.com/g8os/core0/core0/containers"
 	"github.com/g8os/core0/core0/kvm"
 	"github.com/g8os/core0/core0/options"
 	"github.com/g8os/core0/core0/stats"
+	"github.com/g8os/core0/core0/subsys/containers"
 	"os"
 )
 
@@ -131,7 +131,7 @@ func main() {
 	}
 
 	//start/register containers commands and process
-	if err := containers.ContainerSubsystem(sinks); err != nil {
+	if _, err := containers.ContainerSubsystem(sinks); err != nil {
 		log.Errorf("failed to intialize container subsystem", err)
 	}
 

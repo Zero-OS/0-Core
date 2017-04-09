@@ -158,7 +158,18 @@ TODO:
 	to run it.
 */
 
-func ContainerSubsystem(sinks map[string]base.SinkClient) error {
+type Container interface {
+	ID() uint16
+	Arguments() ContainerCreateArguments
+}
+
+type ContainerManager interface {
+	Dispatch(id uint16, cmd *core.Command) (*core.JobResult, error)
+	GetWithTags(tags ...string) []Container
+	GetOneWithTags(tags ...string) Container
+}
+
+func ContainerSubsystem(sinks map[string]base.SinkClient) (ContainerManager, error) {
 	containerMgr := &containerManager{
 		pool:       utils.NewRedisPool("unix", redisSocketSrc, ""),
 		containers: make(map[uint16]*container),
@@ -168,7 +179,7 @@ func ContainerSubsystem(sinks map[string]base.SinkClient) error {
 
 	script, err := assets.Asset("scripts/network.sh")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := ioutil.WriteFile(
@@ -176,7 +187,7 @@ func ContainerSubsystem(sinks map[string]base.SinkClient) error {
 		script,
 		0754,
 	); err != nil {
-		return err
+		return nil, err
 	}
 
 	pm.RegisterCmd(zeroTierCommand, "sh", "/", []string{zeroTierScriptPath, "{netns}", "{zerotier}"}, nil)
@@ -188,12 +199,12 @@ func ContainerSubsystem(sinks map[string]base.SinkClient) error {
 	pm.CmdMap[cmdContainerFind] = process.NewInternalProcessFactory(containerMgr.find)
 
 	if err := containerMgr.setUpDefaultBridge(); err != nil {
-		return err
+		return nil, err
 	}
 
 	go containerMgr.startForwarder()
 
-	return nil
+	return nil, nil
 }
 
 func (m *containerManager) setUpDefaultBridge() error {
@@ -304,7 +315,7 @@ func (m *containerManager) cleanup(id uint16) {
 
 type ContainerInfo struct {
 	process.ProcessStats
-	Container *container `json:"container"`
+	Container Container `json:"container"`
 }
 
 func (m *containerManager) list(cmd *core.Command) (interface{}, error) {
@@ -381,20 +392,20 @@ func (m *containerManager) dispatch(cmd *core.Command) (interface{}, error) {
 	return id, nil
 }
 
-//used internally to execute commands inside containers synchronusly
-func (m *containerManager) dispatchSync(args *ContainerDispatchArguments) (*core.JobResult, error) {
-	id := uuid.New()
-	args.Command.ID = id
-	args.Command.Tags = string(InternalRoute)
+//Dispatch command to container with ID (id)
+func (m *containerManager) Dispatch(id uint16, cmd *core.Command) (*core.JobResult, error) {
+	cmd.ID = uuid.New()
+	cmd.Tags = string(InternalRoute)
 
-	m.internal.Prepare(id)
-	if err := m.pushToContainer(args.Container, &args.Command); err != nil {
+	m.internal.Prepare(cmd.ID)
+	if err := m.pushToContainer(id, cmd); err != nil {
 		return nil, err
 	}
-	job := m.internal.Get(id)
+	job := m.internal.Get(cmd.ID)
 	if job == nil {
 		return nil, fmt.Errorf("timeout")
 	}
+
 	return job, nil
 }
 
@@ -422,10 +433,10 @@ func (m *containerManager) find(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	containers := m.getWithTags(args.Tags...)
+	containers := m.GetWithTags(args.Tags...)
 	result := make(map[uint16]ContainerInfo)
 	for _, c := range containers {
-		name := fmt.Sprintf("core-%d", c.id)
+		name := fmt.Sprintf("core-%d", c.ID())
 		runner, ok := pm.GetManager().Runners()[name]
 		if !ok {
 			continue
@@ -438,7 +449,7 @@ func (m *containerManager) find(cmd *core.Command) (interface{}, error) {
 			}
 		}
 
-		result[c.id] = ContainerInfo{
+		result[c.ID()] = ContainerInfo{
 			ProcessStats: state,
 			Container:    c,
 		}
@@ -447,15 +458,15 @@ func (m *containerManager) find(cmd *core.Command) (interface{}, error) {
 	return result, nil
 }
 
-func (m *containerManager) getWithTags(tags ...string) []*container {
+func (m *containerManager) GetWithTags(tags ...string) []Container {
 	m.conM.RLock()
 	defer m.conM.RUnlock()
 
-	var result []*container
+	var result []Container
 loop:
 	for _, c := range m.containers {
 		for _, tag := range tags {
-			if !utils.InString(c.Arguments.Tags, tag) {
+			if !utils.InString(c.Args.Tags, tag) {
 				continue loop
 			}
 		}
@@ -465,8 +476,8 @@ loop:
 	return result
 }
 
-func (m *containerManager) getOneWithTags(tags ...string) *container {
-	result := m.getWithTags(tags...)
+func (m *containerManager) GetOneWithTags(tags ...string) Container {
+	result := m.GetWithTags(tags...)
 	if len(result) > 0 {
 		return result[0]
 	}

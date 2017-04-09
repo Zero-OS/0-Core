@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/settings"
-	"github.com/g8os/core0/core0/network"
+	"github.com/g8os/core0/core0/bootstrap/network"
 	"github.com/op/go-logging"
 	"net/http"
 	"time"

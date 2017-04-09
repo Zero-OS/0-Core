@@ -21,23 +21,31 @@ var (
 )
 
 type container struct {
-	id        uint16
-	mgr       *containerManager
-	route     core.Route
-	Arguments ContainerCreateArguments `json:"arguments"`
-	Root      string                   `json:"root"`
-	pid       int
+	id    uint16
+	mgr   *containerManager
+	route core.Route
+	Args  ContainerCreateArguments `json:"arguments"`
+	Root  string                   `json:"root"`
+	PID   int                      `json:"pid"`
 }
 
 func newContainer(mgr *containerManager, id uint16, route core.Route, args ContainerCreateArguments) *container {
 	c := &container{
-		mgr:       mgr,
-		id:        id,
-		route:     route,
-		Arguments: args,
+		mgr:   mgr,
+		id:    id,
+		route: route,
+		Args:  args,
 	}
 	c.Root = c.root()
 	return c
+}
+
+func (c *container) ID() uint16 {
+	return c.id
+}
+
+func (c *container) Arguments() ContainerCreateArguments {
+	return c.Args
 }
 
 func (c *container) Start() (err error) {
@@ -68,12 +76,12 @@ func (c *container) Start() (err error) {
 				Name:        "/coreX",
 				Chroot:      c.root(),
 				Dir:         "/",
-				HostNetwork: c.Arguments.HostNetwork,
+				HostNetwork: c.Args.HostNetwork,
 				Args: []string{
 					"-core-id", fmt.Sprintf("%d", c.id),
 					"-redis-socket", "/redis.socket",
 					"-reply-to", coreXResponseQueue,
-					"-hostname", c.Arguments.Hostname,
+					"-hostname", c.Args.Hostname,
 				},
 				Env: map[string]string{
 					"PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
@@ -101,7 +109,7 @@ func (c *container) Start() (err error) {
 }
 
 func (c *container) preStart() error {
-	if c.Arguments.HostNetwork {
+	if c.Args.HostNetwork {
 		return c.preStartHostNetworking()
 	}
 
@@ -113,7 +121,7 @@ func (c *container) preStart() error {
 }
 
 func (c *container) onpid(pid int) {
-	c.pid = pid
+	c.PID = pid
 	if err := c.postStart(); err != nil {
 		log.Errorf("Container post start error: %s", err)
 		//TODO. Should we shut the container down?
@@ -140,7 +148,7 @@ func (c *container) cleanup() {
 }
 
 func (c *container) namespace() error {
-	sourceNs := fmt.Sprintf("/proc/%d/ns/net", c.pid)
+	sourceNs := fmt.Sprintf("/proc/%d/ns/net", c.PID)
 	os.MkdirAll("/run/netns", 0755)
 	targetNs := fmt.Sprintf("/run/netns/%v", c.id)
 
@@ -156,7 +164,7 @@ func (c *container) namespace() error {
 }
 
 func (c *container) postStart() error {
-	if c.Arguments.HostNetwork {
+	if c.Args.HostNetwork {
 		return nil
 	}
 
