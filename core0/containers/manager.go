@@ -78,7 +78,7 @@ type ContainerDispatchArguments struct {
 	Command   core.Command `json:"command"`
 }
 
-func (c *ContainerCreateArguments) Valid() error {
+func (c *ContainerCreateArguments) Validate() error {
 	if c.Root == "" {
 		return fmt.Errorf("root plist is required")
 	}
@@ -111,6 +111,26 @@ func (c *ContainerCreateArguments) Valid() error {
 		if guest < 0 || guest > 65535 {
 			return fmt.Errorf("invalid guest port '%d'", guest)
 		}
+	}
+
+	//validating networking
+	var def int
+	var zt int
+	for _, net := range c.Network {
+		switch net.Type {
+		case "default":
+			def++
+		case "zt":
+			zt++
+		}
+	}
+
+	if def > 1 {
+		return fmt.Errorf("only one default network is allowed")
+	}
+
+	if zt > 1 {
+		return fmt.Errorf("only one zerotier network is allowed")
 	}
 
 	return nil
@@ -257,7 +277,7 @@ func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	if err := args.Valid(); err != nil {
+	if err := args.Validate(); err != nil {
 		return nil, err
 	}
 

@@ -517,6 +517,9 @@ func (c *container) preStartIsolatedNetworking() error {
 			if err := c.preDefaultNetwork(idx, &network); err != nil {
 				return err
 			}
+		case "zerotier":
+		default:
+			return fmt.Errorf("unkown network type '%s'", network.Type)
 		}
 	}
 
