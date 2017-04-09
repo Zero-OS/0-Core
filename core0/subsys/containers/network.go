@@ -384,7 +384,7 @@ func (c *container) preVxlanNetwork(idx int, net *Nic) error {
 	//find the container with OVS tag
 	ovs := c.mgr.GetOneWithTags(OVSTag)
 	if ovs == nil {
-		return fmt.Errorf("ovs is needed for VLAN network type")
+		return fmt.Errorf("ovs is needed for VXLAN network type")
 	}
 
 	//ensure that a bridge is available with that vlan tag.
@@ -402,12 +402,12 @@ func (c *container) preVxlanNetwork(idx int, net *Nic) error {
 	}
 
 	if result.State != core.StateSuccess {
-		return fmt.Errorf("failed to ensure vlan bridge: %v", result.Data)
+		return fmt.Errorf("failed to ensure vxlan bridge: %v", result.Data)
 	}
-	//brname:
+
 	var bridge string
 	if err := json.Unmarshal([]byte(result.Data), &bridge); err != nil {
-		return fmt.Errorf("failed to load vlan-ensure result: %s", err)
+		return fmt.Errorf("failed to load vxlan-ensure result: %s", err)
 	}
 	log.Debugf("vxlan bridge name: %d", bridge)
 	//we have the vxlan bridge name

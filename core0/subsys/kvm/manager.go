@@ -12,6 +12,7 @@ import (
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
+	"github.com/g8os/core0/core0/subsys/containers"
 	"github.com/libvirt/libvirt-go"
 	"github.com/pborman/uuid"
 	"github.com/vishvananda/netlink"
@@ -27,6 +28,8 @@ const (
 type kvmManager struct {
 	sequence uint16
 	m        sync.Mutex
+
+	conmgr containers.ContainerManager
 }
 
 var (
@@ -56,11 +59,13 @@ const (
 	kvmMigrateCommand     = "kvm.migrate"
 	kvmListCommand        = "kvm.list"
 
-	DefaultBridgeName = "kvm-0"
+	DefaultBridgeName = "kvm0"
 )
 
-func KVMSubsystem() error {
-	mgr := &kvmManager{}
+func KVMSubsystem(conmgr containers.ContainerManager) error {
+	mgr := &kvmManager{
+		conmgr: conmgr,
+	}
 
 	if err := mgr.setupDefaultGateway(); err != nil {
 		return err
@@ -90,12 +95,18 @@ type Media struct {
 	Bus  string         `json:"bus"`
 }
 
+type Nic struct {
+	Type      string `json:"type"`
+	ID        string `json:"id"`
+	HWAddress string `json:"hwaddr"`
+}
+
 type CreateParams struct {
 	Name   string      `json:"name"`
 	CPU    int         `json:"cpu"`
 	Memory int         `json:"memory"`
 	Media  []Media     `json:"media"`
-	Bridge []string    `json:"bridge"`
+	Nics   []Nic       `json:"nics"`
 	Port   map[int]int `json:"port"`
 }
 
@@ -338,7 +349,6 @@ func (m *kvmManager) ipAddr(s uint16) string {
 }
 
 func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error) {
-
 	domain := Domain{
 		Type: DomainTypeKVM,
 		Name: params.Name,
@@ -398,80 +408,11 @@ func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error)
 		},
 	}
 
-	//attach to default bridge.
-	domain.Devices.Devices = append(domain.Devices.Devices, InterfaceDevice{
-		Type: InterfaceDeviceTypeBridge,
-		Source: InterfaceDeviceSourceBridge{
-			Bridge: DefaultBridgeName,
-		},
-		Mac: &InterfaceDeviceMac{
-			Address: m.macAddr(seq),
-		},
-		Model: InterfaceDeviceModel{
-			Type: "virtio",
-		},
-	})
-
-	for _, bridge := range params.Bridge {
-		_, err := netlink.LinkByName(bridge)
-		if err != nil {
-			return nil, fmt.Errorf("bridge '%s' not found", bridge)
-		}
-
-		domain.Devices.Interfaces = append(domain.Devices.Interfaces, InterfaceDevice{
-			Type: InterfaceDeviceTypeBridge,
-			Source: InterfaceDeviceSourceBridge{
-				Bridge: bridge,
-			},
-			Model: InterfaceDeviceModel{
-				Type: "virtio",
-			},
-		})
-	}
-
 	for idx, media := range params.Media {
 		domain.Devices.Disks = append(domain.Devices.Disks, m.mkDisk(idx, media))
 	}
 
 	return &domain, nil
-}
-
-func (m *kvmManager) configureDhcpHost(seq uint16) error {
-	mac := m.macAddr(seq)
-	ip := m.ipAddr(seq)
-
-	runner, err := pm.GetManager().RunCmd(&core.Command{
-		ID:      uuid.New(),
-		Command: "bridge.add_host",
-		Arguments: core.MustArguments(map[string]interface{}{
-			"bridge": DefaultBridgeName,
-			"mac":    mac,
-			"ip":     ip,
-		}),
-	})
-
-	if err != nil {
-		return err
-	}
-	result := runner.Wait()
-
-	if result.State != core.StateSuccess {
-		return fmt.Errorf("failed to add host to dnsmasq: %s", result.Data)
-	}
-
-	return nil
-}
-
-func (m *kvmManager) forwardId(uuid string, host int) string {
-	return fmt.Sprintf("kvm-socat-%s-%d", uuid, host)
-}
-
-func (m *kvmManager) unPortForward(uuid string) {
-	for key, runner := range pm.GetManager().Runners() {
-		if strings.HasPrefix(key, fmt.Sprintf("kvm-socat-%s", uuid)) {
-			runner.Terminate()
-		}
-	}
 }
 
 func (m *kvmManager) setPortForwards(uuid string, seq uint16, port map[int]int) error {
@@ -513,7 +454,7 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	if err := m.configureDhcpHost(seq); err != nil {
+	if err := m.setNetworking(&params, seq, domain); err != nil {
 		return nil, err
 	}
 
@@ -529,22 +470,12 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 	}
 	defer conn.Close()
 
-	dom, err := conn.DomainCreateXML(string(data[:]), libvirt.DOMAIN_NONE)
+	_, err = conn.DomainCreateXML(string(data), libvirt.DOMAIN_NONE)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create machine: %s", err)
 	}
 
-	uuid, err := dom.GetUUIDString()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get machine uuid with the name %s", params.Name)
-	}
-
-	//start port forwarders
-	if err := m.setPortForwards(uuid, seq, params.Port); err != nil {
-		return nil, err
-	}
-
-	return DomainUUID{uuid}, nil
+	return DomainUUID{domain.UUID}, nil
 }
 
 func (m *kvmManager) getDomain(cmd *core.Command) (*libvirt.Domain, *libvirt.Connect, string, error) {
