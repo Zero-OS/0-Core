@@ -4,16 +4,15 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	//"os"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
+	"github.com/libvirt/libvirt-go"
 	"github.com/pborman/uuid"
 	"github.com/vishvananda/netlink"
 	"sync"
@@ -42,9 +41,19 @@ var (
 )
 
 const (
-	kvmCreateCommand  = "kvm.create"
-	kvmDestroyCommand = "kvm.destroy"
-	kvmListCommand    = "kvm.list"
+	kvmCreateCommand      = "kvm.create"
+	kvmDestroyCommand     = "kvm.destroy"
+	kvmShutdownCommand    = "kvm.shutdown"
+	kvmRebootCommand      = "kvm.reboot"
+	kvmResetCommand       = "kvm.reset"
+	kvmPauseCommand       = "kvm.pause"
+	kvmResumeCommand      = "kvm.resume"
+	kvmAttachDiskCommand  = "kvm.attachDisk"
+	kvmDetachDiskCommand  = "kvm.detachDisk"
+	kvmAddNicCommand      = "kvm.addNic"
+	kvmRemoveNicCommand   = "kvm.removeNic"
+	kvmLimitDiskIOCommand = "kvm.limitDiskIO"
+	kvmListCommand        = "kvm.list"
 
 	DefaultBridgeName = "kvm-0"
 )
@@ -58,6 +67,16 @@ func KVMSubsystem() error {
 
 	pm.CmdMap[kvmCreateCommand] = process.NewInternalProcessFactory(mgr.create)
 	pm.CmdMap[kvmDestroyCommand] = process.NewInternalProcessFactory(mgr.destroy)
+	pm.CmdMap[kvmShutdownCommand] = process.NewInternalProcessFactory(mgr.shutdown)
+	pm.CmdMap[kvmRebootCommand] = process.NewInternalProcessFactory(mgr.reboot)
+	pm.CmdMap[kvmResetCommand] = process.NewInternalProcessFactory(mgr.reset)
+	pm.CmdMap[kvmPauseCommand] = process.NewInternalProcessFactory(mgr.pause)
+	pm.CmdMap[kvmResumeCommand] = process.NewInternalProcessFactory(mgr.resume)
+	pm.CmdMap[kvmAttachDiskCommand] = process.NewInternalProcessFactory(mgr.attachDisk)
+	pm.CmdMap[kvmDetachDiskCommand] = process.NewInternalProcessFactory(mgr.detachDisk)
+	pm.CmdMap[kvmAddNicCommand] = process.NewInternalProcessFactory(mgr.addNic)
+	pm.CmdMap[kvmRemoveNicCommand] = process.NewInternalProcessFactory(mgr.removeNic)
+	pm.CmdMap[kvmLimitDiskIOCommand] = process.NewInternalProcessFactory(mgr.limitDiskIO)
 	pm.CmdMap[kvmListCommand] = process.NewInternalProcessFactory(mgr.list)
 
 	return nil
@@ -76,6 +95,90 @@ type CreateParams struct {
 	Media  []Media     `json:"media"`
 	Bridge []string    `json:"bridge"`
 	Port   map[int]int `json:"port"`
+}
+
+type DomainUUID struct {
+	UUID string `json:"uuid"`
+}
+
+type ManDiskParams struct {
+	UUID  string `json:"uuid"`
+	Media Media  `json:"media"`
+}
+
+type ManNicParams struct {
+	UUID   string `json:"uuid"`
+	Bridge string `json:"bridge"`
+}
+
+type LimitDiskIOParameters struct {
+	UUID                      string `json:"uuid"`
+	TargetName                string `json:"targetname"`
+	TotalBytesSecSet          bool   `json:"totalbytessecset"`
+	TotalBytesSec             uint64 `json:"totalbytessec"`
+	ReadBytesSecSet           bool   `json:"readbytessecset"`
+	ReadBytesSec              uint64 `json:"readbytessec"`
+	WriteBytesSecSet          bool   `json:"writebytessecset"`
+	WriteBytesSec             uint64 `json:"writebytessec"`
+	TotalIopsSecSet           bool   `json:"totaliopssecset"`
+	TotalIopsSec              uint64 `json:"totaliopssec"`
+	ReadIopsSecSet            bool   `json:"readiopssecset"`
+	ReadIopsSec               uint64 `json:"readiopssec"`
+	WriteIopsSecSet           bool   `json:"writeiopssecset"`
+	WriteIopsSec              uint64 `json:"writeiopssec"`
+	TotalBytesSecMaxSet       bool   `json:"totalbytessecmaxset"`
+	TotalBytesSecMax          uint64 `json:"totalbytessecmax"`
+	ReadBytesSecMaxSet        bool   `json:"readbytessecmaxset"`
+	ReadBytesSecMax           uint64 `json:"readbytessecmax"`
+	WriteBytesSecMaxSet       bool   `json:"writebytessecmaxset"`
+	WriteBytesSecMax          uint64 `json:"writebytessecmax"`
+	TotalIopsSecMaxSet        bool   `json:"totaliopssecmaxset"`
+	TotalIopsSecMax           uint64 `json:"totaliopssecmax"`
+	ReadIopsSecMaxSet         bool   `json:"readiopssecmaxset"`
+	ReadIopsSecMax            uint64 `json:"readiopssecmax"`
+	WriteIopsSecMaxSet        bool   `json:"writeiopssecmaxset"`
+	WriteIopsSecMax           uint64 `json:"writeiopssecmax"`
+	TotalBytesSecMaxLengthSet bool   `json:"totalbytessecmaxlengthset"`
+	TotalBytesSecMaxLength    uint64 `json:"totalbytessecmaxlength"`
+	ReadBytesSecMaxLengthSet  bool   `json:"readbytessecmaxlengthset"`
+	ReadBytesSecMaxLength     uint64 `json:"readbytessecmaxlength"`
+	WriteBytesSecMaxLengthSet bool   `json:"writebytessecmaxlengthset"`
+	WriteBytesSecMaxLength    uint64 `json:"writebytessecmaxlength"`
+	TotalIopsSecMaxLengthSet  bool   `json:"totaliopssecmaxlengthset"`
+	TotalIopsSecMaxLength     uint64 `json:"totaliopssecmaxlength"`
+	ReadIopsSecMaxLengthSet   bool   `json:"readiopssecmaxlengthset"`
+	ReadIopsSecMaxLength      uint64 `json:"readiopssecmaxlength"`
+	WriteIopsSecMaxLengthSet  bool   `json:"writeiopssecmaxlengthset"`
+	WriteIopsSecMaxLength     uint64 `json:"writeiopssecmaxlength"`
+	SizeIopsSecSet            bool   `json:"sizeiopssecset"`
+	SizeIopsSec               uint64 `json:"sizeiopssec"`
+	GroupNameSet              bool   `json:"groupnameset"`
+	GroupName                 string `json:"groupname"`
+}
+
+func StateToString(state libvirt.DomainState) string {
+	var res string
+	switch state {
+	case libvirt.DOMAIN_NOSTATE:
+		res = "nostate"
+	case libvirt.DOMAIN_RUNNING:
+		res = "running"
+	case libvirt.DOMAIN_BLOCKED:
+		res = "blocked"
+	case libvirt.DOMAIN_PAUSED:
+		res = "paused"
+	case libvirt.DOMAIN_SHUTDOWN:
+		res = "shutdown"
+	case libvirt.DOMAIN_CRASHED:
+		res = "crashed"
+	case libvirt.DOMAIN_PMSUSPENDED:
+		res = "pmsuspended"
+	case libvirt.DOMAIN_SHUTOFF:
+		res = "shutoff"
+	default:
+		res = ""
+	}
+	return res
 }
 
 func (m *kvmManager) setupDefaultGateway() error {
@@ -245,7 +348,9 @@ func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error)
 			},
 		},
 		Devices: Devices{
-			Emulator: "/usr/bin/qemu-system-x86_64",
+			Emulator:   "/usr/bin/qemu-system-x86_64",
+			Disks:      []DiskDevice{},
+			Interfaces: []InterfaceDevice{},
 			Devices: []Device{
 				SerialDevice{
 					Type: SerialDeviceTypePTY,
@@ -306,7 +411,7 @@ func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error)
 			return nil, fmt.Errorf("bridge '%s' not found", bridge)
 		}
 
-		domain.Devices.Devices = append(domain.Devices.Devices, InterfaceDevice{
+		domain.Devices.Interfaces = append(domain.Devices.Interfaces, InterfaceDevice{
 			Type: InterfaceDeviceTypeBridge,
 			Source: InterfaceDeviceSourceBridge{
 				Bridge: bridge,
@@ -318,7 +423,7 @@ func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error)
 	}
 
 	for idx, media := range params.Media {
-		domain.Devices.Devices = append(domain.Devices.Devices, m.mkDisk(idx, media))
+		domain.Devices.Disks = append(domain.Devices.Disks, m.mkDisk(idx, media))
 	}
 
 	return &domain, nil
@@ -350,25 +455,25 @@ func (m *kvmManager) configureDhcpHost(seq uint16) error {
 	return nil
 }
 
-func (m *kvmManager) forwardId(name string, host int) string {
-	return fmt.Sprintf("kvm-socat-%s-%d", name, host)
+func (m *kvmManager) forwardId(uuid string, host int) string {
+	return fmt.Sprintf("kvm-socat-%s-%d", uuid, host)
 }
 
-func (m *kvmManager) unPortForward(name string) {
+func (m *kvmManager) unPortForward(uuid string) {
 	for key, runner := range pm.GetManager().Runners() {
-		if strings.HasPrefix(key, fmt.Sprintf("kvm-socat-%s", name)) {
+		if strings.HasPrefix(key, fmt.Sprintf("kvm-socat-%s", uuid)) {
 			runner.Terminate()
 		}
 	}
 }
 
-func (m *kvmManager) setPortForwards(seq uint16, params *CreateParams) error {
+func (m *kvmManager) setPortForwards(uuid string, seq uint16, port map[int]int) error {
 	ip := m.ipAddr(seq)
 
-	for host, container := range params.Port {
+	for host, container := range port {
 		//nft add rule nat prerouting iif eth0 tcp dport { 80, 443 } dnat 192.168.1.120
 		cmd := &core.Command{
-			ID:      m.forwardId(params.Name, host),
+			ID:      m.forwardId(uuid, host),
 			Command: process.CommandSystem,
 			Arguments: core.MustArguments(
 				process.SystemCommandArguments{
@@ -410,131 +515,375 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, fmt.Errorf("failed to generate domain xml: %s", err)
 	}
 
-	tmp, err := ioutil.TempFile("/tmp", "kvm-domain")
-	if err != nil {
-		return nil, err
-	}
-	//defer os.Remove(tmp.Name())
-	defer tmp.Close()
-
-	if _, err := tmp.Write(data); err != nil {
-		return nil, fmt.Errorf("failed to write domain xml: %s", err)
-	}
-
-	tmp.Close()
-
 	//create domain
-	virsh := &core.Command{
-		ID:      uuid.New(),
-		Command: process.CommandSystem,
-		Arguments: core.MustArguments(
-			process.SystemCommandArguments{
-				Name: "virsh",
-				Args: []string{
-					"create", tmp.Name(),
-				},
-			},
-		),
-	}
-	runner, err := pm.GetManager().RunCmd(virsh)
+	conn, err := libvirt.NewConnect("qemu:///system")
 	if err != nil {
-		return nil, fmt.Errorf("failed to start virsh: %s", err)
+		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
 	}
-	result := runner.Wait()
-	if result.State != core.StateSuccess {
-		return nil, fmt.Errorf(result.Streams[1])
+	defer conn.Close()
+
+	dom, err := conn.DomainCreateXML(string(data[:]), libvirt.DOMAIN_NONE)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create machine: %s", err)
+	}
+
+	uuid, err := dom.GetUUIDString()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get machine uuid with the name %s", params.Name)
 	}
 
 	//start port forwarders
-	if err := m.setPortForwards(seq, &params); err != nil {
+	if err := m.setPortForwards(uuid, seq, params.Port); err != nil {
 		return nil, err
 	}
-	return nil, nil
+
+	return DomainUUID{uuid}, nil
 }
 
-type DestroyParams struct {
-	Name string `json:"name"`
+func (m *kvmManager) action(cmd *core.Command) (*libvirt.Domain, *libvirt.Connect, string, error) {
+	var params DomainUUID
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, nil, "", err
+	}
+
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return nil, nil, params.UUID, fmt.Errorf("failed to start a qemu connection: %s", err)
+	}
+
+	domain, err := conn.LookupDomainByUUIDString(params.UUID)
+	if err != nil {
+		conn.Close()
+		return nil, nil, params.UUID, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
+	}
+	// we don't close the connection here because it is supposed to be used outside
+	// so we expect the caller to close it
+	// so if anything is to be added in this method that can return an error
+	// the connection has to be closed before the return
+	return domain, conn, params.UUID, err
 }
 
 func (m *kvmManager) destroy(cmd *core.Command) (interface{}, error) {
-	var params DestroyParams
+	domain, conn, uuid, err := m.action(cmd)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	if err := domain.Destroy(); err != nil {
+		return nil, fmt.Errorf("failed to destroy machine: %s", err)
+	}
+	m.unPortForward(uuid)
+
+	return nil, nil
+}
+
+func (m *kvmManager) shutdown(cmd *core.Command) (interface{}, error) {
+	domain, conn, uuid, err := m.action(cmd)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	if err := domain.Shutdown(); err != nil {
+		return nil, fmt.Errorf("failed to shutdown machine: %s", err)
+	}
+
+	m.unPortForward(uuid)
+
+	return nil, nil
+}
+
+func (m *kvmManager) reboot(cmd *core.Command) (interface{}, error) {
+	domain, conn, _, err := m.action(cmd)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	if err := domain.Reboot(libvirt.DOMAIN_REBOOT_DEFAULT); err != nil {
+		return nil, fmt.Errorf("failed to reboot machine: %s", err)
+	}
+
+	return nil, nil
+}
+
+func (m *kvmManager) reset(cmd *core.Command) (interface{}, error) {
+	domain, conn, _, err := m.action(cmd)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	if err := domain.Reset(0); err != nil {
+		return nil, fmt.Errorf("failed to reset machine: %s", err)
+	}
+
+	return nil, nil
+}
+
+func (m *kvmManager) pause(cmd *core.Command) (interface{}, error) {
+	domain, conn, _, err := m.action(cmd)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	if err := domain.Suspend(); err != nil {
+		return nil, fmt.Errorf("failed to pause machine: %s", err)
+	}
+
+	return nil, nil
+}
+
+func (m *kvmManager) resume(cmd *core.Command) (interface{}, error) {
+	domain, conn, _, err := m.action(cmd)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	if err := domain.Resume(); err != nil {
+		return nil, fmt.Errorf("failed to resume machine: %s", err)
+	}
+
+	return nil, nil
+}
+
+func (m *kvmManager) attachDevice(uuid, xml string) error {
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return fmt.Errorf("failed to start a qemu connection: %s", err)
+	}
+	defer conn.Close()
+
+	domain, err := conn.LookupDomainByUUIDString(uuid)
+	if err != nil {
+		return fmt.Errorf("couldn't find domain with the uuid %s", uuid)
+	}
+	if err := domain.AttachDeviceFlags(xml, libvirt.DOMAIN_DEVICE_MODIFY_LIVE); err != nil {
+		return fmt.Errorf("failed to attach device: %s", err)
+	}
+
+	return nil
+}
+
+func (m *kvmManager) detachDevice(uuid, xml string) error {
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return fmt.Errorf("failed to start a qemu connection: %s", err)
+	}
+	defer conn.Close()
+
+	domain, err := conn.LookupDomainByUUIDString(uuid)
+	if err != nil {
+		return fmt.Errorf("couldn't find domain with the uuid %s", uuid)
+	}
+	if err := domain.DetachDeviceFlags(xml, libvirt.DOMAIN_DEVICE_MODIFY_LIVE); err != nil {
+		return fmt.Errorf("failed to attach device: %s", err)
+	}
+
+	return nil
+}
+
+func (m *kvmManager) attachDisk(cmd *core.Command) (interface{}, error) {
+	var params ManDiskParams
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
-	virsh := &core.Command{
-		ID:      uuid.New(),
-		Command: process.CommandSystem,
-		Arguments: core.MustArguments(
-			process.SystemCommandArguments{
-				Name: "virsh",
-				Args: []string{
-					"destroy", params.Name,
-				},
-			},
-		),
-	}
-	runner, err := pm.GetManager().RunCmd(virsh)
+	conn, err := libvirt.NewConnect("qemu:///system")
 	if err != nil {
-		return nil, fmt.Errorf("failed to destroy machine: %s", err)
+		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
 	}
-	result := runner.Wait()
-	if result.State != core.StateSuccess {
-		return nil, fmt.Errorf(result.Streams[1])
+	defer conn.Close()
+
+	domain, err := conn.LookupDomainByUUIDString(params.UUID)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
+	}
+	domainxml, err := domain.GetXMLDesc(libvirt.DOMAIN_XML_INACTIVE)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get domain xml: %v", err)
+	}
+	domainstruct := Domain{}
+	err = xml.Unmarshal([]byte(domainxml), &domainstruct)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse the domain xml: %v", err)
+	}
+	count := len(domainstruct.Devices.Disks)
+	disk := m.mkDisk(count, params.Media)
+	diskxml, err := xml.MarshalIndent(disk, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("cannot marshal disk to xml")
+	}
+	return nil, m.attachDevice(params.UUID, string(diskxml[:]))
+}
+
+func (m *kvmManager) detachDisk(cmd *core.Command) (interface{}, error) {
+	var params ManDiskParams
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, err
+	}
+	// FIXME: get the idx of the disk
+	idx := 0
+	media := params.Media
+	disk := m.mkDisk(idx, media)
+	diskxml, err := xml.MarshalIndent(disk, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("cannot marshal disk to xml")
+	}
+	return nil, m.detachDevice(params.UUID, string(diskxml[:]))
+}
+
+func (m *kvmManager) addNic(cmd *core.Command) (interface{}, error) {
+	var params ManNicParams
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, err
+	}
+	bridge := params.Bridge
+	_, err := netlink.LinkByName(bridge)
+	if err != nil {
+		return nil, fmt.Errorf("bridge '%s' not found", bridge)
 	}
 
-	m.unPortForward(params.Name)
+	ifd := InterfaceDevice{
+		Type: InterfaceDeviceTypeBridge,
+		Source: InterfaceDeviceSourceBridge{
+			Bridge: bridge,
+		},
+		Model: InterfaceDeviceModel{
+			Type: "virtio",
+		},
+	}
+	ifxml, err := xml.MarshalIndent(ifd, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("cannot marshal nic to xml")
+	}
+	return nil, m.attachDevice(params.UUID, string(ifxml[:]))
+}
 
+func (m *kvmManager) removeNic(cmd *core.Command) (interface{}, error) {
+	var params ManNicParams
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, err
+	}
+	bridge := params.Bridge
+	ifd := InterfaceDevice{
+		Type: InterfaceDeviceTypeBridge,
+		Source: InterfaceDeviceSourceBridge{
+			Bridge: bridge,
+		},
+		Model: InterfaceDeviceModel{
+			Type: "virtio",
+		},
+	}
+	ifxml, err := xml.MarshalIndent(ifd, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("cannot marshal nic to xml")
+	}
+	return nil, m.detachDevice(params.UUID, string(ifxml[:]))
+}
+
+func (m *kvmManager) limitDiskIO(cmd *core.Command) (interface{}, error) {
+	var params LimitDiskIOParameters
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, err
+	}
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
+	}
+	defer conn.Close()
+
+	domain, err := conn.LookupDomainByUUIDString(params.UUID)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
+	}
+	blockParams := libvirt.DomainBlockIoTuneParameters{
+		TotalBytesSecSet:          params.TotalBytesSecSet,
+		TotalBytesSec:             params.TotalBytesSec,
+		ReadBytesSecSet:           params.ReadBytesSecSet,
+		ReadBytesSec:              params.ReadBytesSec,
+		WriteBytesSecSet:          params.WriteBytesSecSet,
+		WriteBytesSec:             params.WriteBytesSec,
+		TotalIopsSecSet:           params.TotalIopsSecSet,
+		TotalIopsSec:              params.TotalIopsSec,
+		ReadIopsSecSet:            params.ReadIopsSecSet,
+		ReadIopsSec:               params.ReadIopsSec,
+		WriteIopsSecSet:           params.WriteIopsSecSet,
+		WriteIopsSec:              params.WriteIopsSec,
+		TotalBytesSecMaxSet:       params.TotalBytesSecMaxSet,
+		TotalBytesSecMax:          params.TotalBytesSecMax,
+		ReadBytesSecMaxSet:        params.ReadBytesSecMaxSet,
+		ReadBytesSecMax:           params.ReadBytesSecMax,
+		WriteBytesSecMaxSet:       params.WriteBytesSecMaxSet,
+		WriteBytesSecMax:          params.WriteBytesSecMax,
+		TotalIopsSecMaxSet:        params.TotalIopsSecMaxSet,
+		TotalIopsSecMax:           params.TotalIopsSecMax,
+		ReadIopsSecMaxSet:         params.ReadIopsSecMaxSet,
+		ReadIopsSecMax:            params.ReadIopsSecMax,
+		WriteIopsSecMaxSet:        params.WriteIopsSecMaxSet,
+		WriteIopsSecMax:           params.WriteIopsSecMax,
+		TotalBytesSecMaxLengthSet: params.TotalBytesSecMaxLengthSet,
+		TotalBytesSecMaxLength:    params.TotalBytesSecMaxLength,
+		ReadBytesSecMaxLengthSet:  params.ReadBytesSecMaxLengthSet,
+		ReadBytesSecMaxLength:     params.ReadBytesSecMaxLength,
+		WriteBytesSecMaxLengthSet: params.WriteBytesSecMaxLengthSet,
+		WriteBytesSecMaxLength:    params.WriteBytesSecMaxLength,
+		TotalIopsSecMaxLengthSet:  params.TotalIopsSecMaxLengthSet,
+		TotalIopsSecMaxLength:     params.TotalIopsSecMaxLength,
+		ReadIopsSecMaxLengthSet:   params.ReadIopsSecMaxLengthSet,
+		ReadIopsSecMaxLength:      params.ReadIopsSecMaxLength,
+		WriteIopsSecMaxLengthSet:  params.WriteIopsSecMaxLengthSet,
+		WriteIopsSecMaxLength:     params.WriteIopsSecMaxLength,
+		SizeIopsSecSet:            params.SizeIopsSecSet,
+		SizeIopsSec:               params.SizeIopsSec,
+		GroupNameSet:              params.GroupNameSet,
+		GroupName:                 params.GroupName,
+	}
+	if err := domain.SetBlockIoTune(params.TargetName, &blockParams, libvirt.DOMAIN_AFFECT_LIVE); err != nil {
+		return nil, fmt.Errorf("failed to tune disk: %s", err)
+	}
 	return nil, nil
 }
 
 type Machine struct {
 	ID    int    `json:"id"`
+	UUID  string `json:"uuid"`
 	Name  string `json:"name"`
 	State string `json:"state"`
 }
 
 func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
-	virsh := &core.Command{
-		ID:      uuid.New(),
-		Command: process.CommandSystem,
-		Arguments: core.MustArguments(
-			process.SystemCommandArguments{
-				Name: "virsh",
-				Args: []string{
-					"list", "--all",
-				},
-			},
-		),
-	}
-	runner, err := pm.GetManager().RunCmd(virsh)
+	conn, err := libvirt.NewConnect("qemu:///system")
 	if err != nil {
-		return nil, fmt.Errorf("failed to destroy machine: %s", err)
+		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
 	}
-	result := runner.Wait()
-	if result.State != core.StateSuccess {
-		return nil, fmt.Errorf(result.Streams[1])
-	}
+	defer conn.Close()
 
-	out := result.Streams[0]
+	domains, err := conn.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE | libvirt.CONNECT_LIST_DOMAINS_INACTIVE)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list machines: %s", err)
+	}
 
 	found := make([]Machine, 0)
-	lines := strings.Split(out, "\n")
-	if len(lines) <= 3 {
-		return found, nil
-	}
 
-	lines = lines[2:]
-
-	for _, line := range lines {
-		match := pattern.FindStringSubmatch(line)
-		if len(match) != 4 {
-			continue
+	for _, domain := range domains {
+		id, err := domain.GetID()
+		if err != nil {
+			return nil, err
 		}
-		id, _ := strconv.ParseInt(match[1], 10, 32)
+		uuid, err := domain.GetUUIDString()
+		if err != nil {
+			return nil, err
+		}
+		name, err := domain.GetName()
+		if err != nil {
+			return nil, err
+		}
+		state, _, err := domain.GetState()
+		if err != nil {
+			return nil, err
+		}
 		found = append(found, Machine{
 			ID:    int(id),
-			Name:  strings.TrimSpace(match[2]),
-			State: strings.TrimSpace(match[3]),
+			UUID:  uuid,
+			Name:  name,
+			State: StateToString(state),
 		})
 	}
 

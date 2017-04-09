@@ -21,6 +21,11 @@
 			"Rev": "346938d642f2ec3594ed81d874461961cd0faa76"
 		},
 		{
+			"ImportPath": "github.com/libvirt/libvirt-go",
+			"Comment": "v3.2.0",
+			"Rev": "6d8485c48e5a6b79b842084c244077bb832742cb"
+		},
+		{
 			"ImportPath": "github.com/garyburd/redigo/internal",
 			"Rev": "836b6e58b3358112c8291565d01c35b8764070d7"
 		},
