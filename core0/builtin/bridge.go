@@ -303,6 +303,12 @@ func (b *bridgeMgr) create(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
+	if args.HwAddress != "" {
+		if err := netlink.LinkSetHardwareAddr(bridge, hw); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := netlink.LinkSetUp(bridge); err != nil {
 		return nil, err
 	}
