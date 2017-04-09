@@ -578,7 +578,7 @@ class ContainerManager:
             typchk.IsNone()
         ),
         'host_network': bool,
-        'network': [{
+        'nics': [{
             'type': str,
             'id': typchk.Or(str, typchk.Missing()),
             'hwaddr': typchk.Or(str, typchk.Missing()),
@@ -609,10 +609,11 @@ class ContainerManager:
     })
 
     DefaultNetworking = object()
+
     def __init__(self, client):
         self._client = client
 
-    def create(self, root_url, mount=None, host_network=False, network=DefaultNetworking, port=None, hostname=None, storage=None, tags=None):
+    def create(self, root_url, mount=None, host_network=False, nics=DefaultNetworking, port=None, hostname=None, storage=None, tags=None):
         """
         Creater a new container with the given root plist, mount points and
         zerotier id, and connected to the given bridges
@@ -623,21 +624,19 @@ class ContainerManager:
         :param host_network: Specify if the container should share the same network stack as the host.
                              if True, container creation ignores both zerotier, bridge and ports arguments below. Not
                              giving errors if provided.
-        :param network:
-        :param zerotier: An optional zerotier netowrk ID to join
-        :param bridge: A list of tuples as ('bridge_name': 'network_setup')
-                       where :network_setup: can be one of the following
-                       '' or 'none':
-                            no IP is gonna be set on the link
-                       'dhcp':
-                            Run `udhcpc` on the container link, of course this will
-                            only work if the `bridge` is created with `dnsmasq` networking
-                       'CIDR':
-                            Assign static IP to the link
-
-                       Examples:
-                        `bridge=[('br0', '127.0.0.100/24'), ('br1', 'dhcp')]`
-        :param port: A dict of host_port: container_port pairs
+        :param nics: Configure the attached nics to the container
+                     each nic object is a dict of the format
+                     {
+                        'type': nic_type # default, zerotier, vlan, or vxlan (note, vlan and vxlan only supported by ovs)
+                        'id': id # depends on the type, zerotier network id, the vlan tag or the vxlan id
+                        'config': { # config is only honored for vlan, and vxlan types
+                            'dhcp': bool,
+                            'cidr': static_ip # ip/mask
+                            'gateway': gateway
+                            'dns': [dns]
+                        }
+                     }
+        :param port: A dict of host_port: container_port pairs (only if default networking is enabled)
                        Example:
                         `port={8080: 80, 7000:7000}`
         :param hostname: Specific hostname you want to give to the container.
@@ -647,14 +646,14 @@ class ContainerManager:
                         if not provided, the default one from core0 configuration will be used.
         """
 
-        if network == self.DefaultNetworking:
-            network = [{'type': 'default'}]
+        if nics == self.DefaultNetworking:
+            nics = [{'type': 'default'}]
 
         args = {
             'root': root_url,
             'mount': mount,
             'host_network': host_network,
-            'network': network,
+            'nics': nics,
             'port': port,
             'hostname': hostname,
             'storage': storage,

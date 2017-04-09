@@ -55,7 +55,7 @@ type NetworkConfig struct {
 	DNS     []string `json:"dns"`
 }
 
-type Network struct {
+type Nic struct {
 	Type      string        `json:"type"`
 	ID        string        `json:"id"`
 	HWAddress string        `json:"hwaddr"`
@@ -66,7 +66,7 @@ type ContainerCreateArguments struct {
 	Root        string            `json:"root"`         //Root plist
 	Mount       map[string]string `json:"mount"`        //data disk mounts.
 	HostNetwork bool              `json:"host_network"` //share host networking stack
-	Network     []Network         `json:"network"`      //network setup (only respected if HostNetwork is false)
+	Nics        []Nic             `json:"nics"`         //network setup (only respected if HostNetwork is false)
 	Port        map[int]int       `json:"port"`         //port forwards (only if default networking is enabled)
 	Hostname    string            `json:"hostname"`     //hostname
 	Storage     string            `json:"storage"`      //ardb storage needed for g8ufs mounts.
@@ -116,7 +116,7 @@ func (c *ContainerCreateArguments) Validate() error {
 	//validating networking
 	var def int
 	var zt int
-	for _, net := range c.Network {
+	for _, net := range c.Nics {
 		switch net.Type {
 		case "default":
 			def++

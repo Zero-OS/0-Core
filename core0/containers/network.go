@@ -45,7 +45,7 @@ func (c *container) postZerotierNetwork(netID string) error {
 	return err
 }
 
-func (c *container) postBridge(index int, n *Network) error {
+func (c *container) postBridge(index int, n *Nic) error {
 	name := fmt.Sprintf(containerLinkNameFmt, c.id, index)
 	peerName := fmt.Sprintf(containerPeerNameFmt, name)
 
@@ -181,7 +181,7 @@ func (c *container) postBridge(index int, n *Network) error {
 	return nil
 }
 
-func (c *container) preBridge(index int, bridge string, n *Network, ovs *container) error {
+func (c *container) preBridge(index int, bridge string, n *Nic, ovs *container) error {
 	link, err := netlink.LinkByName(bridge)
 	if err != nil {
 		return fmt.Errorf("bridge '%s' not found: %s", bridge, err)
@@ -344,9 +344,9 @@ func (c *container) setGateway(idx int, gw string) error {
 	return nil
 }
 
-func (c *container) postDefaultNetwork(i int, net *Network) error {
+func (c *container) postDefaultNetwork(i int, net *Nic) error {
 	//Add to the default bridge
-	defnet := &Network{
+	defnet := &Nic{
 		Config: NetworkConfig{
 			CIDR:    fmt.Sprintf("%s/16", c.getDefaultIP().String()),
 			Gateway: DefaultBridgeIP,
@@ -361,10 +361,10 @@ func (c *container) postDefaultNetwork(i int, net *Network) error {
 	return nil
 }
 
-func (c *container) preDefaultNetwork(i int, net *Network) error {
+func (c *container) preDefaultNetwork(i int, net *Nic) error {
 	//Add to the default bridge
 
-	defnet := &Network{
+	defnet := &Nic{
 		Config: NetworkConfig{
 			CIDR:    fmt.Sprintf("%s/16", c.getDefaultIP().String()),
 			Gateway: DefaultBridgeIP,
@@ -379,7 +379,7 @@ func (c *container) preDefaultNetwork(i int, net *Network) error {
 	return nil
 }
 
-func (c *container) preVxlanNetwork(idx int, net *Network) error {
+func (c *container) preVxlanNetwork(idx int, net *Nic) error {
 	vxlan, err := strconv.ParseInt(net.ID, 10, 64)
 	if err != nil {
 		return err
@@ -420,12 +420,12 @@ func (c *container) preVxlanNetwork(idx int, net *Network) error {
 	return c.preBridge(idx, bridge, net, ovs)
 }
 
-func (c *container) postVxlanNetwork(idx int, net *Network) error {
+func (c *container) postVxlanNetwork(idx int, net *Nic) error {
 	//we have the vxlan bridge name
 	return c.postBridge(idx, net)
 }
 
-func (c *container) preVlanNetwork(idx int, net *Network) error {
+func (c *container) preVlanNetwork(idx int, net *Nic) error {
 	vlanID, err := strconv.ParseInt(net.ID, 10, 16)
 	if err != nil {
 		return err
@@ -470,7 +470,7 @@ func (c *container) preVlanNetwork(idx int, net *Network) error {
 	return c.preBridge(idx, bridge, net, ovs)
 }
 
-func (c *container) postVlanNetwork(idx int, net *Network) error {
+func (c *container) postVlanNetwork(idx int, net *Nic) error {
 	return c.postBridge(idx, net)
 }
 
@@ -479,7 +479,7 @@ func (c *container) postStartIsolatedNetworking() error {
 		return err
 	}
 
-	for idx, network := range c.Arguments.Network {
+	for idx, network := range c.Arguments.Nics {
 		var err error
 		switch network.Type {
 		case "vxlan":
@@ -503,7 +503,7 @@ func (c *container) postStartIsolatedNetworking() error {
 }
 
 func (c *container) preStartIsolatedNetworking() error {
-	for idx, network := range c.Arguments.Network {
+	for idx, network := range c.Arguments.Nics {
 		switch network.Type {
 		case "vxlan":
 			if err := c.preVxlanNetwork(idx, &network); err != nil {
@@ -526,7 +526,7 @@ func (c *container) preStartIsolatedNetworking() error {
 	return nil
 }
 
-func (c *container) unBridge(idx int, n *Network, ovs *container) {
+func (c *container) unBridge(idx int, n *Nic, ovs *container) {
 	name := fmt.Sprintf(containerLinkNameFmt, c.id, idx)
 	if ovs != nil {
 		_, err := c.mgr.dispatchSync(&ContainerDispatchArguments{
@@ -559,7 +559,7 @@ func (c *container) destroyNetwork() {
 		return
 	}
 
-	for idx, network := range c.Arguments.Network {
+	for idx, network := range c.Arguments.Nics {
 		switch network.Type {
 		case "vxlan":
 			fallthrough
