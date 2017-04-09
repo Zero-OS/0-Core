@@ -111,21 +111,45 @@ func (fs *filesystem) evicted(_ string, f interface{}) {
 //mode parses python open file modes (
 func (fs *filesystem) mode(m string) (int, error) {
 	var mode int
+	rwax := 0
+	readable := false
+	writable := false
+
 	for _, chr := range m {
 		switch chr {
 		case 'r':
-			mode |= os.O_RDONLY
+			rwax += 1
+			readable = true
 		case 'w':
-			mode |= os.O_WRONLY | os.O_TRUNC
-		case '+':
-			mode |= os.O_RDWR
-		case 'x':
-			mode |= os.O_CREATE
+			rwax += 1
+			writable = true
+			mode |= os.O_CREATE | os.O_EXCL
+		case 'w':
+			rwax += 1
+			writable = true
+			mode |= os.O_CREATE | os.O_TRUNC
 		case 'a':
-			mode |= os.O_APPEND
+			rwax += 1
+			writable = true
+			mode |= os.O_CREATE | os.O_APPEND
+		case '+':
+			readable = true
+			writable = true
 		default:
 			return 0, fmt.Errorf("unknown mode '%s'", chr)
 		}
+	}
+
+	if rwax != 1 {
+		return 0, fmt.Errorf("rwax modes has to be used once and only once")
+	}
+
+	if readable && writable {
+		mode |= os.O_RDWR
+	} else if writable {
+		mode |= os.O_WRONLY
+	} else {
+		mode |= os.O_RDONLY
 	}
 
 	return mode, nil
