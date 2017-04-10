@@ -8,7 +8,7 @@ base = github.com/g8os/core0/base
 ldflags0 = '-w -s -X $(base).Branch=$(branch) -X $(base).Revision=$(revision) -X $(base).Dirty=$(dirty)'
 ldflagsX = '-w -s -X $(base).Branch=$(branch) -X $(base).Revision=$(revision) -X $(base).Dirty=$(dirty) -extldflags "-static"'
 
-all: core0 coreX
+all: core0 coreX corectl
 
 core0: $(OUTPUT)
 	cd core0 && go build -ldflags $(ldflags0) -o ../$(OUTPUT)/$@
@@ -16,8 +16,10 @@ core0: $(OUTPUT)
 coreX: $(OUTPUT)
 	cd coreX && CGO_ENABLED=0 GOOS=linux go build -ldflags $(ldflagsX) -o ../$(OUTPUT)/$@
 
+corectl: $(OUTPUT)
+	cd corectl && go build -ldflags $(ldflags0) -o ../$(OUTPUT)/$@
 
 $(OUTPUT):
 	mkdir -p $(OUTPUT)
 
-.PHONY: $(OUTPUT) core0 coreX
+.PHONY: $(OUTPUT) core0 coreX corectl
