@@ -31,7 +31,7 @@ type Process struct {
 	PPID       int32    `json:"ppid"`
 	Cmdline    string   `json:"cmdline"`
 	CreateTime int64    `json:"createtime"`
-	Cpu        CPUStats `json:"cpu" validate:"nonzero"`
+	Cpu        CPUStats `json:"cpu"`
 	RSS        uint64   `json:"rss"`
 	VMS        uint64   `json:"vms"`
 	Swap       uint64   `json:"swap"`
