@@ -475,7 +475,7 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, fmt.Errorf("failed to create machine: %s", err)
 	}
 
-	return DomainUUID{domain.UUID}, nil
+	return domain.UUID, nil
 }
 
 func (m *kvmManager) getDomain(cmd *core.Command) (*libvirt.Domain, *libvirt.Connect, string, error) {

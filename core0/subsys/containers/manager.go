@@ -204,7 +204,7 @@ func ContainerSubsystem(sinks map[string]base.SinkClient) (ContainerManager, err
 
 	go containerMgr.startForwarder()
 
-	return nil, nil
+	return containerMgr, nil
 }
 
 func (m *containerManager) setUpDefaultBridge() error {

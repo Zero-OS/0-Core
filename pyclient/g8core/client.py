@@ -623,7 +623,7 @@ class ContainerManager:
         ),
         'host_network': bool,
         'nics': [{
-            'type': str,
+            'type': typchk.Enum('default', 'zerotier', 'vlan', 'vxlan'),
             'id': typchk.Or(str, typchk.Missing()),
             'hwaddr': typchk.Or(str, typchk.Missing()),
             'config': typchk.Or(
@@ -1287,7 +1287,11 @@ class KvmManager:
         }],
         'cpu': int,
         'memory': int,
-        'bridge': typchk.Or([str], typchk.IsNone()),
+        'nics': [{
+            'type': typchk.Enum('default', 'vxlan', 'vlan'),
+            'id': typchk.Or(str, typchk.Missing()),
+            'hwaddr': typchk.Or(str, typchk.Missing()),
+        }],
         'port': typchk.Or(
             typchk.Map(int, int),
             typchk.IsNone()
@@ -1367,7 +1371,7 @@ class KvmManager:
     def __init__(self, client):
         self._client = client
 
-    def create(self, name, media, cpu=2, memory=512, port=None, bridge=None):
+    def create(self, name, media, cpu=2, memory=512, nics=None, port=None):
         """
 
         :param name: Name of the kvm domain
@@ -1379,8 +1383,13 @@ class KvmManager:
         :param port: A dict of host_port: container_port pairs
                        Example:
                         `port={8080: 80, 7000:7000}`
-        :param bridge: array of extra bridges to connect the domain with. the bridges must exist on the host
-                       By default, vm is automatically added to a default bridge.
+                     Only supported if default network is used
+        :param nics: Configure the attached nics to the container
+                     each nic object is a dict of the format
+                     {
+                        'type': nic_type # default, vlan, or vxlan (note, vlan and vxlan only supported by ovs)
+                        'id': id # depends on the type, zerotier network id, the vlan tag or the vxlan id
+                     }
         :return: uuid of the virtual machine
         """
         args = {
@@ -1388,7 +1397,7 @@ class KvmManager:
             'media': media,
             'cpu': cpu,
             'memory': memory,
-            'bridge': bridge,
+            'nics': nics,
             'port': port,
         }
         self._create_chk.check(args)
