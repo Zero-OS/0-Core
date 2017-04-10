@@ -21,7 +21,7 @@
 - packet.net
     - specify as ipxe an url like ```https://stor.jumpscale.org/public/ipxe/g8os.ipxe?netid=23423423423423```
     - the webservice will put netid directly into the ipxe config file
-- khyve osx
+- xhyve osx
     - @TODO to be defined
     
 ## phase 2 (optional): use ays for further configuration of G8OS
