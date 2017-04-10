@@ -106,6 +106,11 @@ func (b *Bootstrap) Bootstrap(hostname string) error {
 		return err
 	}
 
+	log.Debugf("linkin mtab")
+	if err := linkMtab(); err != nil {
+		return err
+	}
+
 	log.Debugf("startup services")
 
 	if err := b.plugins(); err != nil {
@@ -170,4 +175,8 @@ func updateHostname(hostname string) error {
 	fmt.Fprint(fHosts, "127.0.0.1    localhost.localdomain localhost\n")
 
 	return syscall.Sethostname([]byte(hostname))
+}
+
+func linkMtab() error {
+	return os.Symlink("../proc/self/mounts", "/etc/mtab")
 }
