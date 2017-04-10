@@ -447,6 +447,12 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
+	}
+	defer conn.Close()
+
 	seq := m.getNextSequence()
 
 	domain, err := m.mkDomain(seq, &params)
@@ -454,7 +460,7 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	if err := m.setNetworking(&params, seq, domain); err != nil {
+	if err := m.setNetworking(conn, &params, seq, domain); err != nil {
 		return nil, err
 	}
 
@@ -464,12 +470,6 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 	}
 
 	//create domain
-	conn, err := libvirt.NewConnect("qemu:///system")
-	if err != nil {
-		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
-	}
-	defer conn.Close()
-
 	_, err = conn.DomainCreateXML(string(data), libvirt.DOMAIN_NONE)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create machine: %s", err)

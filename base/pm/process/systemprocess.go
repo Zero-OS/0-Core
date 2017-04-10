@@ -59,7 +59,7 @@ func (process *systemProcessImpl) Stats() *ProcessStats {
 	if ps == nil {
 		return &stats
 	}
-	ps.CPUAffinity()
+
 	cpu, err := ps.Percent(0)
 	if err == nil {
 		stats.CPU = cpu

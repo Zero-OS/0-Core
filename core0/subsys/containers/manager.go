@@ -167,6 +167,7 @@ type ContainerManager interface {
 	Dispatch(id uint16, cmd *core.Command) (*core.JobResult, error)
 	GetWithTags(tags ...string) []Container
 	GetOneWithTags(tags ...string) Container
+	Of(id uint16) Container
 }
 
 func ContainerSubsystem(sinks map[string]base.SinkClient) (ContainerManager, error) {
@@ -483,4 +484,11 @@ func (m *containerManager) GetOneWithTags(tags ...string) Container {
 	}
 
 	return nil
+}
+
+func (m *containerManager) Of(id uint16) Container {
+	m.conM.RLock()
+	defer m.conM.RUnlock()
+	cont, _ := m.containers[id]
+	return cont
 }

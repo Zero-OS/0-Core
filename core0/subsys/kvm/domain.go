@@ -144,13 +144,18 @@ type GraphicsDevice struct {
 type InterfaceDeviceType string
 
 const (
-	InterfaceDeviceTypeBridge InterfaceDeviceType = "bridge"
+	InterfaceDeviceTypeBridge  InterfaceDeviceType = "bridge"
+	InterfaceDeviceTypeNetwork InterfaceDeviceType = "network"
 )
 
 type InterfaceDeviceSource interface{}
 
 type InterfaceDeviceSourceBridge struct {
 	Bridge string `xml:"bridge,attr"`
+}
+
+type InterfaceDeviceSourceNetwork struct {
+	Network string `xml:"network,attr"`
 }
 
 type InterfaceDeviceModel struct {
@@ -210,4 +215,18 @@ type ConsoleDevice struct {
 	Source  SerialSource     `xml:"source"`
 	Target  ConsoleTarget    `xml:"target"`
 	Alias   SerialAlias      `xml:"alias"`
+}
+
+type Network struct {
+	XMLName xml.Name `xml:"network"`
+	Name    string   `xml:"name"`
+	Forward struct {
+		Mode string `xml:"mode,attr"`
+	} `xml:"forward"`
+	Bridge struct {
+		Name string `xml:"name,attr"`
+	} `xml:"bridge"`
+	VirtualPort struct {
+		Type string `xml:"type,attr"`
+	} `xml:"virtualport"`
 }

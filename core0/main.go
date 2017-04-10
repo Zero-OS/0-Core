@@ -91,15 +91,6 @@ func main() {
 	log.Infof("Configure logging")
 	logger.InitLogging()
 
-	//start local transport
-	log.Infof("Starting local transport")
-	local, err := core.NewLocal("/var/run/core.sock")
-	if err != nil {
-		log.Errorf("Failed to start local transport: %s", err)
-	} else {
-		go local.Serve()
-	}
-
 	bs := bootstrap.NewBootstrap()
 	bs.Bootstrap()
 
@@ -138,6 +129,15 @@ func main() {
 
 	if err := kvm.KVMSubsystem(contMgr); err != nil {
 		log.Errorf("failed to initialize kvm subsystem", err)
+	}
+
+	//start local transport
+	log.Infof("Starting local transport")
+	local, err := NewLocal(contMgr, "/var/run/core.sock")
+	if err != nil {
+		log.Errorf("Failed to start local transport: %s", err)
+	} else {
+		go local.Serve()
 	}
 
 	//start jobs sinks.

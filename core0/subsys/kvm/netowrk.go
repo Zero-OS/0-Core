@@ -2,9 +2,11 @@ package kvm
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
+	"github.com/libvirt/libvirt-go"
 	"github.com/pborman/uuid"
 	"github.com/vishvananda/netlink"
 	"net"
@@ -18,7 +20,27 @@ const (
 	OVSVXBackend = "vxbackend"
 )
 
-func (m *kvmManager) setNetworking(args *CreateParams, seq uint16, domain *Domain) error {
+func (m *kvmManager) setVirtNetwork(con *libvirt.Connect, network Network) error {
+	//con.NetworkCreateXML()
+	_, err := con.LookupNetworkByName(network.Name)
+	liberr, _ := err.(libvirt.Error)
+
+	if err != nil && liberr.Code == libvirt.ERR_NO_NETWORK {
+		data, err := xml.Marshal(network)
+		if err != nil {
+			return err
+		}
+		if _, err := con.NetworkCreateXML(string(data)); err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *kvmManager) setNetworking(con *libvirt.Connect, args *CreateParams, seq uint16, domain *Domain) error {
 	for _, nic := range args.Nics {
 		switch nic.Type {
 		case "default":
@@ -26,8 +48,11 @@ func (m *kvmManager) setNetworking(args *CreateParams, seq uint16, domain *Domai
 				return err
 			}
 		case "vlan":
+			if err := m.setVLanNetwork(con, domain, &nic); err != nil {
+				return err
+			}
 		case "vxlan":
-			if err := m.setVXLanNetwork(domain, &nic); err != nil {
+			if err := m.setVXLanNetwork(con, domain, &nic); err != nil {
 				return err
 			}
 		default:
@@ -38,7 +63,7 @@ func (m *kvmManager) setNetworking(args *CreateParams, seq uint16, domain *Domai
 	return nil
 }
 
-func (m *kvmManager) setVLanNetwork(domain *Domain, nic *Nic) error {
+func (m *kvmManager) setVLanNetwork(con *libvirt.Connect, domain *Domain, nic *Nic) error {
 	vlanID, err := strconv.ParseInt(nic.ID, 10, 16)
 	if err != nil {
 		return err
@@ -48,7 +73,7 @@ func (m *kvmManager) setVLanNetwork(domain *Domain, nic *Nic) error {
 	}
 
 	inf := InterfaceDevice{
-		Type: InterfaceDeviceTypeBridge,
+		Type: InterfaceDeviceTypeNetwork,
 		Model: InterfaceDeviceModel{
 			Type: "virtio",
 		},
@@ -92,21 +117,33 @@ func (m *kvmManager) setVLanNetwork(domain *Domain, nic *Nic) error {
 		return fmt.Errorf("failed to load vlan-ensure result: %s", err)
 	}
 
-	inf.Source = InterfaceDeviceSourceBridge{
-		Bridge: bridge,
+	net := Network{
+		Name: bridge,
+	}
+
+	net.Forward.Mode = "bridge"
+	net.Bridge.Name = bridge
+	net.VirtualPort.Type = "openvswitch"
+
+	if err := m.setVirtNetwork(con, net); err != nil {
+		return err
+	}
+
+	inf.Source = InterfaceDeviceSourceNetwork{
+		Network: bridge,
 	}
 
 	domain.Devices.Devices = append(domain.Devices.Devices, inf)
 	return nil
 }
 
-func (m *kvmManager) setVXLanNetwork(domain *Domain, nic *Nic) error {
+func (m *kvmManager) setVXLanNetwork(con *libvirt.Connect, domain *Domain, nic *Nic) error {
 	vxlan, err := strconv.ParseInt(nic.ID, 10, 64)
 	if err != nil {
 		return err
 	}
 	inf := InterfaceDevice{
-		Type: InterfaceDeviceTypeBridge,
+		Type: InterfaceDeviceTypeNetwork,
 		Model: InterfaceDeviceModel{
 			Type: "virtio",
 		},
@@ -149,8 +186,20 @@ func (m *kvmManager) setVXLanNetwork(domain *Domain, nic *Nic) error {
 		return fmt.Errorf("failed to load vlan-ensure result: %s", err)
 	}
 
-	inf.Source = InterfaceDeviceSourceBridge{
-		Bridge: bridge,
+	net := Network{
+		Name: bridge,
+	}
+
+	net.Forward.Mode = "bridge"
+	net.Bridge.Name = bridge
+	net.VirtualPort.Type = "openvswitch"
+
+	if err := m.setVirtNetwork(con, net); err != nil {
+		return err
+	}
+
+	inf.Source = InterfaceDeviceSourceNetwork{
+		Network: bridge,
 	}
 
 	domain.Devices.Devices = append(domain.Devices.Devices, inf)
