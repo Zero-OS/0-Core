@@ -152,35 +152,7 @@ func (d *diskMgr) lsblk(dev string) (*lsblkResult, error) {
 
 }
 func (d *diskMgr) blockSize(dev string) (uint64, error) {
-	runner, err := pm.GetManager().RunCmd(&core.Command{
-		ID:      uuid.New(),
-		Command: process.CommandSystem,
-		Arguments: core.MustArguments(process.SystemCommandArguments{
-			Name: "lsblk",
-			Args: []string{"-n", "-r", "-o", "PHY-SEC", fmt.Sprintf("/dev/%s", dev)},
-		}),
-	})
-
-	if err != nil {
-		return 0, err
-	}
-	result := runner.Wait()
-
-	if result.State != core.StateSuccess {
-		return 0, fmt.Errorf("failed to run lsbl: %v", result.Streams)
-	}
-
-	stdout := ""
-	if len(result.Streams) > 1 {
-		stdout = result.Streams[0]
-	}
-
-	var bs uint64
-	if _, err := fmt.Sscanf(stdout, "%d", &bs); err != nil {
-		return 0, err
-	}
-
-	return bs, nil
+	return d.readUInt64(fmt.Sprintf("/sys/block/%s/queue/logical_block_size", dev))
 }
 
 func (d *diskMgr) getTableInfo(disk string) (string, []DiskFreeBlock, error) {
