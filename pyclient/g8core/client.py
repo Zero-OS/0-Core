@@ -1186,7 +1186,7 @@ class BtrfsManager:
     def subvol_quota(self, path, limit):
         """
         Apply a quota to a btrfs subvolume in the specified path
-        :param path:  path to delete
+        :param path:  path to apply the quota for (it has to be the path of the subvol)
         :param limit: the limit to Apply
         """
         args = {

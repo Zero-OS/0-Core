@@ -18,10 +18,10 @@ $(call goroot,$(DEPS)):
 
 .PHONY: $(call testdirs,$(DIRS))
 $(call testdirs,$(DIRS)):
-	sudo -E go test -v github.com/vishvananda/netlink/$@
+	sudo -E go test -test.parallel 4 -timeout 60s -v github.com/vishvananda/netlink/$@
 
 $(call fmt,$(call testdirs,$(DIRS))):
-	! gofmt -l $(subst fmt-,,$@)/*.go | grep ''
+	! gofmt -l $(subst fmt-,,$@)/*.go | grep -q .
 
 .PHONY: fmt
 fmt: $(call fmt,$(call testdirs,$(DIRS)))

@@ -3,13 +3,14 @@
 package process
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -21,10 +22,14 @@ import (
 	"github.com/shirou/gopsutil/net"
 )
 
-var ErrorNoChildren = errors.New("process does not have children")
+var (
+	ErrorNoChildren = errors.New("process does not have children")
+	PageSize        = uint64(os.Getpagesize())
+)
 
 const (
-	PrioProcess = 0 // linux/resource.h
+	PrioProcess = 0   // linux/resource.h
+	ClockTicks  = 100 // C.sysconf(C._SC_CLK_TCK)
 )
 
 // MemoryInfoExStat is different between OSes
@@ -57,6 +62,7 @@ type MemoryMapsStat struct {
 	Swap         uint64 `json:"swap"`
 }
 
+// String returns JSON value of the process.
 func (m MemoryMapsStat) String() string {
 	s, _ := json.Marshal(m)
 	return string(s)
@@ -75,6 +81,7 @@ func NewProcess(pid int32) (*Process, error) {
 	return p, err
 }
 
+// Ppid returns Parent Process ID of the process.
 func (p *Process) Ppid() (int32, error) {
 	_, ppid, _, _, _, err := p.fillFromStat()
 	if err != nil {
@@ -82,6 +89,8 @@ func (p *Process) Ppid() (int32, error) {
 	}
 	return ppid, nil
 }
+
+// Name returns name of the process.
 func (p *Process) Name() (string, error) {
 	if p.name == "" {
 		if err := p.fillFromStatus(); err != nil {
@@ -90,6 +99,8 @@ func (p *Process) Name() (string, error) {
 	}
 	return p.name, nil
 }
+
+// Exe returns executable path of the process.
 func (p *Process) Exe() (string, error) {
 	return p.fillFromExe()
 }
@@ -106,6 +117,7 @@ func (p *Process) CmdlineSlice() ([]string, error) {
 	return p.fillSliceFromCmdline()
 }
 
+// CreateTime returns created time of the process in seconds since the epoch, in UTC.
 func (p *Process) CreateTime() (int64, error) {
 	_, _, _, createTime, _, err := p.fillFromStat()
 	if err != nil {
@@ -114,23 +126,28 @@ func (p *Process) CreateTime() (int64, error) {
 	return createTime, nil
 }
 
+// Cwd returns current working directory of the process.
 func (p *Process) Cwd() (string, error) {
 	return p.fillFromCwd()
 }
+
+// Parent returns parent Process of the process.
 func (p *Process) Parent() (*Process, error) {
-	r, err := callLsof("R", p.Pid)
+	err := p.fillFromStatus()
 	if err != nil {
 		return nil, err
 	}
-	if len(r) != 1 { // TODO: pid 1
+	if p.parent == 0 {
 		return nil, fmt.Errorf("wrong number of parents")
 	}
-	v, err := strconv.Atoi(r[0])
-	if err != nil {
-		return nil, err
-	}
-	return NewProcess(int32(v))
+	return NewProcess(p.parent)
 }
+
+// Status returns the process status.
+// Return value could be one of these.
+// R: Running S: Sleep T: Stop I: Idle
+// Z: Zombie W: Wait L: Lock
+// The charactor is same within all supported platforms.
 func (p *Process) Status() (string, error) {
 	err := p.fillFromStatus()
 	if err != nil {
@@ -138,6 +155,8 @@ func (p *Process) Status() (string, error) {
 	}
 	return p.status, nil
 }
+
+// Uids returns user ids of the process as a slice of the int
 func (p *Process) Uids() ([]int32, error) {
 	err := p.fillFromStatus()
 	if err != nil {
@@ -145,6 +164,8 @@ func (p *Process) Uids() ([]int32, error) {
 	}
 	return p.uids, nil
 }
+
+// Gids returns group ids of the process as a slice of the int
 func (p *Process) Gids() ([]int32, error) {
 	err := p.fillFromStatus()
 	if err != nil {
@@ -152,6 +173,8 @@ func (p *Process) Gids() ([]int32, error) {
 	}
 	return p.gids, nil
 }
+
+// Terminal returns a terminal which is associated with the process.
 func (p *Process) Terminal() (string, error) {
 	terminal, _, _, _, _, err := p.fillFromStat()
 	if err != nil {
@@ -159,6 +182,9 @@ func (p *Process) Terminal() (string, error) {
 	}
 	return terminal, nil
 }
+
+// Nice returns a nice value (priority).
+// Notice: gopsutil can not set nice value.
 func (p *Process) Nice() (int32, error) {
 	_, _, _, _, nice, err := p.fillFromStat()
 	if err != nil {
@@ -166,15 +192,23 @@ func (p *Process) Nice() (int32, error) {
 	}
 	return nice, nil
 }
+
+// IOnice returns process I/O nice value (priority).
 func (p *Process) IOnice() (int32, error) {
 	return 0, common.ErrNotImplementedError
 }
+
+// Rlimit returns Resource Limits.
 func (p *Process) Rlimit() ([]RlimitStat, error) {
-	return nil, common.ErrNotImplementedError
+	return p.fillFromLimits()
 }
+
+// IOCounters returns IO Counters.
 func (p *Process) IOCounters() (*IOCountersStat, error) {
 	return p.fillFromIO()
 }
+
+// NumCtxSwitches returns the number of the context switches of the process.
 func (p *Process) NumCtxSwitches() (*NumCtxSwitchesStat, error) {
 	err := p.fillFromStatus()
 	if err != nil {
@@ -182,10 +216,14 @@ func (p *Process) NumCtxSwitches() (*NumCtxSwitchesStat, error) {
 	}
 	return p.numCtxSwitches, nil
 }
+
+// NumFDs returns the number of File Descriptors used by the process.
 func (p *Process) NumFDs() (int32, error) {
 	numFds, _, err := p.fillFromfd()
 	return numFds, err
 }
+
+// NumThreads returns the number of threads used by the process.
 func (p *Process) NumThreads() (int32, error) {
 	err := p.fillFromStatus()
 	if err != nil {
@@ -193,10 +231,16 @@ func (p *Process) NumThreads() (int32, error) {
 	}
 	return p.numThreads, nil
 }
+
+// Threads returns a map of threads
+//
+// Notice: Not implemented yet. always returns empty map.
 func (p *Process) Threads() (map[string]string, error) {
 	ret := make(map[string]string, 0)
 	return ret, nil
 }
+
+// Times returns CPU times of the process.
 func (p *Process) Times() (*cpu.TimesStat, error) {
 	_, _, cpuTimes, _, _, err := p.fillFromStat()
 	if err != nil {
@@ -204,9 +248,15 @@ func (p *Process) Times() (*cpu.TimesStat, error) {
 	}
 	return cpuTimes, nil
 }
+
+// CPUAffinity returns CPU affinity of the process.
+//
+// Notice: Not implemented yet.
 func (p *Process) CPUAffinity() ([]int32, error) {
 	return nil, common.ErrNotImplementedError
 }
+
+// MemoryInfo returns platform in-dependend memory information, such as RSS, VMS and Swap
 func (p *Process) MemoryInfo() (*MemoryInfoStat, error) {
 	meminfo, _, err := p.fillFromStatm()
 	if err != nil {
@@ -214,6 +264,8 @@ func (p *Process) MemoryInfo() (*MemoryInfoStat, error) {
 	}
 	return meminfo, nil
 }
+
+// MemoryInfoEx returns platform dependend memory information.
 func (p *Process) MemoryInfoEx() (*MemoryInfoExStat, error) {
 	_, memInfoEx, err := p.fillFromStatm()
 	if err != nil {
@@ -222,6 +274,7 @@ func (p *Process) MemoryInfoEx() (*MemoryInfoExStat, error) {
 	return memInfoEx, nil
 }
 
+// Children returns a slice of Process of the process.
 func (p *Process) Children() ([]*Process, error) {
 	pids, err := common.CallPgrep(invoke, p.Pid)
 	if err != nil {
@@ -241,6 +294,8 @@ func (p *Process) Children() ([]*Process, error) {
 	return ret, nil
 }
 
+// OpenFiles returns a slice of OpenFilesStat opend by the process.
+// OpenFilesStat includes a file path and file descriptor.
 func (p *Process) OpenFiles() ([]OpenFilesStat, error) {
 	_, ofs, err := p.fillFromfd()
 	if err != nil {
@@ -254,15 +309,20 @@ func (p *Process) OpenFiles() ([]OpenFilesStat, error) {
 	return ret, nil
 }
 
+// Connections returns a slice of net.ConnectionStat used by the process.
+// This returns all kind of the connection. This measn TCP, UDP or UNIX.
 func (p *Process) Connections() ([]net.ConnectionStat, error) {
 	return net.ConnectionsPid("all", p.Pid)
 }
 
+// NetIOCounters returns NetIOCounters of the process.
 func (p *Process) NetIOCounters(pernic bool) ([]net.IOCountersStat, error) {
 	filename := common.HostProc(strconv.Itoa(int(p.Pid)), "net/dev")
 	return net.IOCountersByFile(pernic, filename)
 }
 
+// IsRunning returns whether the process is running or not.
+// Not implemented yet.
 func (p *Process) IsRunning() (bool, error) {
 	return true, common.ErrNotImplementedError
 }
@@ -348,6 +408,111 @@ func (p *Process) MemoryMaps(grouped bool) (*[]MemoryMapsStat, error) {
 /**
 ** Internal functions
 **/
+
+func limitToInt(val string) (int32, error) {
+	if val == "unlimited" {
+		return math.MaxInt32, nil
+	} else {
+		res, err := strconv.ParseInt(val, 10, 32)
+		if err != nil {
+			return 0, err
+		}
+		return int32(res), nil
+	}
+}
+
+// Get num_fds from /proc/(pid)/limits
+func (p *Process) fillFromLimits() ([]RlimitStat, error) {
+	pid := p.Pid
+	limitsFile := common.HostProc(strconv.Itoa(int(pid)), "limits")
+	d, err := os.Open(limitsFile)
+	if err != nil {
+		return nil, err
+	}
+	defer d.Close()
+
+	var limitStats []RlimitStat
+
+	limitsScanner := bufio.NewScanner(d)
+	for limitsScanner.Scan() {
+		var statItem RlimitStat
+
+		str := strings.Fields(limitsScanner.Text())
+
+		// Remove the header line
+		if strings.Contains(str[len(str)-1], "Units") {
+			continue
+		}
+
+		// Assert that last item is a Hard limit
+		statItem.Hard, err = limitToInt(str[len(str)-1])
+		if err != nil {
+			// On error remove last item an try once again since it can be unit or header line
+			str = str[:len(str)-1]
+			statItem.Hard, err = limitToInt(str[len(str)-1])
+			if err != nil {
+				return nil, err
+			}
+		}
+		// Remove last item from string
+		str = str[:len(str)-1]
+
+		//Now last item is a Soft limit
+		statItem.Soft, err = limitToInt(str[len(str)-1])
+		if err != nil {
+			return nil, err
+		}
+		// Remove last item from string
+		str = str[:len(str)-1]
+
+		//The rest is a stats name
+		resourceName := strings.Join(str, " ")
+		switch resourceName {
+		case "Max cpu time":
+			statItem.Resource = RLIMIT_CPU
+		case "Max file size":
+			statItem.Resource = RLIMIT_FSIZE
+		case "Max data size":
+			statItem.Resource = RLIMIT_DATA
+		case "Max stack size":
+			statItem.Resource = RLIMIT_STACK
+		case "Max core file size":
+			statItem.Resource = RLIMIT_CORE
+		case "Max resident set":
+			statItem.Resource = RLIMIT_RSS
+		case "Max processes":
+			statItem.Resource = RLIMIT_NPROC
+		case "Max open files":
+			statItem.Resource = RLIMIT_NOFILE
+		case "Max locked memory":
+			statItem.Resource = RLIMIT_MEMLOCK
+		case "Max address space":
+			statItem.Resource = RLIMIT_AS
+		case "Max file locks":
+			statItem.Resource = RLIMIT_LOCKS
+		case "Max pending signals":
+			statItem.Resource = RLIMIT_SIGPENDING
+		case "Max msgqueue size":
+			statItem.Resource = RLIMIT_MSGQUEUE
+		case "Max nice priority":
+			statItem.Resource = RLIMIT_NICE
+		case "Max realtime priority":
+			statItem.Resource = RLIMIT_RTPRIO
+		case "Max realtime timeout":
+			statItem.Resource = RLIMIT_RTTIME
+		default:
+			continue
+		}
+
+		limitStats = append(limitStats, statItem)
+	}
+
+	if err := limitsScanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return limitStats, nil
+}
 
 // Get num_fds from /proc/(pid)/fd
 func (p *Process) fillFromfd() (int32, []*OpenFilesStat, error) {
@@ -473,9 +638,9 @@ func (p *Process) fillFromIO() (*IOCountersStat, error) {
 			ret.ReadCount = t
 		case "syscw":
 			ret.WriteCount = t
-		case "readBytes":
+		case "read_bytes":
 			ret.ReadBytes = t
-		case "writeBytes":
+		case "write_bytes":
 			ret.WriteBytes = t
 		}
 	}
@@ -555,8 +720,26 @@ func (p *Process) fillFromStatus() error {
 		switch strings.TrimRight(tabParts[0], ":") {
 		case "Name":
 			p.name = strings.Trim(value, " \t")
+			if len(p.name) >= 15 {
+				cmdlineSlice, err := p.CmdlineSlice()
+				if err != nil {
+					return err
+				}
+				if len(cmdlineSlice) > 0 {
+					extendedName := filepath.Base(cmdlineSlice[0])
+					if strings.HasPrefix(extendedName, p.name) {
+						p.name = extendedName
+					}
+				}
+			}
 		case "State":
 			p.status = value[0:1]
+		case "PPid", "Ppid":
+			pval, err := strconv.ParseInt(value, 10, 32)
+			if err != nil {
+				return err
+			}
+			p.parent = int32(pval)
 		case "Uid":
 			p.uids = make([]int32, 0, 4)
 			for _, i := range strings.Split(value, "\t") {
@@ -680,6 +863,7 @@ func (p *Process) fillFromStat() (string, int32, *cpu.TimesStat, int64, int32, e
 	return terminal, int32(ppid), cpuTimes, createTime, nice, nil
 }
 
+// Pids returns a slice of process ID list which are running now.
 func Pids() ([]int32, error) {
 	var ret []int32
 
@@ -700,33 +884,6 @@ func Pids() ([]int32, error) {
 			continue
 		}
 		ret = append(ret, int32(pid))
-	}
-
-	return ret, nil
-}
-
-func callLsof(arg string, pid int32) ([]string, error) {
-	var cmd []string
-	if pid == 0 { // will get from all processes.
-		cmd = []string{"-F" + arg}
-	} else {
-		cmd = []string{"-a", "-F" + arg, "-p", strconv.Itoa(int(pid))}
-	}
-	lsof, err := exec.LookPath("lsof")
-	if err != nil {
-		return []string{}, err
-	}
-	out, err := invoke.Command(lsof, cmd...)
-	if err != nil {
-		return []string{}, err
-	}
-	lines := strings.Split(string(out), "\n")
-
-	var ret []string
-	for _, l := range lines[1:] {
-		if strings.HasPrefix(l, arg) {
-			ret = append(ret, l[1:]) // delete first char
-		}
 	}
 
 	return ret, nil

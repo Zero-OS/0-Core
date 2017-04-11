@@ -1,5 +1,3 @@
-// +build freebsd
-
 package cpu
 
 import (
@@ -23,13 +21,19 @@ const (
 )
 
 var ClocksPerSec = float64(128)
+var cpuMatch = regexp.MustCompile(`^CPU:`)
+var originMatch = regexp.MustCompile(`Origin\s*=\s*"(.+)"\s+Id\s*=\s*(.+)\s+Family\s*=\s*(.+)\s+Model\s*=\s*(.+)\s+Stepping\s*=\s*(.+)`)
+var featuresMatch = regexp.MustCompile(`Features=.+<(.+)>`)
+var featuresMatch2 = regexp.MustCompile(`Features2=[a-f\dx]+<(.+)>`)
+var cpuEnd = regexp.MustCompile(`^Trying to mount root`)
+var cpuCores = regexp.MustCompile(`FreeBSD/SMP: (\d*) package\(s\) x (\d*) core\(s\)`)
 
 func init() {
 	getconf, err := exec.LookPath("/usr/bin/getconf")
 	if err != nil {
 		return
 	}
-	out, err := exec.Command(getconf, "CLK_TCK").Output()
+	out, err := invoke.Command(getconf, "CLK_TCK")
 	// ignore errors
 	if err == nil {
 		i, err := strconv.ParseFloat(strings.TrimSpace(string(out)), 64)
@@ -99,49 +103,83 @@ func Times(percpu bool) ([]TimesStat, error) {
 	return ret, nil
 }
 
-// Returns only one CPUInfoStat on FreeBSD
+// Returns only one InfoStat on FreeBSD.  The information regarding core
+// count, however is accurate and it is assumed that all InfoStat attributes
+// are the same across CPUs.
 func Info() ([]InfoStat, error) {
-	filename := "/var/run/dmesg.boot"
-	lines, _ := common.ReadLines(filename)
+	const dmesgBoot = "/var/run/dmesg.boot"
 
-	var ret []InfoStat
+	c, num, err := parseDmesgBoot(dmesgBoot)
+	if err != nil {
+		return nil, err
+	}
+	var vals []string
+	if vals, err = common.DoSysctrl("hw.clockrate"); err != nil {
+		return nil, err
+	}
+	if c.Mhz, err = strconv.ParseFloat(vals[0], 64); err != nil {
+		return nil, fmt.Errorf("unable to parse FreeBSD CPU clock rate: %v", err)
+	}
 
+	if vals, err = common.DoSysctrl("hw.ncpu"); err != nil {
+		return nil, err
+	}
+	var i64 int64
+	if i64, err = strconv.ParseInt(vals[0], 10, 32); err != nil {
+		return nil, fmt.Errorf("unable to parse FreeBSD cores: %v", err)
+	}
+	c.Cores = int32(i64)
+
+	if vals, err = common.DoSysctrl("hw.model"); err != nil {
+		return nil, err
+	}
+	c.ModelName = strings.Join(vals, " ")
+
+	ret := make([]InfoStat, num)
+	for i := 0; i < num; i++ {
+		ret[i] = c
+	}
+
+	return ret, nil
+}
+
+func parseDmesgBoot(fileName string) (InfoStat, int, error) {
 	c := InfoStat{}
+	lines, _ := common.ReadLines(fileName)
+	var cpuNum int
 	for _, line := range lines {
-		if matches := regexp.MustCompile(`CPU:\s+(.+) \(([\d.]+).+\)`).FindStringSubmatch(line); matches != nil {
-			c.ModelName = matches[1]
-			t, err := strconv.ParseFloat(matches[2], 64)
-			if err != nil {
-				return ret, nil
-			}
-			c.Mhz = t
-		} else if matches := regexp.MustCompile(`Origin = "(.+)"  Id = (.+)  Family = (.+)  Model = (.+)  Stepping = (.+)`).FindStringSubmatch(line); matches != nil {
+		if matches := cpuEnd.FindStringSubmatch(line); matches != nil {
+			break
+		} else if matches := originMatch.FindStringSubmatch(line); matches != nil {
 			c.VendorID = matches[1]
 			c.Family = matches[3]
 			c.Model = matches[4]
 			t, err := strconv.ParseInt(matches[5], 10, 32)
 			if err != nil {
-				return ret, nil
+				return c, 0, fmt.Errorf("unable to parse FreeBSD CPU stepping information from %q: %v", line, err)
 			}
 			c.Stepping = int32(t)
-		} else if matches := regexp.MustCompile(`Features=.+<(.+)>`).FindStringSubmatch(line); matches != nil {
+		} else if matches := featuresMatch.FindStringSubmatch(line); matches != nil {
 			for _, v := range strings.Split(matches[1], ",") {
 				c.Flags = append(c.Flags, strings.ToLower(v))
 			}
-		} else if matches := regexp.MustCompile(`Features2=[a-f\dx]+<(.+)>`).FindStringSubmatch(line); matches != nil {
+		} else if matches := featuresMatch2.FindStringSubmatch(line); matches != nil {
 			for _, v := range strings.Split(matches[1], ",") {
 				c.Flags = append(c.Flags, strings.ToLower(v))
 			}
-		} else if matches := regexp.MustCompile(`Logical CPUs per core: (\d+)`).FindStringSubmatch(line); matches != nil {
-			// FIXME: no this line?
+		} else if matches := cpuCores.FindStringSubmatch(line); matches != nil {
 			t, err := strconv.ParseInt(matches[1], 10, 32)
 			if err != nil {
-				return ret, nil
+				return c, 0, fmt.Errorf("unable to parse FreeBSD CPU Nums from %q: %v", line, err)
 			}
-			c.Cores = int32(t)
+			cpuNum = int(t)
+			t2, err := strconv.ParseInt(matches[2], 10, 32)
+			if err != nil {
+				return c, 0, fmt.Errorf("unable to parse FreeBSD CPU cores from %q: %v", line, err)
+			}
+			c.Cores = int32(t2)
 		}
-
 	}
 
-	return append(ret, c), nil
+	return c, cpuNum, nil
 }
