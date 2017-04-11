@@ -45,8 +45,8 @@
 		},
 		{
 			"ImportPath": "github.com/libvirt/libvirt-go",
-			"Comment": "v3.1.0-3-g8147ec2",
-			"Rev": "8147ec242032314bf09a81da07e72e64295450b7"
+			"Comment": "v3.2.0",
+			"Rev": "6d8485c48e5a6b79b842084c244077bb832742cb"
 		},
 		{
 			"ImportPath": "github.com/naoina/go-stringutil",
@@ -142,6 +142,16 @@
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
 			"Rev": "a5b47d31c556af34a302ce5d659e6fea44d90de0"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/vendor/github.com/davecgh/go-spew/spew",
+			"Comment": "v1.1.4-4-g976c720",
+			"Rev": "976c720a22c8eb4eb6a0b4348ad85ad12491a506"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/vendor/github.com/pmezard/go-difflib/difflib",
+			"Comment": "v1.1.4-4-g976c720",
+			"Rev": "976c720a22c8eb4eb6a0b4348ad85ad12491a506"
 		}
 	]
 }

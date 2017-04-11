@@ -823,6 +823,7 @@ const (
 	MIGRATE_AUTO_CONVERGE     = DomainMigrateFlags(C.VIR_MIGRATE_AUTO_CONVERGE)
 	MIGRATE_RDMA_PIN_ALL      = DomainMigrateFlags(C.VIR_MIGRATE_RDMA_PIN_ALL)
 	MIGRATE_POSTCOPY          = DomainMigrateFlags(C.VIR_MIGRATE_POSTCOPY)
+	MIGRATE_TLS               = DomainMigrateFlags(C.VIR_MIGRATE_TLS)
 )
 
 type VcpuState int
@@ -4074,8 +4075,11 @@ func (d *Domain) OpenChannel(name string, stream *Stream, flags DomainChannelFla
 }
 
 func (d *Domain) OpenConsole(devname string, stream *Stream, flags DomainConsoleFlags) error {
-	cdevname := C.CString(devname)
-	defer C.free(unsafe.Pointer(cdevname))
+	var cdevname *C.char
+	if devname != "" {
+		cdevname = C.CString(devname)
+		defer C.free(unsafe.Pointer(cdevname))
+	}
 
 	ret := C.virDomainOpenConsole(d.ptr, cdevname, stream.ptr, C.uint(flags))
 	if ret == -1 {
@@ -4301,6 +4305,21 @@ func (d *Domain) SetVcpu(cpus []bool, state bool, flags uint32) error {
 	ccpumap := C.CString(cpumap)
 	defer C.free(unsafe.Pointer(ccpumap))
 	ret := C.virDomainSetVcpuCompat(d.ptr, ccpumap, cstate, C.uint(flags))
+	if ret == -1 {
+		return GetLastError()
+	}
+
+	return nil
+}
+
+func (d *Domain) SetBlockThreshold(dev string, threshold uint64, flags uint32) error {
+	if C.LIBVIR_VERSION_NUMBER < 3002000 {
+		return GetNotImplementedError("virDomainSetBlockThreshold")
+	}
+
+	cdev := C.CString(dev)
+	defer C.free(unsafe.Pointer(cdev))
+	ret := C.virDomainSetBlockThresholdCompat(d.ptr, cdev, C.ulonglong(threshold), C.uint(flags))
 	if ret == -1 {
 		return GetLastError()
 	}
