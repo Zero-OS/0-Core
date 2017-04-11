@@ -1493,7 +1493,7 @@ class KvmManager:
         }
         self._domain_action_chk.check(args)
 
-        self._client.sync('kvm.info', args)
+        return self._client.json('kvm.info', args)
 
     def attach_disk(self, uuid, media):
         """
