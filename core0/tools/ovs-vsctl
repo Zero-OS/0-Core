@@ -1,0 +1,3 @@
+#!/bin/sh
+#Proxy to the ovs-vsctl command inside the ovs container
+corectl --container ovs execute ovs-vsctl $@
