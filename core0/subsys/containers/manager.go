@@ -3,7 +3,6 @@ package containers
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
@@ -15,7 +14,6 @@ import (
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
 	"github.com/g8os/core0/base/utils"
-	"github.com/g8os/core0/core0/assets"
 	"github.com/garyburd/redigo/redis"
 	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
@@ -31,10 +29,7 @@ const (
 	coreXResponseQueue = "corex:results"
 	coreXBinaryName    = "coreX"
 
-	redisSocketSrc     = "/var/run/redis.socket"
-	zeroTierCommand    = "_zerotier_"
-	zeroTierScriptPath = "/tmp/zerotier.sh"
-
+	redisSocketSrc    = "/var/run/redis.socket"
 	DefaultBridgeName = "core0"
 )
 
@@ -115,22 +110,20 @@ func (c *ContainerCreateArguments) Validate() error {
 
 	//validating networking
 	var def int
-	var zt int
 	for _, net := range c.Nics {
 		switch net.Type {
 		case "default":
 			def++
-		case "zt":
-			zt++
+		case "vlan":
+		case "vxlan":
+		case "zerotier":
+		default:
+			return fmt.Errorf("unsupported network type '%s'", net.Type)
 		}
 	}
 
 	if def > 1 {
 		return fmt.Errorf("only one default network is allowed")
-	}
-
-	if zt > 1 {
-		return fmt.Errorf("only one zerotier network is allowed")
 	}
 
 	return nil
@@ -177,21 +170,6 @@ func ContainerSubsystem(sinks map[string]base.SinkClient) (ContainerManager, err
 		sinks:      sinks,
 		internal:   newInternalRouter(),
 	}
-
-	script, err := assets.Asset("scripts/network.sh")
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ioutil.WriteFile(
-		zeroTierScriptPath,
-		script,
-		0754,
-	); err != nil {
-		return nil, err
-	}
-
-	pm.RegisterCmd(zeroTierCommand, "sh", "/", []string{zeroTierScriptPath, "{netns}", "{zerotier}"}, nil)
 
 	pm.CmdMap[cmdContainerCreate] = process.NewInternalProcessFactory(containerMgr.create)
 	pm.CmdMap[cmdContainerList] = process.NewInternalProcessFactory(containerMgr.list)

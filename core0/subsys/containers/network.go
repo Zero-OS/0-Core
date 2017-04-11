@@ -10,11 +10,13 @@ import (
 	"strconv"
 	"syscall"
 
+	"context"
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
 	"github.com/pborman/uuid"
 	"github.com/vishvananda/netlink"
+	"time"
 )
 
 const (
@@ -30,20 +32,89 @@ func (c *container) preStartHostNetworking() error {
 	return syscall.Mount("/etc/resolv.conf", p, "", syscall.MS_BIND, "")
 }
 
+func (c *container) zerotierHome() string {
+	return fmt.Sprintf("/tmp/zerotier/container-%d", c.id)
+}
+
+func (c *container) zerotierDaemon() error {
+	c.zto.Do(func() {
+		home := c.zerotierHome()
+		os.RemoveAll(home)
+		os.MkdirAll(home, 0755)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		hook := &pm.PIDHook{
+			Action: func(_ int) {
+				cancel()
+			},
+		}
+
+		exit := &pm.ExitHook{
+			Action: func(s bool) {
+				c.zterr = fmt.Errorf("zerotier for container '%d' exited with '%v'", c.ID(), s)
+				cancel()
+			},
+		}
+
+		c.zt, c.zterr = pm.GetManager().RunCmd(&core.Command{
+			ID:      uuid.New(),
+			Command: process.CommandSystem,
+			Arguments: core.MustArguments(
+				process.SystemCommandArguments{
+					Name: "ip",
+					Args: []string{
+						"netns", "exec", fmt.Sprintf("%d", c.id),
+						"zerotier-one", "-p0", home,
+					},
+				},
+			),
+		}, hook, exit)
+
+		if c.zterr != nil {
+			return
+		}
+
+		//wait for it to start
+		select {
+		case <-ctx.Done():
+		case <-time.After(2 * time.Second):
+			c.zterr = fmt.Errorf("timedout waiting for zt daemon to start")
+		}
+	})
+
+	return c.zterr
+}
+
 func (c *container) postZerotierNetwork(netID string) error {
-	args := map[string]interface{}{
-		"netns":    c.id,
-		"zerotier": netID,
+	if err := c.zerotierDaemon(); err != nil {
+		return err
 	}
 
-	netcmd := core.Command{
-		ID:        fmt.Sprintf("net-%v", c.id),
-		Command:   zeroTierCommand,
-		Arguments: core.MustArguments(args),
+	home := c.zerotierHome()
+	runner, err := pm.GetManager().RunCmd(&core.Command{
+		ID:      uuid.New(),
+		Command: process.CommandSystem,
+		Arguments: core.MustArguments(
+			process.SystemCommandArguments{
+				Name: "ip",
+				Args: []string{
+					"netns", "exec", fmt.Sprintf("%d", c.id),
+					"zerotier-cli", fmt.Sprintf("-D%s", home), "join", netID,
+				},
+			},
+		),
+	})
+	if err != nil {
+		return err
 	}
 
-	_, err := pm.GetManager().RunCmd(&netcmd)
-	return err
+	job := runner.Wait()
+	if job.State != core.StateSuccess {
+		return fmt.Errorf("join zerotier network failed: %v", job.Streams)
+	}
+
+	return nil
 }
 
 func (c *container) postBridge(index int, n *Nic) error {
@@ -479,8 +550,6 @@ func (c *container) postStartIsolatedNetworking() error {
 		case "vlan":
 			err = c.postVlanNetwork(idx, &network)
 		case "zerotier":
-			//TODO: needs refactoring to support multiple
-			//zerotier networks
 			err = c.postZerotierNetwork(network.ID)
 		case "default":
 			err = c.postDefaultNetwork(idx, &network)
@@ -556,12 +625,14 @@ func (c *container) destroyNetwork() {
 		case "vlan":
 			ovs := c.mgr.GetOneWithTags(OVSTag)
 			c.unBridge(idx, &network, ovs)
-		case "zerotier":
-			pm.GetManager().Kill(fmt.Sprintf("net-%v", c.id))
 		case "default":
 			c.unBridge(idx, &network, nil)
 			c.unPortForward()
 		}
+	}
+
+	if c.zt != nil {
+		c.zt.Terminate()
 	}
 
 	//clean up namespace

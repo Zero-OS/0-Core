@@ -7,6 +7,7 @@ import (
 	"github.com/g8os/core0/base/pm/process"
 	"os"
 	"path"
+	"sync"
 	"syscall"
 )
 
@@ -27,6 +28,10 @@ type container struct {
 	Args  ContainerCreateArguments `json:"arguments"`
 	Root  string                   `json:"root"`
 	PID   int                      `json:"pid"`
+
+	zt    pm.Runner
+	zterr error
+	zto   sync.Once
 }
 
 func newContainer(mgr *containerManager, id uint16, route core.Route, args ContainerCreateArguments) *container {
