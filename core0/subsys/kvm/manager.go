@@ -465,7 +465,7 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	if err := m.setNetworking(m.conn, &params, seq, domain); err != nil {
+	if err := m.setNetworking(&params, seq, domain); err != nil {
 		return nil, err
 	}
 

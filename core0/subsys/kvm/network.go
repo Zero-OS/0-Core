@@ -20,9 +20,9 @@ const (
 	OVSVXBackend = "vxbackend"
 )
 
-func (m *kvmManager) setVirtNetwork(con *libvirt.Connect, network Network) error {
-	//con.NetworkCreateXML()
-	_, err := con.LookupNetworkByName(network.Name)
+func (m *kvmManager) setVirtNetwork(network Network) error {
+	//m.conn.NetworkCreateXML()
+	_, err := m.conn.LookupNetworkByName(network.Name)
 	liberr, _ := err.(libvirt.Error)
 
 	if err != nil && liberr.Code == libvirt.ERR_NO_NETWORK {
@@ -30,7 +30,7 @@ func (m *kvmManager) setVirtNetwork(con *libvirt.Connect, network Network) error
 		if err != nil {
 			return err
 		}
-		if _, err := con.NetworkCreateXML(string(data)); err != nil {
+		if _, err := m.conn.NetworkCreateXML(string(data)); err != nil {
 			return err
 		}
 	} else if err != nil {
@@ -40,7 +40,7 @@ func (m *kvmManager) setVirtNetwork(con *libvirt.Connect, network Network) error
 	return nil
 }
 
-func (m *kvmManager) setNetworking(con *libvirt.Connect, args *CreateParams, seq uint16, domain *Domain) error {
+func (m *kvmManager) setNetworking(args *CreateParams, seq uint16, domain *Domain) error {
 	for _, nic := range args.Nics {
 		switch nic.Type {
 		case "default":
@@ -48,11 +48,11 @@ func (m *kvmManager) setNetworking(con *libvirt.Connect, args *CreateParams, seq
 				return err
 			}
 		case "vlan":
-			if err := m.setVLanNetwork(con, domain, &nic); err != nil {
+			if err := m.setVLanNetwork(domain, &nic); err != nil {
 				return err
 			}
 		case "vxlan":
-			if err := m.setVXLanNetwork(con, domain, &nic); err != nil {
+			if err := m.setVXLanNetwork(domain, &nic); err != nil {
 				return err
 			}
 		default:
@@ -63,7 +63,7 @@ func (m *kvmManager) setNetworking(con *libvirt.Connect, args *CreateParams, seq
 	return nil
 }
 
-func (m *kvmManager) setVLanNetwork(con *libvirt.Connect, domain *Domain, nic *Nic) error {
+func (m *kvmManager) setVLanNetwork(domain *Domain, nic *Nic) error {
 	vlanID, err := strconv.ParseInt(nic.ID, 10, 16)
 	if err != nil {
 		return err
@@ -125,7 +125,7 @@ func (m *kvmManager) setVLanNetwork(con *libvirt.Connect, domain *Domain, nic *N
 	net.Bridge.Name = bridge
 	net.VirtualPort.Type = "openvswitch"
 
-	if err := m.setVirtNetwork(con, net); err != nil {
+	if err := m.setVirtNetwork(net); err != nil {
 		return err
 	}
 
@@ -137,7 +137,7 @@ func (m *kvmManager) setVLanNetwork(con *libvirt.Connect, domain *Domain, nic *N
 	return nil
 }
 
-func (m *kvmManager) setVXLanNetwork(con *libvirt.Connect, domain *Domain, nic *Nic) error {
+func (m *kvmManager) setVXLanNetwork(domain *Domain, nic *Nic) error {
 	vxlan, err := strconv.ParseInt(nic.ID, 10, 64)
 	if err != nil {
 		return err
@@ -194,7 +194,7 @@ func (m *kvmManager) setVXLanNetwork(con *libvirt.Connect, domain *Domain, nic *
 	net.Bridge.Name = bridge
 	net.VirtualPort.Type = "openvswitch"
 
-	if err := m.setVirtNetwork(con, net); err != nil {
+	if err := m.setVirtNetwork(net); err != nil {
 		return err
 	}
 
