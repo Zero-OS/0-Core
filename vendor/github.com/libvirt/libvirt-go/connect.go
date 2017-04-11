@@ -2427,11 +2427,10 @@ func (c *Connect) GetAllDomainStats(doms []*Domain, statsTypes DomainStatsTypes,
 	var ret C.int
 	var cstats *C.virDomainStatsRecordPtr
 	if len(doms) > 0 {
-		cdoms := make([]C.virDomainPtr, len(doms))
+		cdoms := make([]C.virDomainPtr, len(doms)+1) //nil terminated array
 		for i := 0; i < len(doms); i++ {
 			cdoms[i] = doms[i].ptr
 		}
-
 		ret = C.virDomainListGetStatsCompat(&cdoms[0], C.uint(statsTypes), &cstats, C.uint(flags))
 	} else {
 		ret = C.virConnectGetAllDomainStatsCompat(c.ptr, C.uint(statsTypes), &cstats, C.uint(flags))
