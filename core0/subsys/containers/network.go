@@ -3,17 +3,18 @@ package containers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/g8os/core0/base/pm"
-	"github.com/g8os/core0/base/pm/core"
-	"github.com/g8os/core0/base/pm/process"
-	"github.com/pborman/uuid"
-	"github.com/vishvananda/netlink"
 	"io/ioutil"
 	"net"
 	"os"
 	"path"
 	"strconv"
 	"syscall"
+
+	"github.com/g8os/core0/base/pm"
+	"github.com/g8os/core0/base/pm/core"
+	"github.com/g8os/core0/base/pm/process"
+	"github.com/pborman/uuid"
+	"github.com/vishvananda/netlink"
 )
 
 const (
@@ -424,8 +425,8 @@ func (c *container) preVlanNetwork(idx int, net *Nic) error {
 	if err != nil {
 		return err
 	}
-	if vlanID == 0 || vlanID >= 4095 {
-		return fmt.Errorf("invalid vlan id (1-4094)")
+	if vlanID < 0 || vlanID >= 4095 {
+		return fmt.Errorf("invalid vlan id (0-4094)")
 	}
 	//find the container with OVS tag
 

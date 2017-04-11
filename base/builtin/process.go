@@ -27,13 +27,27 @@ type processListArguments struct {
 }
 
 type Process struct {
-	PID        int32  `json:"pid"`
-	PPID       int32  `json:"ppid"`
-	Cmdline    string `json:"cmdline"`
-	CreateTime int64  `json:"createtime"`
-	RSS        uint64 `json:"rss"`
-	VMS        uint64 `json:"vms"`
-	Swap       uint64 `json:"swap"`
+	PID        int32    `json:"pid"`
+	PPID       int32    `json:"ppid"`
+	Cmdline    string   `json:"cmdline"`
+	CreateTime int64    `json:"createtime"`
+	Cpu        CPUStats `json:"cpu"`
+	RSS        uint64   `json:"rss"`
+	VMS        uint64   `json:"vms"`
+	Swap       uint64   `json:"swap"`
+}
+
+type CPUStats struct {
+	GuestNice float64 `json:"guestnice"`
+	Idle      float64 `json:"idle"`
+	IoWait    float64 `json:"iowait"`
+	Irq       float64 `json:"irq"`
+	Nice      float64 `json:"nice"`
+	SoftIrq   float64 `json:"softirq"`
+	Steal     float64 `json:"steal"`
+	Stolen    float64 `json:"stolen"`
+	System    float64 `json:"system"`
+	User      float64 `json:"user"`
 }
 
 func getProcessInfo(ps *process.Process) *Process {
@@ -61,6 +75,21 @@ func getProcessInfo(ps *process.Process) *Process {
 		res.RSS = mem.RSS
 		res.VMS = mem.VMS
 		res.Swap = mem.Swap
+	}
+
+	if cpu, err := ps.Times(); err == nil {
+		res.Cpu = CPUStats{
+			GuestNice: cpu.GuestNice,
+			Idle:      cpu.Idle,
+			IoWait:    cpu.Iowait,
+			Irq:       cpu.Irq,
+			Nice:      cpu.Nice,
+			SoftIrq:   cpu.Softirq,
+			Steal:     cpu.Steal,
+			Stolen:    cpu.Stolen,
+			System:    cpu.System,
+			User:      cpu.User,
+		}
 	}
 
 	return res
