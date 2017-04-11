@@ -53,6 +53,7 @@ const (
 	kvmResetCommand       = "kvm.reset"
 	kvmPauseCommand       = "kvm.pause"
 	kvmResumeCommand      = "kvm.resume"
+	kvmInfoCommand        = "kvm.info"
 	kvmAttachDiskCommand  = "kvm.attach_disk"
 	kvmDetachDiskCommand  = "kvm.detach_disk"
 	kvmAddNicCommand      = "kvm.add_nic"
@@ -80,6 +81,7 @@ func KVMSubsystem(conmgr containers.ContainerManager) error {
 	pm.CmdMap[kvmResetCommand] = process.NewInternalProcessFactory(mgr.reset)
 	pm.CmdMap[kvmPauseCommand] = process.NewInternalProcessFactory(mgr.pause)
 	pm.CmdMap[kvmResumeCommand] = process.NewInternalProcessFactory(mgr.resume)
+	pm.CmdMap[kvmInfoCommand] = process.NewInternalProcessFactory(mgr.info)
 	pm.CmdMap[kvmAttachDiskCommand] = process.NewInternalProcessFactory(mgr.attachDisk)
 	pm.CmdMap[kvmDetachDiskCommand] = process.NewInternalProcessFactory(mgr.detachDisk)
 	pm.CmdMap[kvmAddNicCommand] = process.NewInternalProcessFactory(mgr.addNic)
@@ -569,6 +571,20 @@ func (m *kvmManager) resume(cmd *core.Command) (interface{}, error) {
 	}
 
 	return nil, nil
+}
+
+func (m *kvmManager) info(cmd *core.Command) (interface{}, error) {
+	domain, _, err := m.getDomain(cmd)
+	if err != nil {
+		return nil, err
+	}
+	infos, err := m.conn.GetAllDomainStats([]*libvirt.Domain{domain}, libvirt.DOMAIN_STATS_STATE, libvirt.CONNECT_GET_ALL_DOMAINS_STATS_ACTIVE|libvirt.CONNECT_GET_ALL_DOMAINS_STATS_INACTIVE)
+	return nil, nil
+	if err != nil {
+		return nil, fmt.Errorf("failed to get machine info: %s", err)
+	}
+	//info := infos[0]
+	return nil, fmt.Errorf("%v", len(infos))
 }
 
 func (m *kvmManager) attachDevice(uuid, xml string) error {

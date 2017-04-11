@@ -1482,6 +1482,19 @@ class KvmManager:
 
         self._client.sync('kvm.resume', args)
 
+    def info(self, uuid):
+        """
+        Get info about a kvm domain by uuid
+        :param uuid: uuid of the kvm container (same as the used in create)
+        :return:
+        """
+        args = {
+            'uuid': uuid,
+        }
+        self._domain_action_chk.check(args)
+
+        self._client.sync('kvm.info', args)
+
     def attach_disk(self, uuid, media):
         """
         Attach a disk to a mchine
