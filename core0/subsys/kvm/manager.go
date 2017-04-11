@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 
+	"sync"
+
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
@@ -16,7 +18,6 @@ import (
 	"github.com/libvirt/libvirt-go"
 	"github.com/pborman/uuid"
 	"github.com/vishvananda/netlink"
-	"sync"
 )
 
 const (
@@ -28,6 +29,7 @@ const (
 type kvmManager struct {
 	sequence uint16
 	m        sync.Mutex
+	conn     *libvirt.Connect
 
 	conmgr containers.ContainerManager
 }
@@ -86,6 +88,15 @@ func KVMSubsystem(conmgr containers.ContainerManager) error {
 	pm.CmdMap[kvmMigrateCommand] = process.NewInternalProcessFactory(mgr.migrate)
 	pm.CmdMap[kvmListCommand] = process.NewInternalProcessFactory(mgr.list)
 
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return err
+	}
+	mgr.conn = conn
+	// we don't close the connection here because it is supposed to be used outside
+	// so we expect the caller to close it
+	// so if anything is to be added in this method that can return an error
+	// the connection has to be closed before the return
 	return nil
 }
 
@@ -447,12 +458,6 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	conn, err := libvirt.NewConnect("qemu:///system")
-	if err != nil {
-		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
-	}
-	defer conn.Close()
-
 	seq := m.getNextSequence()
 
 	domain, err := m.mkDomain(seq, &params)
@@ -460,7 +465,7 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	if err := m.setNetworking(conn, &params, seq, domain); err != nil {
+	if err := m.setNetworking(m.conn, &params, seq, domain); err != nil {
 		return nil, err
 	}
 
@@ -470,7 +475,7 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 	}
 
 	//create domain
-	_, err = conn.DomainCreateXML(string(data), libvirt.DOMAIN_NONE)
+	_, err = m.conn.DomainCreateXML(string(data), libvirt.DOMAIN_NONE)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create machine: %s", err)
 	}
@@ -478,35 +483,24 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 	return domain.UUID, nil
 }
 
-func (m *kvmManager) getDomain(cmd *core.Command) (*libvirt.Domain, *libvirt.Connect, string, error) {
+func (m *kvmManager) getDomain(cmd *core.Command) (*libvirt.Domain, string, error) {
 	var params DomainUUID
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
-		return nil, nil, "", err
+		return nil, "", err
 	}
 
-	conn, err := libvirt.NewConnect("qemu:///system")
+	domain, err := m.conn.LookupDomainByUUIDString(params.UUID)
 	if err != nil {
-		return nil, nil, params.UUID, fmt.Errorf("failed to start a qemu connection: %s", err)
+		return nil, params.UUID, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
 	}
-
-	domain, err := conn.LookupDomainByUUIDString(params.UUID)
-	if err != nil {
-		conn.Close()
-		return nil, nil, params.UUID, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
-	}
-	// we don't close the connection here because it is supposed to be used outside
-	// so we expect the caller to close it
-	// so if anything is to be added in this method that can return an error
-	// the connection has to be closed before the return
-	return domain, conn, params.UUID, err
+	return domain, params.UUID, err
 }
 
 func (m *kvmManager) destroy(cmd *core.Command) (interface{}, error) {
-	domain, conn, uuid, err := m.getDomain(cmd)
+	domain, uuid, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 	if err := domain.Destroy(); err != nil {
 		return nil, fmt.Errorf("failed to destroy machine: %s", err)
 	}
@@ -516,11 +510,10 @@ func (m *kvmManager) destroy(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) shutdown(cmd *core.Command) (interface{}, error) {
-	domain, conn, uuid, err := m.getDomain(cmd)
+	domain, uuid, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 	if err := domain.Shutdown(); err != nil {
 		return nil, fmt.Errorf("failed to shutdown machine: %s", err)
 	}
@@ -531,11 +524,10 @@ func (m *kvmManager) shutdown(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) reboot(cmd *core.Command) (interface{}, error) {
-	domain, conn, _, err := m.getDomain(cmd)
+	domain, _, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 	if err := domain.Reboot(libvirt.DOMAIN_REBOOT_DEFAULT); err != nil {
 		return nil, fmt.Errorf("failed to reboot machine: %s", err)
 	}
@@ -544,11 +536,10 @@ func (m *kvmManager) reboot(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) reset(cmd *core.Command) (interface{}, error) {
-	domain, conn, _, err := m.getDomain(cmd)
+	domain, _, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 	if err := domain.Reset(0); err != nil {
 		return nil, fmt.Errorf("failed to reset machine: %s", err)
 	}
@@ -557,11 +548,10 @@ func (m *kvmManager) reset(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) pause(cmd *core.Command) (interface{}, error) {
-	domain, conn, _, err := m.getDomain(cmd)
+	domain, _, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 	if err := domain.Suspend(); err != nil {
 		return nil, fmt.Errorf("failed to pause machine: %s", err)
 	}
@@ -570,11 +560,10 @@ func (m *kvmManager) pause(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) resume(cmd *core.Command) (interface{}, error) {
-	domain, conn, _, err := m.getDomain(cmd)
+	domain, _, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 	if err := domain.Resume(); err != nil {
 		return nil, fmt.Errorf("failed to resume machine: %s", err)
 	}
@@ -583,13 +572,7 @@ func (m *kvmManager) resume(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) attachDevice(uuid, xml string) error {
-	conn, err := libvirt.NewConnect("qemu:///system")
-	if err != nil {
-		return fmt.Errorf("failed to start a qemu connection: %s", err)
-	}
-	defer conn.Close()
-
-	domain, err := conn.LookupDomainByUUIDString(uuid)
+	domain, err := m.conn.LookupDomainByUUIDString(uuid)
 	if err != nil {
 		return fmt.Errorf("couldn't find domain with the uuid %s", uuid)
 	}
@@ -601,13 +584,7 @@ func (m *kvmManager) attachDevice(uuid, xml string) error {
 }
 
 func (m *kvmManager) detachDevice(uuid, xml string) error {
-	conn, err := libvirt.NewConnect("qemu:///system")
-	if err != nil {
-		return fmt.Errorf("failed to start a qemu connection: %s", err)
-	}
-	defer conn.Close()
-
-	domain, err := conn.LookupDomainByUUIDString(uuid)
+	domain, err := m.conn.LookupDomainByUUIDString(uuid)
 	if err != nil {
 		return fmt.Errorf("couldn't find domain with the uuid %s", uuid)
 	}
@@ -623,13 +600,7 @@ func (m *kvmManager) attachDisk(cmd *core.Command) (interface{}, error) {
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
-	conn, err := libvirt.NewConnect("qemu:///system")
-	if err != nil {
-		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
-	}
-	defer conn.Close()
-
-	domain, err := conn.LookupDomainByUUIDString(params.UUID)
+	domain, err := m.conn.LookupDomainByUUIDString(params.UUID)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
 	}
@@ -721,13 +692,7 @@ func (m *kvmManager) limitDiskIO(cmd *core.Command) (interface{}, error) {
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
-	conn, err := libvirt.NewConnect("qemu:///system")
-	if err != nil {
-		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
-	}
-	defer conn.Close()
-
-	domain, err := conn.LookupDomainByUUIDString(params.UUID)
+	domain, err := m.conn.LookupDomainByUUIDString(params.UUID)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
 	}
@@ -780,11 +745,10 @@ func (m *kvmManager) limitDiskIO(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) migrate(cmd *core.Command) (interface{}, error) {
-	domain, conn, _, err := m.getDomain(cmd)
+	domain, _, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 	var params MigrateParams
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
@@ -816,13 +780,7 @@ type Machine struct {
 }
 
 func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
-	conn, err := libvirt.NewConnect("qemu:///system")
-	if err != nil {
-		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
-	}
-	defer conn.Close()
-
-	domains, err := conn.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE | libvirt.CONNECT_LIST_DOMAINS_INACTIVE)
+	domains, err := m.conn.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE | libvirt.CONNECT_LIST_DOMAINS_INACTIVE)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list machines: %s", err)
 	}
