@@ -68,8 +68,8 @@ func (m *kvmManager) setVLanNetwork(con *libvirt.Connect, domain *Domain, nic *N
 	if err != nil {
 		return err
 	}
-	if vlanID == 0 || vlanID >= 4095 {
-		return fmt.Errorf("invalid vlan id (1-4094)")
+	if vlanID < 0 || vlanID >= 4095 {
+		return fmt.Errorf("invalid vlan id (0-4094)")
 	}
 
 	inf := InterfaceDevice{

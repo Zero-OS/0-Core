@@ -1,7 +1,3 @@
-# OUTDATED, RIGHT NOW NOT USED, MGMT IS THROUGH REDIS ON CORE0 & USAGE OF AYS (jumpscale)
-
-there are plans to restore this functionality and also work with CORE0 but not for now
-
 # corectl
 Management tool for g8os
 
@@ -21,20 +17,22 @@ VERSION:
    1.0
    
 COMMANDS:
-   ping		checks connectivity with g8os
-   execute	execute arbitary commands
-   stop		stops a process with `id`
-   info		query various infomation
-   reboot	reboot the machine
-   help, h	Shows a list of commands or help for one command
-   
+     ping     checks connectivity with g8os
+     execute  execute arbitary commands
+     stop     stops a process with `id`
+     info     query various infomation
+     reboot   reboot the machine
+     help, h  Shows a list of commands or help for one command
+
 GLOBAL OPTIONS:
-   --socket, -s "/var/run/core.sock"	Path to core socket
-   --timeout, -t "0"			Commands that takes longer than this will get killed
-   --async				Run command asyncthronuslly (only commands that supports this)
-   --id 				Speicify porcess id, if not given a random guid will be generated
-   --help, -h				show help
-   --version, -v			print the version
+   --socket value, -s value   Path to core socket (default: "/var/run/core.sock")
+   --timeout value, -t value  Commands that takes longer than this will get killed (default: 0)
+   --async                    Run command asyncthronuslly (only commands that supports this)
+   --id value                 Speicify porcess id, if not given a random guid will be generated
+   --container value          Container numeric ID or comma seperated list with tags (only with execute)
+   --help, -h                 show help
+   --version, -v              print the version
+
 ```
 
 ```bash
