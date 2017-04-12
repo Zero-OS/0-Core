@@ -553,6 +553,8 @@ func (c *container) postStartIsolatedNetworking() error {
 			err = c.postZerotierNetwork(network.ID)
 		case "default":
 			err = c.postDefaultNetwork(idx, &network)
+		case "bridge":
+			err = c.postBridge(idx, &network)
 		}
 
 		if err != nil {
@@ -576,6 +578,10 @@ func (c *container) preStartIsolatedNetworking() error {
 			}
 		case "default":
 			if err := c.preDefaultNetwork(idx, &network); err != nil {
+				return err
+			}
+		case "bridge":
+			if err := c.preBridge(idx, network.ID, &network, nil); err != nil {
 				return err
 			}
 		case "zerotier":

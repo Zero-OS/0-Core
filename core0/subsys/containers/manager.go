@@ -109,21 +109,25 @@ func (c *ContainerCreateArguments) Validate() error {
 	}
 
 	//validating networking
-	var def int
+	brcounter := make(map[string]int)
 	for _, net := range c.Nics {
 		switch net.Type {
 		case "default":
-			def++
+			brcounter[DefaultBridgeName]++
+			if brcounter[DefaultBridgeName] > 1 {
+				return fmt.Errorf("only one default network is allowed")
+			}
+		case "bridge":
+			brcounter[net.ID]++
+			if brcounter[net.ID] > 1 {
+				return fmt.Errorf("connecting to bridge '%s' more than one time is not allowed", net.ID)
+			}
 		case "vlan":
 		case "vxlan":
 		case "zerotier":
 		default:
 			return fmt.Errorf("unsupported network type '%s'", net.Type)
 		}
-	}
-
-	if def > 1 {
-		return fmt.Errorf("only one default network is allowed")
 	}
 
 	return nil

@@ -623,7 +623,7 @@ class ContainerManager:
         ),
         'host_network': bool,
         'nics': [{
-            'type': typchk.Enum('default', 'zerotier', 'vlan', 'vxlan'),
+            'type': typchk.Enum('default', 'bridge', 'zerotier', 'vlan', 'vxlan'),
             'id': typchk.Or(str, typchk.Missing()),
             'hwaddr': typchk.Or(str, typchk.Missing()),
             'config': typchk.Or(
@@ -671,8 +671,8 @@ class ContainerManager:
         :param nics: Configure the attached nics to the container
                      each nic object is a dict of the format
                      {
-                        'type': nic_type # default, zerotier, vlan, or vxlan (note, vlan and vxlan only supported by ovs)
-                        'id': id # depends on the type, zerotier network id, the vlan tag or the vxlan id
+                        'type': nic_type # default, bridge, zerotier, vlan, or vxlan (note, vlan and vxlan only supported by ovs)
+                        'id': id # depends on the type, bridge name, zerotier network id, the vlan tag or the vxlan id
                         'config': { # config is only honored for vlan, and vxlan types
                             'dhcp': bool,
                             'cidr': static_ip # ip/mask
@@ -1288,7 +1288,7 @@ class KvmManager:
         'cpu': int,
         'memory': int,
         'nics': [{
-            'type': typchk.Enum('default', 'vxlan', 'vlan'),
+            'type': typchk.Enum('default', 'bridge', 'vxlan', 'vlan'),
             'id': typchk.Or(str, typchk.Missing()),
             'hwaddr': typchk.Or(str, typchk.Missing()),
         }],
@@ -1387,8 +1387,8 @@ class KvmManager:
         :param nics: Configure the attached nics to the container
                      each nic object is a dict of the format
                      {
-                        'type': nic_type # default, vlan, or vxlan (note, vlan and vxlan only supported by ovs)
-                        'id': id # depends on the type, zerotier network id, the vlan tag or the vxlan id
+                        'type': nic_type # default, bridge, vlan, or vxlan (note, vlan and vxlan only supported by ovs)
+                        'id': id # depends on the type, bridge name (bridge type) zerotier network id (zertier type), the vlan tag or the vxlan id
                      }
         :return: uuid of the virtual machine
         """

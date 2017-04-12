@@ -47,6 +47,10 @@ func (m *kvmManager) setNetworking(args *CreateParams, seq uint16, domain *Domai
 			if err := m.setDefaultNetwork(args, seq, domain); err != nil {
 				return err
 			}
+		case "bridge":
+			if err := m.setBridgeNetwork(domain, &nic); err != nil {
+				return err
+			}
 		case "vlan":
 			if err := m.setVLanNetwork(domain, &nic); err != nil {
 				return err
@@ -235,6 +239,37 @@ func (m *kvmManager) setDefaultNetwork(args *CreateParams, seq uint16, domain *D
 		return err
 	}
 
+	return nil
+}
+
+func (m *kvmManager) setBridgeNetwork(domain *Domain, nic *Nic) error {
+	_, err := netlink.LinkByName(nic.ID)
+	if err != nil {
+		return fmt.Errorf("bridge '%s' not found", nic.ID)
+	}
+
+	inf := InterfaceDevice{
+		Type: InterfaceDeviceTypeBridge,
+		Source: InterfaceDeviceSourceBridge{
+			Bridge: nic.ID,
+		},
+		Model: InterfaceDeviceModel{
+			Type: "virtio",
+		},
+	}
+
+	if nic.HWAddress != "" {
+		hw, err := net.ParseMAC(nic.HWAddress)
+		if err != nil {
+			return err
+		}
+		inf.Mac = &InterfaceDeviceMac{
+			Address: hw.String(),
+		}
+	}
+
+	//attach to the bridge.
+	domain.Devices.Devices = append(domain.Devices.Devices, inf)
 	return nil
 }
 
