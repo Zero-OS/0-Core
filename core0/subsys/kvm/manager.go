@@ -1033,6 +1033,7 @@ func (m *kvmManager) infops(cmd *core.Command) (interface{}, error) {
 	}
 	key := fmt.Sprintf("*@vm.%s", params.UUID)
 	conn := m.pool.Get()
+	defer conn.Close()
 	keys, err := redis.Strings(conn.Do("KEYS", key))
 	if err != nil {
 		return nil, err
@@ -1044,16 +1045,16 @@ func (m *kvmManager) infops(cmd *core.Command) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := redis_stat_to_map(&response, key, res); err != nil {
+		if err := redis_stat_to_map(response, key, res); err != nil {
 			return nil, err
 		}
 	}
 	return response, nil
 }
 
-func redis_stat_to_map(parent *map[string]interface{}, key string, val []byte) error {
+func redis_stat_to_map(parent map[string]interface{}, key string, val []byte) error {
 	path := strings.Split(key, ".")
-	elem := *parent
+	elem := parent
 	for j, l := range path {
 		if j != len(path)-1 {
 			var x map[string]interface{}
