@@ -46,6 +46,39 @@ func (c *container) zerotierDaemon() error {
 
 		hook := &pm.PIDHook{
 			Action: func(_ int) {
+				log.Info("checking for zt availability")
+				var job *core.JobResult
+				for i := 0; i < 10; i++ {
+					runner, err := pm.GetManager().RunCmd(&core.Command{
+						ID:      uuid.New(),
+						Command: process.CommandSystem,
+						Arguments: core.MustArguments(
+							process.SystemCommandArguments{
+								Name: "ip",
+								Args: []string{
+									"netns", "exec", fmt.Sprintf("%d", c.id),
+									"zerotier-cli", fmt.Sprintf("-D%s", home), "listnetworks",
+								},
+							},
+						),
+					})
+
+					if err != nil {
+						c.zterr = fmt.Errorf("failed to check for zerotier daemon")
+						break
+					}
+
+					job = runner.Wait()
+					if job.State == core.StateSuccess {
+						break
+					}
+					time.Sleep(1 * time.Second)
+				}
+
+				if job.State != core.StateSuccess {
+					c.zterr = fmt.Errorf("daemon couldn't start")
+				}
+
 				cancel()
 			},
 		}
@@ -78,7 +111,7 @@ func (c *container) zerotierDaemon() error {
 		//wait for it to start
 		select {
 		case <-ctx.Done():
-		case <-time.After(2 * time.Second):
+		case <-time.After(120 * time.Second):
 			c.zterr = fmt.Errorf("timedout waiting for zt daemon to start")
 		}
 	})
