@@ -305,16 +305,17 @@ func (b *bridgeMgr) create(cmd *core.Command) (interface{}, error) {
 
 	if args.HwAddress != "" {
 		if err := netlink.LinkSetHardwareAddr(bridge, hw); err != nil {
+			netlink.LinkDel(bridge)
 			return nil, err
 		}
 	}
 
 	if err := netlink.LinkSetUp(bridge); err != nil {
+		netlink.LinkDel(bridge)
 		return nil, err
 	}
 
 	if err := b.bridgeNetworking(bridge, &args.Network); err != nil {
-		//delete bridge?
 		netlink.LinkDel(bridge)
 		return nil, err
 	}
