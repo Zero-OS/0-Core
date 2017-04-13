@@ -1494,6 +1494,19 @@ class KvmManager:
 
         return self._client.json('kvm.info', args)
 
+    def infops(self, uuid):
+        """
+        Get info per second about a kvm domain by uuid
+        :param uuid: uuid of the kvm container (same as the used in create)
+        :return:
+        """
+        args = {
+            'uuid': uuid,
+        }
+        self._domain_action_chk.check(args)
+
+        return self._client.json('kvm.infops', args)
+
     def attach_disk(self, uuid, media):
         """
         Attach a disk to a mchine

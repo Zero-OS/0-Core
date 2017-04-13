@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"net/url"
+	"time"
 	//"os"
 	"regexp"
 	"strings"
@@ -14,7 +15,10 @@ import (
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
+	"github.com/g8os/core0/base/settings"
+	"github.com/g8os/core0/base/utils"
 	"github.com/g8os/core0/core0/subsys/containers"
+	"github.com/garyburd/redigo/redis"
 	"github.com/libvirt/libvirt-go"
 	"github.com/pborman/uuid"
 	"github.com/vishvananda/netlink"
@@ -30,6 +34,7 @@ type kvmManager struct {
 	sequence uint16
 	m        sync.Mutex
 	conn     *libvirt.Connect
+	pool     *redis.Pool
 
 	conmgr containers.ContainerManager
 }
@@ -54,6 +59,7 @@ const (
 	kvmPauseCommand       = "kvm.pause"
 	kvmResumeCommand      = "kvm.resume"
 	kvmInfoCommand        = "kvm.info"
+	kvmInfoPSCommand      = "kvm.infops"
 	kvmAttachDiskCommand  = "kvm.attach_disk"
 	kvmDetachDiskCommand  = "kvm.detach_disk"
 	kvmAddNicCommand      = "kvm.add_nic"
@@ -61,6 +67,7 @@ const (
 	kvmLimitDiskIOCommand = "kvm.limit_disk_io"
 	kvmMigrateCommand     = "kvm.migrate"
 	kvmListCommand        = "kvm.list"
+	kvmMonitorCommand     = "kvm.monitor"
 
 	DefaultBridgeName = "kvm0"
 )
@@ -82,6 +89,7 @@ func KVMSubsystem(conmgr containers.ContainerManager) error {
 	pm.CmdMap[kvmPauseCommand] = process.NewInternalProcessFactory(mgr.pause)
 	pm.CmdMap[kvmResumeCommand] = process.NewInternalProcessFactory(mgr.resume)
 	pm.CmdMap[kvmInfoCommand] = process.NewInternalProcessFactory(mgr.info)
+	pm.CmdMap[kvmInfoPSCommand] = process.NewInternalProcessFactory(mgr.infops)
 	pm.CmdMap[kvmAttachDiskCommand] = process.NewInternalProcessFactory(mgr.attachDisk)
 	pm.CmdMap[kvmDetachDiskCommand] = process.NewInternalProcessFactory(mgr.detachDisk)
 	pm.CmdMap[kvmAddNicCommand] = process.NewInternalProcessFactory(mgr.addNic)
@@ -89,16 +97,23 @@ func KVMSubsystem(conmgr containers.ContainerManager) error {
 	pm.CmdMap[kvmLimitDiskIOCommand] = process.NewInternalProcessFactory(mgr.limitDiskIO)
 	pm.CmdMap[kvmMigrateCommand] = process.NewInternalProcessFactory(mgr.migrate)
 	pm.CmdMap[kvmListCommand] = process.NewInternalProcessFactory(mgr.list)
+	pm.CmdMap[kvmMonitorCommand] = process.NewInternalProcessFactory(mgr.monitor)
 
 	conn, err := libvirt.NewConnect("qemu:///system")
 	if err != nil {
 		return err
 	}
 	mgr.conn = conn
+	mgr.pool = utils.NewRedisPool("tcp", settings.Settings.Stats.Redis.Address, "")
 	// we don't close the connection here because it is supposed to be used outside
 	// so we expect the caller to close it
 	// so if anything is to be added in this method that can return an error
 	// the connection has to be closed before the return
+	pm.GetManager().RunCmd(&core.Command{
+		ID:              "kvm.monitor",
+		Command:         "kvm.monitor",
+		RecurringPeriod: 30,
+	})
 	return nil
 }
 
@@ -242,6 +257,11 @@ type DomainStatsBlock struct {
 	RdTimes uint64 `json"rdtimes"`
 	WrBytes uint64 `json"wrbytes"`
 	WrTimes uint64 `json"wrtimes"`
+}
+
+type LastStatistics struct {
+	Last  float64 `json:"m_last"`
+	Epoch int64   `json:"m_epoch"`
 }
 
 func StateToString(state libvirt.DomainState) string {
@@ -926,4 +946,133 @@ func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
 	}
 
 	return found, nil
+}
+
+func (m *kvmManager) monitor(cmd *core.Command) (interface{}, error) {
+	infos, err := m.conn.GetAllDomainStats(nil, libvirt.DOMAIN_STATS_STATE|libvirt.DOMAIN_STATS_VCPU|libvirt.DOMAIN_STATS_INTERFACE|libvirt.DOMAIN_STATS_BLOCK,
+		libvirt.CONNECT_GET_ALL_DOMAINS_STATS_ACTIVE)
+	if err != nil {
+		return nil, err
+	}
+
+	p := pm.GetManager()
+	for _, info := range infos {
+		uuid, err := info.Domain.GetUUIDString()
+		if err != nil {
+			return nil, err
+		}
+		key := fmt.Sprintf("%%s@vm.%s", uuid)
+
+		for i, vcpu := range info.Vcpu {
+			p.Aggregate(pm.AggreagteAverage,
+				fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.state", i)),
+				float64(vcpu.State),
+				"",
+			)
+			p.Aggregate(pm.AggreagteDifference,
+				fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.time", i)),
+				float64(vcpu.State),
+				"",
+			)
+		}
+
+		for _, net := range info.Net {
+			p.Aggregate(pm.AggreagteDifference,
+				fmt.Sprintf(key, fmt.Sprintf("net.%s.rxbytes", net.Name)),
+				float64(net.RxBytes),
+				"",
+			)
+			p.Aggregate(pm.AggreagteDifference,
+				fmt.Sprintf(key, fmt.Sprintf("net.%s.rxpkts", net.Name)),
+				float64(net.RxPkts),
+				"",
+			)
+			p.Aggregate(pm.AggreagteDifference,
+				fmt.Sprintf(key, fmt.Sprintf("net.%s.txbytes", net.Name)),
+				float64(net.TxBytes),
+				"",
+			)
+			p.Aggregate(pm.AggreagteDifference,
+				fmt.Sprintf(key, fmt.Sprintf("net.%s.txpkts", net.Name)),
+				float64(net.TxPkts),
+				"",
+			)
+		}
+
+		for _, block := range info.Block {
+			p.Aggregate(pm.AggreagteDifference,
+				fmt.Sprintf(key, fmt.Sprintf("block.%s.rdbytes", block.Name)),
+				float64(block.RdBytes),
+				"",
+			)
+			p.Aggregate(pm.AggreagteDifference,
+				fmt.Sprintf(key, fmt.Sprintf("block.%s.rdtimes", block.Name)),
+				float64(block.RdTimes),
+				"",
+			)
+			p.Aggregate(pm.AggreagteDifference,
+				fmt.Sprintf(key, fmt.Sprintf("block.%s.wrbytes", block.Name)),
+				float64(block.WrBytes),
+				"",
+			)
+			p.Aggregate(pm.AggreagteDifference,
+				fmt.Sprintf(key, fmt.Sprintf("block.%s.wrtimes", block.Name)),
+				float64(block.WrTimes),
+				"",
+			)
+		}
+	}
+
+	return nil, nil
+}
+
+func (m *kvmManager) infops(cmd *core.Command) (interface{}, error) {
+	var params DomainUUID
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, err
+	}
+	key := fmt.Sprintf("*@vm.%s", params.UUID)
+	conn := m.pool.Get()
+	keys, err := redis.Strings(conn.Do("KEYS", key))
+	if err != nil {
+		return nil, err
+	}
+	response := make(map[string]interface{})
+	for _, rediskey := range keys {
+		res, err := redis.Bytes(conn.Do("GET", rediskey))
+		key := strings.Split(strings.Split(rediskey, "@")[0], ":")[2]
+		if err != nil {
+			return nil, err
+		}
+		if err := redis_stat_to_map(&response, key, res); err != nil {
+			return nil, err
+		}
+	}
+	return response, nil
+}
+
+func redis_stat_to_map(parent *map[string]interface{}, key string, val []byte) error {
+	path := strings.Split(key, ".")
+	elem := *parent
+	for j, l := range path {
+		if j != len(path)-1 {
+			var x map[string]interface{}
+			y, ok := elem[l]
+			if !ok {
+				x = make(map[string]interface{})
+				elem[l] = x
+			} else {
+				x = y.(map[string]interface{})
+			}
+			elem = x
+		}
+	}
+	var obj LastStatistics
+	if err := json.Unmarshal(val, &obj); err != nil {
+		return err
+	}
+	if obj.Epoch > time.Now().Unix()-60*5 {
+		elem[path[len(path)-1]] = obj.Last
+	}
+	return nil
 }
