@@ -303,20 +303,25 @@ func (b *bridgeMgr) create(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	if args.HwAddress != "" {
-		if err := netlink.LinkSetHardwareAddr(bridge, hw); err != nil {
+	var err error
+
+	defer func() {
+		if err != nil {
 			netlink.LinkDel(bridge)
+		}
+	}()
+
+	if args.HwAddress != "" {
+		if err = netlink.LinkSetHardwareAddr(bridge, hw); err != nil {
 			return nil, err
 		}
 	}
 
-	if err := netlink.LinkSetUp(bridge); err != nil {
-		netlink.LinkDel(bridge)
+	if err = netlink.LinkSetUp(bridge); err != nil {
 		return nil, err
 	}
 
-	if err := b.bridgeNetworking(bridge, &args.Network); err != nil {
-		netlink.LinkDel(bridge)
+	if err = b.bridgeNetworking(bridge, &args.Network); err != nil {
 		return nil, err
 	}
 
