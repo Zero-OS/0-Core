@@ -4,11 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/g8os/core0/base/pm"
-	"github.com/g8os/core0/base/pm/core"
-	"github.com/g8os/core0/base/pm/process"
-	"github.com/patrickmn/go-cache"
-	"github.com/pborman/uuid"
 	"io"
 	"io/ioutil"
 	"os"
@@ -16,6 +11,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/g8os/core0/base/pm"
+	"github.com/g8os/core0/base/pm/core"
+	"github.com/g8os/core0/base/pm/process"
+	"github.com/patrickmn/go-cache"
+	"github.com/pborman/uuid"
 )
 
 const (
@@ -136,7 +137,7 @@ func (fs *filesystem) mode(m string) (int, error) {
 			readable = true
 			writable = true
 		default:
-			return 0, fmt.Errorf("unknown mode '%s'", chr)
+			return 0, fmt.Errorf("unknown mode '%c'", chr)
 		}
 	}
 
@@ -172,7 +173,7 @@ func (fs *filesystem) open(cmd *core.Command) (interface{}, error) {
 	}
 
 	id := uuid.New()
-	fs.cache.Set(id, fd, cache.DefaultExpiration)
+	fs.cache.Set(id, fd, time.Hour*6)
 
 	return id, nil
 }
