@@ -173,7 +173,7 @@ func (fs *filesystem) open(cmd *core.Command) (interface{}, error) {
 	}
 
 	id := uuid.New()
-	fs.cache.Set(id, fd, time.Hour*6)
+	fs.cache.Set(id, fd, cache.DefaultExpiration)
 
 	return id, nil
 }
@@ -200,6 +200,8 @@ func (fs *filesystem) read(cmd *core.Command) (interface{}, error) {
 	if !ok {
 		return nil, fmt.Errorf("unknown file description '%s'", args.FD)
 	}
+	// refresh cache expiration
+	fs.cache.Set(args.FD, f, cache.DefaultExpiration)
 
 	fd, ok := f.(*os.File)
 	if !ok {
@@ -230,6 +232,8 @@ func (fs *filesystem) write(cmd *core.Command) (interface{}, error) {
 	if !ok {
 		return nil, fmt.Errorf("unknown file description '%s'", args.FD)
 	}
+	// refresh cache expiration
+	fs.cache.Set(args.FD, f, cache.DefaultExpiration)
 
 	fd, ok := f.(*os.File)
 	if !ok {
