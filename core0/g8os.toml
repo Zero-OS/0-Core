@@ -17,7 +17,7 @@ password = ""
 
     [logging.console]
     type = "console"
-    levels = [1, 2, 4, 7, 8, 9]
+    levels = [2, 4, 7, 8, 9]
 
 [stats]
 interval = 60000 # milliseconds (1 min)
