@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"github.com/g8os/core0/base"
 	"github.com/g8os/core0/base/pm"
 	pmcore "github.com/g8os/core0/base/pm/core"
@@ -8,9 +10,10 @@ import (
 	"github.com/g8os/core0/core0/bootstrap"
 	"github.com/g8os/core0/core0/logger"
 	"github.com/op/go-logging"
-	"time"
 
 	"fmt"
+	"os"
+
 	_ "github.com/g8os/core0/base/builtin"
 	_ "github.com/g8os/core0/core0/builtin"
 	_ "github.com/g8os/core0/core0/builtin/btrfs"
@@ -18,7 +21,6 @@ import (
 	"github.com/g8os/core0/core0/stats"
 	"github.com/g8os/core0/core0/subsys/containers"
 	"github.com/g8os/core0/core0/subsys/kvm"
-	"os"
 )
 
 var (
@@ -82,7 +84,7 @@ func main() {
 	mgr := pm.GetManager()
 
 	mgr.AddResultHandler(func(cmd *pmcore.Command, result *pmcore.JobResult) {
-		log.Infof("Job result for command '%s' is '%s'", cmd, result.State)
+		log.Debugf("Job result for command '%s' is '%s'", cmd, result.State)
 	})
 
 	mgr.Run()

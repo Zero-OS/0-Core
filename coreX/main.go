@@ -13,10 +13,11 @@ import (
 	"github.com/g8os/core0/coreX/options"
 	"github.com/op/go-logging"
 
-	_ "github.com/g8os/core0/base/builtin"
-	_ "github.com/g8os/core0/coreX/builtin"
 	"os/signal"
 	"syscall"
+
+	_ "github.com/g8os/core0/base/builtin"
+	_ "github.com/g8os/core0/coreX/builtin"
 )
 
 var (
@@ -77,7 +78,7 @@ func main() {
 	//handle process results. Forwards the result to the correct controller.
 	mgr.AddResultHandler(func(cmd *pmcore.Command, result *pmcore.JobResult) {
 		result.Container = opt.CoreID()
-		log.Infof("Job result for command '%s' is '%s'", cmd, result.State)
+		log.Debugf("Job result for command '%s' is '%s'", cmd, result.State)
 	})
 
 	mgr.Run()

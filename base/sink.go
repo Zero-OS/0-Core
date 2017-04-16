@@ -1,9 +1,10 @@
 package core
 
 import (
+	"time"
+
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
-	"time"
 )
 
 const (
@@ -63,7 +64,7 @@ func (poll *sinkImpl) run() {
 
 		command.Route = core.Route(poll.key)
 
-		log.Infof("Starting command %s", &command)
+		log.Debugf("Starting command %s", &command)
 
 		poll.mgr.PushCmd(&command)
 	}
