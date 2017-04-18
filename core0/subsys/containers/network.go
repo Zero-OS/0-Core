@@ -16,6 +16,7 @@ import (
 	"github.com/g8os/core0/base/pm/process"
 	"github.com/pborman/uuid"
 	"github.com/vishvananda/netlink"
+	"strings"
 	"time"
 )
 
@@ -47,36 +48,17 @@ func (c *container) zerotierDaemon() error {
 		hook := &pm.PIDHook{
 			Action: func(_ int) {
 				log.Info("checking for zt availability")
-				var job *core.JobResult
+				var err error
 				for i := 0; i < 10; i++ {
-					runner, err := pm.GetManager().RunCmd(&core.Command{
-						ID:      uuid.New(),
-						Command: process.CommandSystem,
-						Arguments: core.MustArguments(
-							process.SystemCommandArguments{
-								Name: "ip",
-								Args: []string{
-									"netns", "exec", fmt.Sprintf("%d", c.id),
-									"zerotier-cli", fmt.Sprintf("-D%s", home), "listnetworks",
-								},
-							},
-						),
-					})
-
-					if err != nil {
-						c.zterr = fmt.Errorf("failed to check for zerotier daemon")
-						break
-					}
-
-					job = runner.Wait()
-					if job.State == core.StateSuccess {
+					_, err = c.sync("zerotier-cli", fmt.Sprintf("-D%s", home), "listnetworks")
+					if err == nil {
 						break
 					}
 					time.Sleep(1 * time.Second)
 				}
 
-				if job.State != core.StateSuccess {
-					c.zterr = fmt.Errorf("daemon couldn't start")
+				if err != nil {
+					c.zterr = fmt.Errorf("daemon couldn't start: %s", err)
 				}
 
 				cancel()
@@ -95,10 +77,9 @@ func (c *container) zerotierDaemon() error {
 			Command: process.CommandSystem,
 			Arguments: core.MustArguments(
 				process.SystemCommandArguments{
-					Name: "ip",
+					Name: "zerotier-one",
 					Args: []string{
-						"netns", "exec", fmt.Sprintf("%d", c.id),
-						"zerotier-one", "-p0", home,
+						"-p0", home,
 					},
 				},
 			),
@@ -119,34 +100,87 @@ func (c *container) zerotierDaemon() error {
 	return c.zterr
 }
 
-func (c *container) postZerotierNetwork(netID string) error {
+func (c *container) moveZTNic(idx int, netID string) error {
+	home := c.zerotierHome()
+	var face string
+	var addr string
+	for i := 0; i < 30; i++ {
+		job, err := c.sync("zerotier-cli", fmt.Sprintf("-D%s", home), "listnetworks")
+		if err != nil {
+			return err
+		}
+
+		for _, line := range strings.Split(job.Streams[0], "\n") {
+			fields := strings.Fields(line)
+			if len(fields) < 3 {
+				continue
+			}
+			if fields[2] != netID {
+				continue
+			}
+			face = fields[7]
+			addr = fields[8]
+			break
+		}
+
+		if addr != "-" {
+			break
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+
+	if addr == "-" {
+		return fmt.Errorf("failed to get zerotier ip")
+	}
+
+	link, err := netlink.LinkByName(face)
+	if err != nil {
+		return err
+	}
+
+	if err := netlink.LinkSetNsPid(link, int(c.PID)); err != nil {
+		return err
+	}
+
+	newface := fmt.Sprintf("eth%v", idx)
+	_, err = c.sync("ip", "netns", "exec", fmt.Sprintf("%d", c.id),
+		"ip", "l", "set", face, "name", newface)
+
+	if err != nil {
+		return err
+	}
+
+	_, err = c.sync("ip", "netns", "exec", fmt.Sprintf("%d", c.id),
+		"ip", "l", "set", newface, "up")
+
+	if err != nil {
+		return err
+	}
+
+	for _, a := range strings.Split(addr, ",") {
+		_, err := c.sync("ip", "netns", "exec", fmt.Sprintf("%d", c.id),
+			"ip", "a", "add", a, "dev", newface)
+		if err != nil {
+			log.Errorf("failed to setup zt ip: %s", err)
+		}
+	}
+
+	return nil
+}
+
+func (c *container) postZerotierNetwork(idx int, netID string) error {
 	if err := c.zerotierDaemon(); err != nil {
 		return err
 	}
 
 	home := c.zerotierHome()
-	runner, err := pm.GetManager().RunCmd(&core.Command{
-		ID:      uuid.New(),
-		Command: process.CommandSystem,
-		Arguments: core.MustArguments(
-			process.SystemCommandArguments{
-				Name: "ip",
-				Args: []string{
-					"netns", "exec", fmt.Sprintf("%d", c.id),
-					"zerotier-cli", fmt.Sprintf("-D%s", home), "join", netID,
-				},
-			},
-		),
-	})
+	_, err := c.sync("zerotier-cli", fmt.Sprintf("-D%s", home), "join", netID)
 	if err != nil {
-		return err
+		return fmt.Errorf("join zerotier network failed: %v", err)
 	}
 
-	job := runner.Wait()
-	if job.State != core.StateSuccess {
-		return fmt.Errorf("join zerotier network failed: %v", job.Streams)
-	}
-
+	go c.moveZTNic(idx, netID)
 	return nil
 }
 
@@ -176,25 +210,9 @@ func (c *container) postBridge(index int, n *Nic) error {
 
 	dev := fmt.Sprintf("eth%d", index)
 
-	cmd := &core.Command{
-		ID:      uuid.New(),
-		Command: process.CommandSystem,
-		Arguments: core.MustArguments(
-			process.SystemCommandArguments{
-				Name: "ip",
-				Args: []string{"netns", "exec", fmt.Sprintf("%v", c.id), "ip", "link", "set", peerName, "name", dev},
-			},
-		),
-	}
-	runner, err := pm.GetManager().RunCmd(cmd)
-
+	_, err = c.sync("ip", "netns", "exec", fmt.Sprintf("%v", c.id), "ip", "link", "set", peerName, "name", dev)
 	if err != nil {
-		return err
-	}
-
-	result := runner.Wait()
-	if result.State != core.StateSuccess {
-		return fmt.Errorf("failed to rename device: %s", result.Streams)
+		return fmt.Errorf("failed to rename device: %s", err)
 	}
 
 	if n.Config.Dhcp {
@@ -223,54 +241,20 @@ func (c *container) postBridge(index int, n *Nic) error {
 			return err
 		}
 
-		{
-			//putting the interface up
-			cmd := &core.Command{
-				ID:      uuid.New(),
-				Command: process.CommandSystem,
-				Arguments: core.MustArguments(
-					process.SystemCommandArguments{
-						Name: "ip",
-						Args: []string{
-							"netns",
-							"exec",
-							fmt.Sprintf("%v", c.id),
-							"ip", "link", "set", "dev", dev, "up"},
-					},
-				),
-			}
+		//putting the interface up
+		_, err := c.sync("ip", "netns",
+			"exec",
+			fmt.Sprintf("%v", c.id),
+			"ip", "link", "set", "dev", dev, "up")
 
-			runner, err := pm.GetManager().RunCmd(cmd)
-			if err != nil {
-				return err
-			}
-			result := runner.Wait()
-			if result.State != core.StateSuccess {
-				return fmt.Errorf("error brinding interface up: %v", result.Streams)
-			}
+		if err != nil {
+			return fmt.Errorf("error brinding interface up: %v", err)
 		}
 
-		{
-			//setting the ip address
-			cmd := &core.Command{
-				ID:      uuid.New(),
-				Command: process.CommandSystem,
-				Arguments: core.MustArguments(
-					process.SystemCommandArguments{
-						Name: "ip",
-						Args: []string{"netns", "exec", fmt.Sprintf("%v", c.id), "ip", "address", "add", n.Config.CIDR, "dev", dev},
-					},
-				),
-			}
-
-			runner, err := pm.GetManager().RunCmd(cmd)
-			if err != nil {
-				return err
-			}
-			result := runner.Wait()
-			if result.State != core.StateSuccess {
-				return fmt.Errorf("error settings interface ip: %v", result.Streams)
-			}
+		//setting the ip address
+		_, err = c.sync("ip", "netns", "exec", fmt.Sprintf("%v", c.id), "ip", "address", "add", n.Config.CIDR, "dev", dev)
+		if err != nil {
+			return fmt.Errorf("error settings interface ip: %v", err)
 		}
 	}
 
@@ -425,27 +409,13 @@ func (c *container) setPortForwards() error {
 func (c *container) setGateway(idx int, gw string) error {
 	////setting the ip address
 	eth := fmt.Sprintf("eth%d", idx)
-	cmd := &core.Command{
-		ID:      uuid.New(),
-		Command: process.CommandSystem,
-		Arguments: core.MustArguments(
-			process.SystemCommandArguments{
-				Name: "ip",
-				Args: []string{"netns", "exec", fmt.Sprintf("%v", c.id),
-					"ip", "route", "add", "metric", "1000", "default", "via", gw, "dev", eth},
-			},
-		),
-	}
+	_, err := c.sync("ip", "netns", "exec", fmt.Sprintf("%v", c.id),
+		"ip", "route", "add", "metric", "1000", "default", "via", gw, "dev", eth)
 
-	runner, err := pm.GetManager().RunCmd(cmd)
 	if err != nil {
-		return err
+		return fmt.Errorf("error settings interface ip: %v", err)
 	}
 
-	result := runner.Wait()
-	if result.State != core.StateSuccess {
-		return fmt.Errorf("error settings interface ip: %v", result.Streams)
-	}
 	return nil
 }
 
@@ -590,7 +560,7 @@ func (c *container) postStartIsolatedNetworking() error {
 		case "vlan":
 			err = c.postVlanNetwork(idx, &network)
 		case "zerotier":
-			err = c.postZerotierNetwork(network.ID)
+			err = c.postZerotierNetwork(idx, network.ID)
 		case "default":
 			err = c.postDefaultNetwork(idx, &network)
 		case "bridge":

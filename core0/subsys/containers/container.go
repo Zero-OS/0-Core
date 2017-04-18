@@ -5,6 +5,7 @@ import (
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
+	"github.com/pborman/uuid"
 	"os"
 	"path"
 	"sync"
@@ -51,6 +52,33 @@ func (c *container) ID() uint16 {
 
 func (c *container) Arguments() ContainerCreateArguments {
 	return c.Args
+}
+
+func (c *container) exec(bin string, args ...string) (pm.Runner, error) {
+	return pm.GetManager().RunCmd(&core.Command{
+		ID:      uuid.New(),
+		Command: process.CommandSystem,
+		Arguments: core.MustArguments(
+			process.SystemCommandArguments{
+				Name: bin,
+				Args: args,
+			},
+		),
+	})
+}
+
+func (c *container) sync(bin string, args ...string) (*core.JobResult, error) {
+	runner, err := c.exec(bin, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	job := runner.Wait()
+	if job.State != core.StateSuccess {
+		return nil, fmt.Errorf("%s exited with error (%s): %v", job.State, job.Streams)
+	}
+
+	return job, nil
 }
 
 func (c *container) Start() (err error) {
