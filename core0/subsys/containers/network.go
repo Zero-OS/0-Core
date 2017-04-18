@@ -145,14 +145,14 @@ func (c *container) moveZTNic(idx int, netID string) error {
 
 	newface := fmt.Sprintf("eth%v", idx)
 	_, err = c.sync("ip", "netns", "exec", fmt.Sprintf("%d", c.id),
-		"ip", "l", "set", face, "name", newface)
+		"ip", "link", "set", face, "name", newface)
 
 	if err != nil {
 		return err
 	}
 
 	_, err = c.sync("ip", "netns", "exec", fmt.Sprintf("%d", c.id),
-		"ip", "l", "set", newface, "up")
+		"ip", "link", "set", newface, "up")
 
 	if err != nil {
 		return err
@@ -160,7 +160,7 @@ func (c *container) moveZTNic(idx int, netID string) error {
 
 	for _, a := range strings.Split(addr, ",") {
 		_, err := c.sync("ip", "netns", "exec", fmt.Sprintf("%d", c.id),
-			"ip", "a", "add", a, "dev", newface)
+			"ip", "address", "add", a, "dev", newface)
 		if err != nil {
 			log.Errorf("failed to setup zt ip: %s", err)
 		}
