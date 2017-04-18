@@ -175,8 +175,15 @@ func (c *container) cleanup() {
 	if err := c.unMountAll(); err != nil {
 		log.Errorf("unmounting container-%d was not clean", err)
 	}
+}
 
-	os.RemoveAll(path.Join(BackendBaseDir, c.name()))
+func (c *container) cleanSandbox() {
+	if c.getFSType(BackendBaseDir) == "btrfs" {
+		c.sync("btrfs", "subvolume", "delete", path.Join(BackendBaseDir, c.name()))
+	} else {
+		os.RemoveAll(path.Join(BackendBaseDir, c.name()))
+	}
+
 	os.RemoveAll(c.root())
 }
 

@@ -12,6 +12,7 @@ import (
 	"github.com/g8os/core0/base/pm/stream"
 	"github.com/g8os/core0/base/settings"
 	"github.com/pborman/uuid"
+	"github.com/shirou/gopsutil/disk"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -187,7 +189,7 @@ func (c *container) getMetaDB(src string) (string, error) {
 	return db, nil
 }
 
-func (c *container) mountPList(src string, target string) error {
+func (c *container) mountPList(src string, target string, hooks ...pm.RunnerHook) error {
 	//check
 	if err := os.MkdirAll(target, 0755); err != nil {
 		return err
@@ -223,7 +225,7 @@ func (c *container) mountPList(src string, target string) error {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	pm.GetManager().RunCmd(cmd, &pm.MatchHook{
+	hooks = append(hooks, &pm.MatchHook{
 		Match: "mount starts",
 		Action: func(_ *stream.Message) {
 			o.Do(wg.Done)
@@ -240,9 +242,10 @@ func (c *container) mountPList(src string, target string) error {
 		},
 	})
 
+	pm.GetManager().RunCmd(cmd, hooks...)
+
 	//wait for either of the hooks (ready or exit)
 	wg.Wait()
-
 	return err
 }
 
@@ -256,18 +259,78 @@ func (c *container) root() string {
 	return path.Join(ContainerBaseRootDir, c.name())
 }
 
+type SortableDisks []disk.PartitionStat
+
+func (d SortableDisks) Len() int {
+	return len(d)
+}
+
+// Less reports whether the element with
+// index i should sort before the element with index j.
+func (d SortableDisks) Less(i, j int) bool {
+	return len(d[i].Mountpoint) > len(d[j].Mountpoint)
+}
+
+// Swap swaps the elements with indexes i and j.
+func (d SortableDisks) Swap(i, j int) {
+	d[i], d[j] = d[j], d[i]
+}
+
+func (c *container) getFSType(dir string) string {
+	dir, err := filepath.Abs(dir)
+	if err != nil {
+		return ""
+	}
+
+	dir = strings.TrimRight(dir, "/") + "/"
+
+	parts, err := disk.Partitions(true)
+	if err != nil {
+		return ""
+	}
+
+	sort.Sort(SortableDisks(parts))
+
+	for _, part := range parts {
+		mountpoint := part.Mountpoint
+		if mountpoint != "/" {
+			mountpoint += "/"
+		}
+
+		if strings.Index(dir, mountpoint) == 0 {
+			return part.Fstype
+		}
+	}
+
+	return ""
+}
+
 func (c *container) sandbox() error {
 	//mount root plist.
 	//prepare root folder.
 
-	//clean up temp before starting.
+	//make sure we remove the directory
 	os.RemoveAll(path.Join(BackendBaseDir, c.name()))
+	fstype := c.getFSType(BackendBaseDir)
+	log.Debugf("Sandbox fileystem type: %s", fstype)
+
+	if fstype == "btrfs" {
+		//make sure we delete it if sub volume exists
+		c.sync("btrfs", "subvolume", "delete", path.Join(BackendBaseDir, c.name()))
+		c.sync("btrfs", "subvolume", "create", path.Join(BackendBaseDir, c.name()))
+	}
 
 	root := c.root()
 	log.Debugf("Container root: %s", root)
 	os.RemoveAll(root)
 
-	if err := c.mountPList(c.Args.Root, root); err != nil {
+	onSBExit := &pm.ExitHook{
+		Action: func(_ bool) {
+			c.cleanSandbox()
+		},
+	}
+
+	if err := c.mountPList(c.Args.Root, root, onSBExit); err != nil {
 		return fmt.Errorf("mount-root-plist(%s)", err)
 	}
 
@@ -279,7 +342,7 @@ func (c *container) sandbox() error {
 		//src can either be a location on HD, or another plist
 		u, err := url.Parse(src)
 		if err != nil {
-			log.Errorf("bad mount source '%s'", u)
+			return fmt.Errorf("bad mount source '%s': %s", src, err)
 		}
 
 		if u.Scheme == "" {
