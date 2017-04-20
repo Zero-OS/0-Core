@@ -782,7 +782,8 @@ class BridgeManager:
         :param name: name of the bridge (must be unique)
         :param hwaddr: MAC address of the bridge. If none, a one will be created for u
         :param network: Networking mode, options are none, static, and dnsmasq
-        :param nat: If true, SNAT will be enabled on this bridge.
+        :param nat: If true, SNAT will be enabled on this bridge. (IF and ONLY IF an IP is set on the bridge
+                    via the settings, otherwise flag will be ignored) (the cidr attribute of either static, or dnsmasq modes)
         :param settings: Networking setting, depending on the selected mode.
                         none:
                             no settings, bridge won't get any ip settings

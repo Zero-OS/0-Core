@@ -47,7 +47,6 @@ type StatsHandler func(operation string, key string, value float64, tags string)
 
 //PM is the main process manager.
 type PM struct {
-	midMux  sync.Mutex
 	cmds    chan *core.Command
 	runners map[string]Runner
 

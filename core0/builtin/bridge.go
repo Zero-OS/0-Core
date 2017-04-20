@@ -6,16 +6,21 @@ import (
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
+	"github.com/g8os/core0/base/utils"
 	"github.com/pborman/uuid"
 	"github.com/vishvananda/netlink"
 	"io/ioutil"
 	"net"
 	"os"
 	"path"
+	"regexp"
+	"sync"
 	"syscall"
 )
 
-type bridgeMgr struct{}
+type bridgeMgr struct {
+	init sync.Once
+}
 
 func init() {
 	b := &bridgeMgr{}
@@ -25,13 +30,17 @@ func init() {
 	pm.CmdMap["bridge.add_host"] = process.NewInternalProcessFactory(b.addHost)
 }
 
+var (
+	ruleHandlerP = regexp.MustCompile(`(?m:ip saddr ([\d\./]+) masquerade # handle (\d+))`)
+)
+
 const (
 	NoneBridgeNetworkMode    BridgeNetworkMode = ""
 	DnsMasqBridgeNetworkMode BridgeNetworkMode = "dnsmasq"
 	StaticBridgeNetworkMode  BridgeNetworkMode = "static"
 )
 
-const nftSetupScript = `
+const nftInitScript = `
 nft add table nat
 nft add chain nat pre { type nat hook prerouting priority 0 \; policy accept \;}
 nft add chain nat post { type nat hook postrouting priority 0 \; policy accept \;}
@@ -40,7 +49,9 @@ nft add table filter
 nft add chain filter input { type filter hook input priority 0 \; policy accept\; }
 nft add chain filter forward { type filter hook forward priority 0 \; policy accept\; }
 nft add chain filter output { type filter hook output priority 0 \; policy accept\; }
+`
 
+const nftSetupScript = `
 nft add rule nat post ip saddr %s masquerade
 `
 
@@ -50,10 +61,44 @@ type NetworkStaticSettings struct {
 	CIDR string `json:"cidr"`
 }
 
+func (n *NetworkStaticSettings) Validate() error {
+	ip, network, err := net.ParseCIDR(n.CIDR)
+	if err != nil {
+		return err
+	}
+
+	if network.IP.Equal(ip) {
+		return fmt.Errorf("Invalid IP")
+	}
+
+	return nil
+}
+
 type NetworkDnsMasqSettings struct {
 	NetworkStaticSettings
 	Start net.IP `json:"start"`
 	End   net.IP `json:"end"`
+}
+
+func (n *NetworkDnsMasqSettings) Validate() error {
+	ip, network, err := net.ParseCIDR(n.CIDR)
+	if err != nil {
+		return err
+	}
+
+	if network.IP.Equal(ip) {
+		return fmt.Errorf("Invalid IP")
+	}
+
+	if !network.Contains(n.Start) {
+		return fmt.Errorf("start ip address out of range")
+	}
+
+	if !network.Contains(n.End) {
+		return fmt.Errorf("end ip address out of range")
+	}
+
+	return nil
 }
 
 type BridgeNetwork struct {
@@ -78,9 +123,38 @@ type BridgeAddHost struct {
 	Mac    string `json:"mac"`
 }
 
+func (b *bridgeMgr) nftInit() {
+	b.init.Do(func() {
+		nft := &core.Command{
+			ID:      uuid.New(),
+			Command: "bash",
+			Arguments: core.MustArguments(
+				map[string]string{
+					"script": nftInitScript,
+				},
+			),
+		}
+
+		runner, err := pm.GetManager().RunCmd(nft)
+		if err != nil {
+			log.Errorf("failed to initialize netfilter: %s", err)
+			return
+		}
+
+		job := runner.Wait()
+		if job.State != core.StateSuccess {
+			log.Errorf("failed to initialize netfileter: %v", job.Streams)
+		}
+	})
+}
+
 func (b *bridgeMgr) bridgeStaticNetworking(bridge *netlink.Bridge, network *BridgeNetwork) (*netlink.Addr, error) {
 	var settings NetworkStaticSettings
 	if err := json.Unmarshal(network.Settings, &settings); err != nil {
+		return nil, err
+	}
+
+	if err := settings.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -145,6 +219,10 @@ func (b *bridgeMgr) dnsmasqHostsFilePath(n string) string {
 func (b *bridgeMgr) bridgeDnsMasqNetworking(bridge *netlink.Bridge, network *BridgeNetwork) (*netlink.Addr, error) {
 	var settings NetworkDnsMasqSettings
 	if err := json.Unmarshal(network.Settings, &settings); err != nil {
+		return nil, err
+	}
+
+	if err := settings.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -255,21 +333,83 @@ func (b *bridgeMgr) bridgeNetworking(bridge *netlink.Bridge, network *BridgeNetw
 		return err
 	}
 
-	if network.Nat {
-		//enable nat-ting
-		nat := &core.Command{
-			ID:      uuid.New(),
-			Command: "bash",
-			Arguments: core.MustArguments(
-				map[string]string{
-					"script": fmt.Sprintf(nftSetupScript, addr.IPNet.String()),
-				},
-			),
-		}
+	if network.Nat && addr != nil {
+		return b.setNAT(addr)
+	}
 
-		_, err := pm.GetManager().RunCmd(nat)
-		if err != nil {
-			return err
+	return nil
+}
+
+func (b *bridgeMgr) setNAT(addr *netlink.Addr) error {
+	//enable nat-ting
+	nat := &core.Command{
+		ID:      uuid.New(),
+		Command: process.CommandSystem,
+		Arguments: core.MustArguments(
+			process.SystemCommandArguments{
+				Name: "nft",
+				Args: []string{"add", "rule", "nat", "post", "ip",
+					"saddr", addr.IPNet.String(), "masquerade"},
+			},
+		),
+	}
+
+	runner, err := pm.GetManager().RunCmd(nat)
+	if err != nil {
+		return err
+	}
+
+	job := runner.Wait()
+	if job.State != core.StateSuccess {
+		return fmt.Errorf("%v", job.Streams)
+	}
+
+	return nil
+}
+
+func (b *bridgeMgr) unsetNAT(addr []netlink.Addr) error {
+	//enable nat-ting
+	nat := &core.Command{
+		ID:      uuid.New(),
+		Command: process.CommandSystem,
+		Arguments: core.MustArguments(
+			process.SystemCommandArguments{
+				Name: "nft",
+				Args: []string{"list", "ruleset", "-a"},
+			},
+		),
+	}
+
+	runner, err := pm.GetManager().RunCmd(nat)
+	if err != nil {
+		return err
+	}
+
+	job := runner.Wait()
+	if job.State != core.StateSuccess {
+		return fmt.Errorf("%v", job.Streams)
+	}
+	var ips []string
+	for _, ip := range addr {
+		//this trick to get the corred network ID from netlink addresses
+		_, n, _ := net.ParseCIDR(ip.IPNet.String())
+		ips = append(ips, n.String())
+	}
+
+	for _, line := range ruleHandlerP.FindAllStringSubmatch(job.Streams[0], -1) {
+		ip := line[1]
+		handle := line[2]
+		if utils.InString(ips, ip) {
+			pm.GetManager().RunCmd(&core.Command{
+				ID:      uuid.New(),
+				Command: process.CommandSystem,
+				Arguments: core.MustArguments(
+					process.SystemCommandArguments{
+						Name: "nft",
+						Args: []string{"delete", "rule", "nat", "post", "handle", handle},
+					},
+				),
+			})
 		}
 	}
 
@@ -277,6 +417,7 @@ func (b *bridgeMgr) bridgeNetworking(bridge *netlink.Bridge, network *BridgeNetw
 }
 
 func (b *bridgeMgr) create(cmd *core.Command) (interface{}, error) {
+	b.nftInit()
 	var args BridgeCreateArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -361,6 +502,15 @@ func (b *bridgeMgr) delete(cmd *core.Command) (interface{}, error) {
 
 	//make sure to stop dnsmasq, just in case it's running
 	pm.GetManager().Kill(fmt.Sprintf("dnsmasq-%s", link.Attrs().Name))
+
+	addresses, err := netlink.AddrList(link, netlink.FAMILY_V4)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := b.unsetNAT(addresses); err != nil {
+		return nil, err
+	}
 
 	if err := netlink.LinkDel(link); err != nil {
 		return nil, err
