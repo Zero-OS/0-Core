@@ -51,10 +51,6 @@ nft add chain filter forward { type filter hook forward priority 0 \; policy acc
 nft add chain filter output { type filter hook output priority 0 \; policy accept\; }
 `
 
-const nftSetupScript = `
-nft add rule nat post ip saddr %s masquerade
-`
-
 type BridgeNetworkMode string
 
 type NetworkStaticSettings struct {
