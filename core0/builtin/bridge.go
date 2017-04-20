@@ -20,6 +20,7 @@ import (
 
 type bridgeMgr struct {
 	init sync.Once
+	m    sync.Mutex
 }
 
 func init() {
@@ -144,6 +145,32 @@ func (b *bridgeMgr) nftInit() {
 	})
 }
 
+func (b *bridgeMgr) intersect(n1 *net.IPNet, n2 *net.IPNet) bool {
+	ip1 := n1.IP.Mask(n2.Mask)
+	ip2 := n2.IP.Mask(n1.Mask)
+	return n2.Contains(ip1) || n1.Contains(ip2)
+}
+
+func (b *bridgeMgr) conflict(addr *netlink.Addr) error {
+	links, err := netlink.LinkList()
+	if err != nil {
+		return err
+	}
+	for _, link := range links {
+		addresses, err := netlink.AddrList(link, netlink.FAMILY_ALL)
+		if err != nil {
+			return err
+		}
+		for _, address := range addresses {
+			if b.intersect(address.IPNet, addr.IPNet) {
+				return fmt.Errorf("overlapping range with %s on %s", address, link.Attrs().Name)
+			}
+		}
+	}
+
+	return nil
+}
+
 func (b *bridgeMgr) bridgeStaticNetworking(bridge *netlink.Bridge, network *BridgeNetwork) (*netlink.Addr, error) {
 	var settings NetworkStaticSettings
 	if err := json.Unmarshal(network.Settings, &settings); err != nil {
@@ -156,6 +183,10 @@ func (b *bridgeMgr) bridgeStaticNetworking(bridge *netlink.Bridge, network *Brid
 
 	addr, err := netlink.ParseAddr(settings.CIDR)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := b.conflict(addr); err != nil {
 		return nil, err
 	}
 
@@ -226,6 +257,10 @@ func (b *bridgeMgr) bridgeDnsMasqNetworking(bridge *netlink.Bridge, network *Bri
 
 	addr, err := netlink.ParseAddr(settings.CIDR)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := b.conflict(addr); err != nil {
 		return nil, err
 	}
 
@@ -414,6 +449,9 @@ func (b *bridgeMgr) unsetNAT(addr []netlink.Addr) error {
 
 func (b *bridgeMgr) create(cmd *core.Command) (interface{}, error) {
 	b.nftInit()
+	b.m.Lock()
+	defer b.m.Unlock()
+
 	var args BridgeCreateArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -482,6 +520,9 @@ func (b *bridgeMgr) list(cmd *core.Command) (interface{}, error) {
 }
 
 func (b *bridgeMgr) delete(cmd *core.Command) (interface{}, error) {
+	b.m.Lock()
+	b.m.Unlock()
+
 	var args BridgeDeleteArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
