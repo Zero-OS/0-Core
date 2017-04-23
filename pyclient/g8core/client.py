@@ -14,6 +14,8 @@ DefaultTimeout = 10  # seconds
 class Timeout(Exception):
     pass
 
+class NotFound(Exception):
+    pass
 
 class Return:
     def __init__(self, payload):
@@ -738,6 +740,11 @@ class ContainerManager:
             'container': container,
         }
         self._terminate_chk.check(args)
+
+        existing = self.list()
+        if not existing.get(str(args['container'])):
+            raise NotFound("container not found")
+
         response = self._client.raw('corex.terminate', args)
 
         result = response.get()
