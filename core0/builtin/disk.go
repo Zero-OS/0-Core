@@ -28,6 +28,7 @@ type diskMgr struct{}
 func init() {
 	d := (*diskMgr)(nil)
 	pm.CmdMap["disk.getinfo"] = process.NewInternalProcessFactory(d.info)
+	pm.CmdMap["disk.list"] = process.NewInternalProcessFactory(d.list)
 }
 
 type diskInfo struct {
@@ -49,6 +50,10 @@ type DiskInfoResult struct {
 	BlockSize uint64          `json:"blocksize"`
 	Table     string          `json:"table"`
 	Free      []DiskFreeBlock `json:"free"`
+}
+
+type lsblkListResult struct {
+	BlockDevices []lsblkResult `json:"blockdevices"`
 }
 
 type lsblkResult struct {
@@ -282,4 +287,41 @@ func (d *diskMgr) info(cmd *core.Command) (interface{}, error) {
 	}
 
 	return d.partInfo(args.Disk, args.Part)
+}
+
+func (d *diskMgr) list(cmd *core.Command) (interface{}, error) {
+	runner, err := pm.GetManager().RunCmd(&core.Command{
+		ID:      uuid.New(),
+		Command: process.CommandSystem,
+		Arguments: core.MustArguments(process.SystemCommandArguments{
+			Name: "lsblk",
+			Args: []string{"--json", "--output-all", "--bytes", "--exclude", "1,2"},
+		}),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	result := runner.Wait()
+	if result.State != core.StateSuccess {
+		return nil, fmt.Errorf("failed to run lsblk: %v", result.Streams)
+	}
+
+	stdout := ""
+
+	if len(result.Streams) > 1 {
+		stdout = result.Streams[0]
+	}
+	var disks lsblkListResult
+	if err := json.Unmarshal([]byte(stdout), &disks); err != nil {
+		return nil, err
+	}
+	ret := []lsblkResult{}
+	for _, disk := range disks.BlockDevices {
+		if disk.Type == "disk" {
+			ret = append(ret, disk)
+		}
+	}
+	disks.BlockDevices = ret
+	return disks, nil
 }
