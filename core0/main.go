@@ -15,6 +15,7 @@ import (
 	"os"
 
 	_ "github.com/g8os/core0/base/builtin"
+	"github.com/g8os/core0/core0/assets"
 	_ "github.com/g8os/core0/core0/builtin"
 	_ "github.com/g8os/core0/core0/builtin/btrfs"
 	"github.com/g8os/core0/core0/options"
@@ -44,24 +45,6 @@ func setupLogging() {
 
 }
 
-var logo = `        GGGGGGGGGGGGG     888888888          OOOOOOOOO        SSSSSSSSSSSSSSS
-     GGG::::::::::::G   88:::::::::88      OO:::::::::OO    SS:::::::::::::::S
-   GG:::::::::::::::G 88:::::::::::::88  OO:::::::::::::OO S:::::SSSSSS::::::S
-  G:::::GGGGGGGG::::G8::::::88888::::::8O:::::::OOO:::::::OS:::::S     SSSSSSS
- G:::::G       GGGGGG8:::::8     8:::::8O::::::O   O::::::OS:::::S
-G:::::G              8:::::8     8:::::8O:::::O     O:::::OS:::::S
-G:::::G               8:::::88888:::::8 O:::::O     O:::::O S::::SSSS
-G:::::G    GGGGGGGGGG  8:::::::::::::8  O:::::O     O:::::O  SS::::::SSSSS
-G:::::G    G::::::::G 8:::::88888:::::8 O:::::O     O:::::O    SSS::::::::SS
-G:::::G    GGGGG::::G8:::::8     8:::::8O:::::O     O:::::O       SSSSSS::::S
-G:::::G        G::::G8:::::8     8:::::8O:::::O     O:::::O            S:::::S
- G:::::G       G::::G8:::::8     8:::::8O::::::O   O::::::O            S:::::S
-  G:::::GGGGGGGG::::G8::::::88888::::::8O:::::::OOO:::::::OSSSSSSS     S:::::S
-   GG:::::::::::::::G 88:::::::::::::88  OO:::::::::::::OO S::::::SSSSSS:::::S
-     GGG::::::GGG:::G   88:::::::::88      OO:::::::::OO   S:::::::::::::::SS
-        GGGGGG   GGGG     888888888          OOOOOOOOO      SSSSSSSSSSSSSSS
-`
-
 func main() {
 	var options = options.Options
 	//fmt.Println(core.Version())
@@ -75,7 +58,15 @@ func main() {
 		screen.Render()
 	}
 
-	screen.String(logo)
+	screen.Push(&screen.StringSection{
+		Text: string(assets.MustAsset("text/logo.txt")),
+	})
+
+	screen.Push(&screen.StringSection{
+		Text: core.Version().String(),
+	})
+
+	screen.Refresh()
 
 	setupLogging()
 

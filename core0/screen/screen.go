@@ -27,8 +27,8 @@ var (
 	tty  *os.File
 	serr error
 
-	m     sync.RWMutex
-	frame bytes.Buffer
+	m  sync.RWMutex
+	fb bytes.Buffer
 )
 
 func newScreen(vt int) error {
@@ -59,7 +59,7 @@ func render() {
 	for {
 		fmt.Fprint(tty, Reset)
 		m.RLock()
-		reader := bufio.NewScanner(bytes.NewReader(frame.Bytes()))
+		reader := bufio.NewScanner(bytes.NewReader(fb.Bytes()))
 		var c int
 		for reader.Scan() {
 			txt := reader.Text()
@@ -69,6 +69,9 @@ func render() {
 				fmt.Fprintf(tty, LineFmt, txt)
 			}
 			c++
+			if c >= Height {
+				break
+			}
 		}
 
 		m.RUnlock()
@@ -83,11 +86,4 @@ func render() {
 
 func Render() {
 	go render()
-}
-
-func String(s string) {
-	m.Lock()
-	defer m.Unlock()
-	frame.Reset()
-	fmt.Fprint(&frame, s)
 }
