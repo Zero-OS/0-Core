@@ -18,6 +18,7 @@ import (
 	_ "github.com/g8os/core0/core0/builtin"
 	_ "github.com/g8os/core0/core0/builtin/btrfs"
 	"github.com/g8os/core0/core0/options"
+	"github.com/g8os/core0/core0/screen"
 	"github.com/g8os/core0/core0/stats"
 	"github.com/g8os/core0/core0/subsys/containers"
 	"github.com/g8os/core0/core0/subsys/kvm"
@@ -43,12 +44,38 @@ func setupLogging() {
 
 }
 
+var logo = `        GGGGGGGGGGGGG     888888888          OOOOOOOOO        SSSSSSSSSSSSSSS
+     GGG::::::::::::G   88:::::::::88      OO:::::::::OO    SS:::::::::::::::S
+   GG:::::::::::::::G 88:::::::::::::88  OO:::::::::::::OO S:::::SSSSSS::::::S
+  G:::::GGGGGGGG::::G8::::::88888::::::8O:::::::OOO:::::::OS:::::S     SSSSSSS
+ G:::::G       GGGGGG8:::::8     8:::::8O::::::O   O::::::OS:::::S
+G:::::G              8:::::8     8:::::8O:::::O     O:::::OS:::::S
+G:::::G               8:::::88888:::::8 O:::::O     O:::::O S::::SSSS
+G:::::G    GGGGGGGGGG  8:::::::::::::8  O:::::O     O:::::O  SS::::::SSSSS
+G:::::G    G::::::::G 8:::::88888:::::8 O:::::O     O:::::O    SSS::::::::SS
+G:::::G    GGGGG::::G8:::::8     8:::::8O:::::O     O:::::O       SSSSSS::::S
+G:::::G        G::::G8:::::8     8:::::8O:::::O     O:::::O            S:::::S
+ G:::::G       G::::G8:::::8     8:::::8O::::::O   O::::::O            S:::::S
+  G:::::GGGGGGGG::::G8::::::88888::::::8O:::::::OOO:::::::OSSSSSSS     S:::::S
+   GG:::::::::::::::G 88:::::::::::::88  OO:::::::::::::OO S::::::SSSSSS:::::S
+     GGG::::::GGG:::G   88:::::::::88      OO:::::::::OO   S:::::::::::::::SS
+        GGGGGG   GGGG     888888888          OOOOOOOOO      SSSSSSSSSSSSSSS
+`
+
 func main() {
 	var options = options.Options
-	fmt.Println(core.Version())
+	//fmt.Println(core.Version())
 	if options.Version() {
 		os.Exit(0)
 	}
+
+	if err := screen.New(2); err != nil {
+		log.Critical(err)
+	} else {
+		screen.Render()
+	}
+
+	screen.String(logo)
 
 	setupLogging()
 
