@@ -1,9 +1,11 @@
 package main
 
 import (
+	"os"
+	"path"
+
 	"github.com/codegangsta/cli"
 	"github.com/op/go-logging"
-	"os"
 )
 
 var (
@@ -112,5 +114,13 @@ func main() {
 			Action: WithTransport(reboot),
 		},
 	}
-	app.Run(os.Args)
+	var args []string
+	command := path.Base(os.Args[0])
+	if command == "corectl" {
+		args = os.Args
+	} else {
+		args = []string{"corectl", command}
+		args = append(args, os.Args[1:]...)
+	}
+	app.Run(args)
 }
