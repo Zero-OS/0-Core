@@ -48,6 +48,7 @@ func New(vt int) error {
 	return newScreen(vt)
 }
 
+//makes sure that screen always have what in the current frame
 func render() {
 	fmt.Fprint(tty, Wipe)
 	//get size
@@ -57,6 +58,20 @@ func render() {
 	}
 
 	for {
+		//tick sections
+		refresh := false
+		for _, section := range frame {
+			if section, ok := section.(dynamic); ok {
+				if section.tick() {
+					refresh = true
+				}
+			}
+		}
+
+		if refresh {
+			Refresh()
+		}
+
 		fmt.Fprint(tty, Reset)
 		m.RLock()
 		reader := bufio.NewScanner(bytes.NewReader(fb.Bytes()))
@@ -80,7 +95,7 @@ func render() {
 			fmt.Fprint(tty, string(space), "\n")
 		}
 		tty.Sync()
-		time.Sleep(1 * time.Second)
+		time.Sleep(500 * time.Millisecond)
 	}
 }
 

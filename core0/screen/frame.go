@@ -1,9 +1,16 @@
 package screen
 
-import "io"
+import (
+	"fmt"
+	"io"
+)
 
 type Section interface {
 	write(io.Writer)
+}
+
+type dynamic interface {
+	tick() bool
 }
 
 type Frame []Section
@@ -18,6 +25,43 @@ type StringSection struct {
 
 func (s *StringSection) write(f io.Writer) {
 	fb.WriteString(s.Text)
+}
+
+type ProgressSection struct {
+	Text string
+	c    byte
+	off  bool
+}
+
+func (s *ProgressSection) write(f io.Writer) {
+	c := s.c
+	switch c {
+	case '-':
+		c = '\\'
+	case '\\':
+		c = '|'
+	case '|':
+		c = '/'
+	case '/':
+		c = '-'
+	default:
+		c = '-'
+	}
+
+	s.c = c
+	if s.off {
+		fmt.Fprint(f, s.Text, " ", "DONE")
+	} else {
+		fmt.Fprint(f, s.Text, " ", string(c))
+	}
+}
+
+func (s *ProgressSection) tick() bool {
+	return !s.off
+}
+
+func (s *ProgressSection) Progress(off bool) {
+	s.off = off
 }
 
 func Refresh() {

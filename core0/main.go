@@ -66,6 +66,10 @@ func main() {
 		Text: core.Version().String(),
 	})
 
+	bsProgress := &screen.ProgressSection{
+		Text: "Bootstrap",
+	}
+	screen.Push(bsProgress)
 	screen.Refresh()
 
 	setupLogging()
