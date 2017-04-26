@@ -19,40 +19,65 @@ var (
 	frame Frame
 )
 
+type Attribute string
+type Attributes []Attribute
+
+const (
+	Bold  Attribute = "1"
+	Red   Attribute = "31"
+	Blue  Attribute = "34"
+	Green Attribute = "32"
+)
+
 type TextSection struct {
-	Text string
+	Attributes Attributes
+	Text       string
 }
 
 func (s *TextSection) write(f io.Writer) {
-	fb.WriteString(s.Text)
+	if len(s.Attributes) > 0 {
+		fmt.Fprint(f, "\033[")
+		for i, attr := range s.Attributes {
+			if i > 0 {
+				fmt.Fprint(f, ";")
+			}
+			fmt.Fprint(f, attr)
+		}
+		fmt.Fprint(f, "m")
+	}
+	fmt.Fprint(f, s.Text, "\033[0m")
 }
 
 type ProgressSection struct {
-	Text string
-	c    byte
-	off  bool
+	Text  string
+	clock TextSection
+	off   bool
 }
 
 func (s *ProgressSection) write(f io.Writer) {
-	c := s.c
+	if len(s.clock.Attributes) == 0 {
+		s.clock.Attributes = Attributes{Bold, Blue}
+	}
+	c := s.clock.Text
 	switch c {
-	case '-':
-		c = '\\'
-	case '\\':
-		c = '|'
-	case '|':
-		c = '/'
-	case '/':
-		c = '-'
+	case "-":
+		c = "\\"
+	case "\\":
+		c = "|"
+	case "|":
+		c = "/"
+	case "/":
+		c = "-"
 	default:
-		c = '-'
+		c = "-"
 	}
 
-	s.c = c
-	if s.off {
-		fmt.Fprint(f, s.Text)
-	} else {
-		fmt.Fprint(f, s.Text, " ", string(c))
+	s.clock.Text = c
+	fmt.Fprint(f, s.Text)
+
+	if !s.off {
+		fmt.Fprint(f, " ")
+		s.clock.write(f)
 	}
 }
 

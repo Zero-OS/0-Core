@@ -57,13 +57,15 @@ func main() {
 	}
 
 	screen.Push(&screen.TextSection{
-		Text: string(assets.MustAsset("text/logo.txt")),
+		Attributes: screen.Attributes{screen.Bold},
+		Text:       string(assets.MustAsset("text/logo.txt")),
 	})
-
+	screen.Push(&screen.TextSection{})
 	screen.Push(&screen.TextSection{
-		Text: core.Version().Short(),
+		Attributes: screen.Attributes{screen.Green},
+		Text:       core.Version().Short(),
 	})
-
+	screen.Push(&screen.TextSection{})
 	screen.Refresh()
 
 	setupLogging()
