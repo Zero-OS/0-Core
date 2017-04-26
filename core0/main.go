@@ -47,7 +47,7 @@ func setupLogging() {
 
 func main() {
 	var options = options.Options
-	//fmt.Println(core.Version())
+	fmt.Println(core.Version())
 	if options.Version() {
 		os.Exit(0)
 	}
@@ -58,18 +58,14 @@ func main() {
 		screen.Render()
 	}
 
-	screen.Push(&screen.StringSection{
+	screen.Push(&screen.TextSection{
 		Text: string(assets.MustAsset("text/logo.txt")),
 	})
 
-	screen.Push(&screen.StringSection{
-		Text: core.Version().String(),
+	screen.Push(&screen.TextSection{
+		Text: core.Version().Short(),
 	})
 
-	bsProgress := &screen.ProgressSection{
-		Text: "Bootstrap",
-	}
-	screen.Push(bsProgress)
 	screen.Refresh()
 
 	setupLogging()

@@ -13,6 +13,11 @@ var (
 	Dirty    = "{dirty}"
 )
 
+type Ver interface {
+	Short() string
+	String() string
+}
+
 type version struct{}
 
 func (v *version) String() string {
@@ -24,6 +29,14 @@ func (v *version) String() string {
 	return s
 }
 
-func Version() fmt.Stringer {
+func (v *version) Short() string {
+	s := fmt.Sprintf("%s@%s", Branch, Revision[0:7])
+	if Dirty != "" {
+		s += "(D)"
+	}
+	return s
+}
+
+func Version() Ver {
 	return &version{}
 }

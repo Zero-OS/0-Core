@@ -5,13 +5,18 @@ import (
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/settings"
 	"github.com/g8os/core0/core0/bootstrap/network"
+	"github.com/g8os/core0/core0/screen"
 	"github.com/op/go-logging"
+	"github.com/vishvananda/netlink"
 	"net/http"
+	"strings"
 	"time"
 )
 
 const (
-	InternetTestAddress = "http://www.google.com"
+	InternetTestAddress = "https://bootstrap.gig.tech/"
+
+	screenStateLine = "->%15s: %s"
 )
 
 var (
@@ -65,7 +70,7 @@ func (b *Bootstrap) startupServices(s, e settings.After) {
 }
 
 func (b *Bootstrap) canReachInternet() bool {
-	log.Infof("Testing internet reachability to %s", InternetTestAddress)
+	log.Debugf("Testing internet reachability to %s", InternetTestAddress)
 	resp, err := http.Get(InternetTestAddress)
 	if err != nil {
 		log.Warning("HTTP: %v", err)
@@ -73,6 +78,47 @@ func (b *Bootstrap) canReachInternet() bool {
 	}
 	resp.Body.Close()
 	return true
+}
+
+func (b *Bootstrap) initView(infs []network.Interface) *screen.GroupSection {
+	//show interface progress
+	screen.Push(&screen.TextSection{})
+	group := &screen.GroupSection{
+		Sections: map[string]screen.Section{},
+	}
+
+	for _, inf := range infs {
+		group.Sections[inf.Name()] = &screen.ProgressSection{
+			Text: fmt.Sprintf("Setting up %s:", inf.Name()),
+		}
+	}
+	screen.Push(group)
+	screen.Refresh()
+	return group
+}
+
+func (b *Bootstrap) ipsAsString(ips []netlink.Addr) string {
+	var s []string
+	for _, ip := range ips {
+		s = append(s, ip.IPNet.String())
+	}
+
+	return strings.Join(s, ", ")
+}
+
+func (b *Bootstrap) updateView(group *screen.GroupSection, infs []network.Interface) {
+	for _, inf := range infs {
+		ips, err := inf.IPs()
+		if err == nil {
+			progress := group.Sections[inf.Name()]
+			if progress, ok := progress.(*screen.ProgressSection); ok {
+				progress.Stop(true)
+				progress.Text = fmt.Sprintf(screenStateLine, inf.Name(), b.ipsAsString(ips))
+			}
+		}
+	}
+
+	screen.Refresh()
 }
 
 func (b *Bootstrap) setupNetworking() error {
@@ -95,14 +141,19 @@ func (b *Bootstrap) setupNetworking() error {
 		return fmt.Errorf("failed to get network interfaces: %s", err)
 	}
 
+	group := b.initView(interfaces)
+
 	//apply the interfaces settings as configured.
 	for _, inf := range interfaces {
 		log.Infof("Setting up interface '%s'", inf.Name())
+
 		inf.Clear()
 		if err := inf.Configure(); err != nil {
 			log.Errorf("%s", err)
 		}
 	}
+
+	b.updateView(group, interfaces)
 
 	if ok := b.canReachInternet(); ok {
 		return nil
@@ -112,6 +163,11 @@ func (b *Bootstrap) setupNetworking() error {
 	log.Infof("Trying dhcp on all interfaces one by one")
 	dhcp, _ := network.GetProtocol(network.ProtocolDHCP)
 	for _, inf := range interfaces {
+		progress := group.Sections[inf.Name()]
+		if progress, ok := progress.(*screen.ProgressSection); ok {
+			progress.Stop(false)
+		}
+
 		//try interfaces one by one
 		if inf.Protocol() == network.NoneProtocol || inf.Protocol() == network.ProtocolDHCP || inf.Name() == "lo" {
 			//we don't use none interface, they only must be brought up
@@ -140,6 +196,26 @@ func (b *Bootstrap) setupNetworking() error {
 	return fmt.Errorf("couldn't reach internet")
 }
 
+func (b *Bootstrap) monitorConnectivity() {
+	section := &screen.ProgressSection{}
+	screen.Push(section)
+
+	for {
+		section.Stop(false)
+		section.Text = fmt.Sprintf(screenStateLine, "Connectivity", "")
+
+		if b.canReachInternet() {
+			section.Text = fmt.Sprintf(screenStateLine, "Connectivity", "OK")
+		} else {
+			section.Text = fmt.Sprintf(screenStateLine, "Connectivity", "NOT OK")
+		}
+
+		section.Stop(true)
+		screen.Refresh()
+		time.Sleep(5 * time.Second)
+	}
+}
+
 //Bootstrap registers extensions and startup system services.
 func (b *Bootstrap) Bootstrap() {
 	//register core extensions
@@ -163,6 +239,8 @@ func (b *Bootstrap) Bootstrap() {
 		time.Sleep(2 * time.Second)
 		log.Infof("Retrying setting up network")
 	}
+
+	go b.monitorConnectivity()
 
 	//start up all net services ([net, boot[ slice)
 	b.startupServices(settings.AfterNet, settings.AfterBoot)

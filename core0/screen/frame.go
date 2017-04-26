@@ -19,11 +19,11 @@ var (
 	frame Frame
 )
 
-type StringSection struct {
+type TextSection struct {
 	Text string
 }
 
-func (s *StringSection) write(f io.Writer) {
+func (s *TextSection) write(f io.Writer) {
 	fb.WriteString(s.Text)
 }
 
@@ -50,7 +50,7 @@ func (s *ProgressSection) write(f io.Writer) {
 
 	s.c = c
 	if s.off {
-		fmt.Fprint(f, s.Text, " ", "DONE")
+		fmt.Fprint(f, s.Text)
 	} else {
 		fmt.Fprint(f, s.Text, " ", string(c))
 	}
@@ -60,8 +60,36 @@ func (s *ProgressSection) tick() bool {
 	return !s.off
 }
 
-func (s *ProgressSection) Progress(off bool) {
+func (s *ProgressSection) Stop(off bool) {
 	s.off = off
+}
+
+type GroupSection struct {
+	Sections map[string]Section
+}
+
+func (s *GroupSection) write(f io.Writer) {
+	idx := 0
+	for _, section := range s.Sections {
+		section.write(f)
+		if idx != len(s.Sections)-1 {
+			f.Write([]byte{'\n'})
+		}
+		idx += 1
+	}
+}
+
+func (s *GroupSection) tick() bool {
+	v := false
+	for _, sub := range s.Sections {
+		if sub, ok := sub.(dynamic); ok {
+			if sub.tick() {
+				v = true
+			}
+		}
+	}
+
+	return v
 }
 
 func Refresh() {

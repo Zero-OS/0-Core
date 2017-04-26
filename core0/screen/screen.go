@@ -13,11 +13,12 @@ import (
 )
 
 const (
-	Wipe    = "\033[2J\033[;H"
-	Reset   = "\033[0;0f"
-	Width   = 80
-	Height  = 24
-	LineFmt = "%-80s\n"
+	Width  = 80
+	Height = 25
+
+	wipeSequence  = "\033[2J\033[;H"
+	resetSequence = "\033[0;0f"
+	lineFmt       = "%-80s\n"
 )
 
 var (
@@ -50,7 +51,7 @@ func New(vt int) error {
 
 //makes sure that screen always have what in the current frame
 func render() {
-	fmt.Fprint(tty, Wipe)
+	fmt.Fprint(tty, wipeSequence)
 	//get size
 	space := make([]byte, Width)
 	for i := range space {
@@ -72,7 +73,7 @@ func render() {
 			Refresh()
 		}
 
-		fmt.Fprint(tty, Reset)
+		fmt.Fprint(tty, resetSequence)
 		m.RLock()
 		reader := bufio.NewScanner(bytes.NewReader(fb.Bytes()))
 		var c int
@@ -81,7 +82,7 @@ func render() {
 			if len(txt) > Width {
 				fmt.Fprint(tty, txt[:Width], "\n")
 			} else {
-				fmt.Fprintf(tty, LineFmt, txt)
+				fmt.Fprintf(tty, lineFmt, txt)
 			}
 			c++
 			if c >= Height {
@@ -95,7 +96,7 @@ func render() {
 			fmt.Fprint(tty, string(space), "\n")
 		}
 		tty.Sync()
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 	}
 }
 

@@ -40,6 +40,7 @@ type Interface interface {
 	Protocol() string
 	Configure() error
 	Clear() error
+	IPs() ([]netlink.Addr, error)
 }
 
 type NetworkManager interface {
@@ -85,6 +86,14 @@ func (i *networkInterface) Clear() error {
 	}
 
 	return nil
+}
+
+func (i *networkInterface) IPs() ([]netlink.Addr, error) {
+	link, err := netlink.LinkByName(i.Name())
+	if err != nil {
+		return nil, err
+	}
+	return netlink.AddrList(link, netlink.FAMILY_V4)
 }
 
 type networkManager struct {
