@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/settings"
+	"github.com/g8os/core0/base/utils"
 	"github.com/g8os/core0/core0/bootstrap/network"
 	"github.com/g8os/core0/core0/screen"
 	"github.com/op/go-logging"
@@ -205,7 +206,7 @@ func (b *Bootstrap) screen() {
 		section.Sections = []screen.Section{}
 
 		for _, link := range links {
-			if link.Attrs().Name == "lo" || link.Type() != "device" {
+			if link.Attrs().Name == "lo" || !utils.InString([]string{"device", "tap", "tun"}, link.Type()) {
 				continue
 			}
 
