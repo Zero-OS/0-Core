@@ -1365,12 +1365,10 @@ class KvmManager:
         'groupname': str,
     })
 
-    DefaultNetworking = object()
-
     def __init__(self, client):
         self._client = client
 
-    def create(self, name, media, cpu=2, memory=512, nics=DefaultNetworking, port=None):
+    def create(self, name, media, cpu=2, memory=512, nics=None, port=None):
         """
         :param name: Name of the kvm domain
         :param media: array of media objects to attach to the machine, where the first object is the boot device
@@ -1391,7 +1389,7 @@ class KvmManager:
         :return: uuid of the virtual machine
         """
 
-        if nics == self.DefaultNetworking:
+        if nics is None:
             nics = []
 
         args = {
