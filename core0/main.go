@@ -71,7 +71,7 @@ func main() {
 	var config = settings.Settings
 
 	var loglevel string
-	if options.Kernel.Verbose() {
+	if options.Kernel.Is("verbose") {
 		loglevel = "DEBUG"
 	} else {
 		loglevel = config.Main.LogLevel

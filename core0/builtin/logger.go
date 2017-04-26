@@ -1,4 +1,4 @@
-package logger
+package builtin
 
 import (
 	"encoding/json"
@@ -14,14 +14,14 @@ type logMgr struct{}
 
 func init() {
 	l := (*logMgr)(nil)
-	pm.CmdMap["logger.setlevel"] = process.NewInternalProcessFactory(l.setlevel)
+	pm.CmdMap["logger.set_level"] = process.NewInternalProcessFactory(l.setLevel)
 }
 
 type LogLevel struct {
 	Level string `json:"level"`
 }
 
-func (l *logMgr) setlevel(cmd *core.Command) (interface{}, error) {
+func (l *logMgr) setLevel(cmd *core.Command) (interface{}, error) {
 	var args LogLevel
 
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {

@@ -38,6 +38,5 @@ func init() {
 		printHelp()
 		os.Exit(0)
 	}
-	Options.Kernel = KernelOptions{}
-	kernel_init(&Options.Kernel)
+	Options.Kernel = getKernelParams()
 }

@@ -1668,7 +1668,7 @@ class Logger:
     def __init__(self, client):
         self._client = client
 
-    def setlevel(self, level):
+    def set_level(self, level):
         """
         Set the log level of the g8os
         :param level: the level to be set can be one of ("CRITICAL", "ERROR", "WARNING", "NOTICE", "INFO", "DEBUG")
@@ -1678,7 +1678,7 @@ class Logger:
         }
         self._level_chk.check(args)
 
-        return self._client.sync('logger.setlevel', args)
+        return self._client.sync('logger.set_level', args)
 
 
 class Experimental:
