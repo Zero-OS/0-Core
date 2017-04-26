@@ -40,6 +40,9 @@ func newScreen(vt int) error {
 			return
 		}
 		tty, serr = os.OpenFile(fmt.Sprintf("/dev/tty%d", vt), syscall.O_WRONLY|syscall.O_NOCTTY, 0644)
+		if serr == nil {
+			go render()
+		}
 	})
 
 	return serr
@@ -98,8 +101,4 @@ func render() {
 		tty.Sync()
 		time.Sleep(200 * time.Millisecond)
 	}
-}
-
-func Render() {
-	go render()
 }

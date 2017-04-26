@@ -54,8 +54,6 @@ func main() {
 
 	if err := screen.New(2); err != nil {
 		log.Critical(err)
-	} else {
-		screen.Render()
 	}
 
 	screen.Push(&screen.TextSection{

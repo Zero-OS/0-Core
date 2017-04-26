@@ -65,12 +65,11 @@ func (s *ProgressSection) Stop(off bool) {
 }
 
 type GroupSection struct {
-	Sections map[string]Section
+	Sections []Section
 }
 
 func (s *GroupSection) write(f io.Writer) {
-	idx := 0
-	for _, section := range s.Sections {
+	for idx, section := range s.Sections {
 		section.write(f)
 		if idx != len(s.Sections)-1 {
 			f.Write([]byte{'\n'})
