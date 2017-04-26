@@ -81,23 +81,6 @@ func (b *Bootstrap) canReachInternet() bool {
 	return true
 }
 
-//func (b *Bootstrap) initView(infs []network.Interface) *screen.GroupSection {
-//	//show interface progress
-//	screen.Push(&screen.TextSection{})
-//	group := &screen.GroupSection{
-//		Sections: map[string]screen.Section{},
-//	}
-//
-//	for _, inf := range infs {
-//		group.Sections[inf.Name()] = &screen.ProgressSection{
-//			Text: fmt.Sprintf("Setting up %s:", inf.Name()),
-//		}
-//	}
-//	screen.Push(group)
-//	screen.Refresh()
-//	return group
-//}
-//
 func (b *Bootstrap) ipsAsString(ips []netlink.Addr) string {
 	var s []string
 	for _, ip := range ips {
@@ -106,22 +89,6 @@ func (b *Bootstrap) ipsAsString(ips []netlink.Addr) string {
 
 	return strings.Join(s, ", ")
 }
-
-//
-//func (b *Bootstrap) updateView(group *screen.GroupSection, infs []network.Interface) {
-//	for _, inf := range infs {
-//		ips, err := inf.IPs()
-//		if err == nil {
-//			progress := group.Sections[inf.Name()]
-//			if progress, ok := progress.(*screen.ProgressSection); ok {
-//				progress.Stop(true)
-//				progress.Text = fmt.Sprintf(screenStateLine, inf.Name(), b.ipsAsString(ips))
-//			}
-//		}
-//	}
-//
-//	screen.Refresh()
-//}
 
 func (b *Bootstrap) setupNetworking() error {
 	if settings.Settings.Main.Network == "" {
