@@ -1660,6 +1660,27 @@ class KvmManager:
         return self._client.json('kvm.list', {})
 
 
+class Logger:
+    _level_chk = typchk.Checker({
+        'level': typchk.Enum("CRITICAL", "ERROR", "WARNING", "NOTICE", "INFO", "DEBUG"),
+    })
+
+    def __init__(self, client):
+        self._client = client
+
+    def setlevel(self, level):
+        """
+        Set the log level of the g8os
+        :param level: the level to be set can be one of ("CRITICAL", "ERROR", "WARNING", "NOTICE", "INFO", "DEBUG")
+        """
+        args = {
+            'level': level,
+        }
+        self._level_chk.check(args)
+
+        return self._client.sync('logger.setlevel', args)
+
+
 class Experimental:
     def __init__(self, client):
         pass
@@ -1677,6 +1698,7 @@ class Client(BaseClient):
         self._zerotier = ZerotierManager(self)
         self._experimntal = Experimental(self)
         self._kvm = KvmManager(self)
+        self._logger = Logger(self)
 
     @property
     def experimental(self):
@@ -1705,6 +1727,10 @@ class Client(BaseClient):
     @property
     def kvm(self):
         return self._kvm
+
+    @property
+    def logger(self):
+        return self._logger
 
     def raw(self, command, arguments, queue=None):
         """

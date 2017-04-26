@@ -70,9 +70,16 @@ func main() {
 
 	var config = settings.Settings
 
-	level, err := logging.LogLevel(config.Main.LogLevel)
+	var loglevel string
+	if options.Kernel.Verbose() {
+		loglevel = "DEBUG"
+	} else {
+		loglevel = config.Main.LogLevel
+	}
+
+	level, err := logging.LogLevel(loglevel)
 	if err != nil {
-		log.Fatal("invalid log level: %s", settings.Settings.Main.LogLevel)
+		log.Fatal("invalid log level: %s", loglevel)
 	}
 
 	logging.SetLevel(level, "")

@@ -9,6 +9,7 @@ import (
 type AppOptions struct {
 	cfg     string
 	version bool
+	Kernel  KernelOptions
 }
 
 func (o *AppOptions) Config() string {
@@ -37,4 +38,6 @@ func init() {
 		printHelp()
 		os.Exit(0)
 	}
+	Options.Kernel = KernelOptions{}
+	kernel_init(&Options.Kernel)
 }
