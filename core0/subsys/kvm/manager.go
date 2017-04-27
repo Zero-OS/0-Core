@@ -265,6 +265,10 @@ type LastStatistics struct {
 	Epoch int64   `json:"m_epoch"`
 }
 
+type QemuImgInfoResult struct {
+	Format string `json:"format"`
+}
+
 func StateToString(state libvirt.DomainState) string {
 	var res string
 	switch state {
@@ -369,6 +373,38 @@ func (m *kvmManager) mkNBDDisk(idx int, u *url.URL) DiskDevice {
 	}
 }
 
+func getDiskType(path string) string {
+	cmd := &core.Command{
+		ID:      uuid.New(),
+		Command: process.CommandSystem,
+		Arguments: core.MustArguments(
+			process.SystemCommandArguments{
+				Name: "qemu-img",
+				Args: []string{"info", "--output=json", path},
+			},
+		),
+	}
+
+	runner, err := pm.GetManager().RunCmd(cmd)
+	if err != nil {
+		return "raw"
+	}
+	result := runner.Wait()
+	if result.State != core.StateSuccess {
+		return "raw"
+	} else {
+		var params QemuImgInfoResult
+		if err := json.Unmarshal([]byte(result.Streams[0]), &params); err != nil {
+			fmt.Println("%v", err)
+			return "raw2"
+		} else {
+			return params.Format
+		}
+
+	}
+
+}
+
 func (m *kvmManager) mkFileDisk(idx int, u *url.URL) DiskDevice {
 	target := "vd" + string(97+idx)
 	return DiskDevice{
@@ -378,6 +414,9 @@ func (m *kvmManager) mkFileDisk(idx int, u *url.URL) DiskDevice {
 		},
 		Source: DiskSourceFile{
 			File: u.String(),
+		},
+		Driver: DiskDriver{
+			Type: DiskDriverType(getDiskType(u.Path)),
 		},
 	}
 }
@@ -400,11 +439,6 @@ func (m *kvmManager) mkDisk(idx int, media Media) DiskDevice {
 	disk.Target.Bus = "virtio"
 	if media.Bus != "" {
 		disk.Target.Bus = media.Bus
-	}
-
-	disk.Driver.Type = "raw"
-	if media.DriverType == Qcow2Disk {
-		disk.Driver.Type = "qcow2"
 	}
 
 	//hack for cdrom, because it doesn't work well with virtio

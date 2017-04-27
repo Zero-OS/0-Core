@@ -76,9 +76,6 @@ const (
 	DiskTypeVolume  DiskType = "volume"
 	DiskTypeNetwork DiskType = "network"
 
-	RawDisk   DiskDriverType = "raw"
-	Qcow2Disk DiskDriverType = "qcow2"
-
 	DiskDeviceTypeDisk  DiskDeviceType = "disk"
 	DiskDeviceTypeCDROM DiskDeviceType = "cdrom"
 )
@@ -119,7 +116,7 @@ type DiskTarget struct {
 }
 
 type DiskDriver struct {
-	Type DiskDriverType `xml:"type,attr"`
+	Type DiskDriverType `xml:"type,attr,omitempty"`
 }
 
 type DiskDevice struct {
