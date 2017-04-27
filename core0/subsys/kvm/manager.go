@@ -118,10 +118,9 @@ func KVMSubsystem(conmgr containers.ContainerManager) error {
 }
 
 type Media struct {
-	URL        string         `json:"url"`
-	Type       DiskDeviceType `json:"type"`
-	DriverType DiskDriverType `json:"driver_type"`
-	Bus        string         `json:"bus"`
+	URL  string         `json:"url"`
+	Type DiskDeviceType `json:"type"`
+	Bus  string         `json:"bus"`
 }
 
 type Nic struct {
@@ -392,17 +391,12 @@ func getDiskType(path string) string {
 	result := runner.Wait()
 	if result.State != core.StateSuccess {
 		return "raw"
-	} else {
-		var params QemuImgInfoResult
-		if err := json.Unmarshal([]byte(result.Streams[0]), &params); err != nil {
-			fmt.Println("%v", err)
-			return "raw2"
-		} else {
-			return params.Format
-		}
-
 	}
-
+	var params QemuImgInfoResult
+	if err := json.Unmarshal([]byte(result.Streams[0]), &params); err != nil {
+		return "raw"
+	}
+	return params.Format
 }
 
 func (m *kvmManager) mkFileDisk(idx int, u *url.URL) DiskDevice {
