@@ -101,7 +101,7 @@ type lsblkResult struct {
 	Subsystems string        `json:"subsystems"`
 	Rev        interface{}   `json:"rev"`
 	Vendor     interface{}   `json:"vendor"`
-	Children   []lsblkResult `json:"children"`
+	Children   []lsblkResult `json:"children,omitempty"`
 }
 
 func (d *diskMgr) readUInt64(p string) (uint64, error) {
