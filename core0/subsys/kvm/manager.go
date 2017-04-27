@@ -118,9 +118,10 @@ func KVMSubsystem(conmgr containers.ContainerManager) error {
 }
 
 type Media struct {
-	URL  string         `json:"url"`
-	Type DiskDeviceType `json:"type"`
-	Bus  string         `json:"bus"`
+	URL        string         `json:"url"`
+	Type       DiskDeviceType `json:"type"`
+	DriverType DiskDriverType `json:"driver_type"`
+	Bus        string         `json:"bus"`
 }
 
 type Nic struct {
@@ -399,6 +400,11 @@ func (m *kvmManager) mkDisk(idx int, media Media) DiskDevice {
 	disk.Target.Bus = "virtio"
 	if media.Bus != "" {
 		disk.Target.Bus = media.Bus
+	}
+
+	disk.Driver.Type = "raw"
+	if media.DriverType == Qcow2Disk {
+		disk.Driver.Type = "qcow2"
 	}
 
 	//hack for cdrom, because it doesn't work well with virtio

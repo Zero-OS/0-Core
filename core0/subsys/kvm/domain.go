@@ -68,12 +68,16 @@ type Domain struct {
 
 type DiskType string
 type DiskDeviceType string
+type DiskDriverType string
 
 const (
 	DiskTypeFile    DiskType = "file"
 	DiskTypeDir     DiskType = "dir"
 	DiskTypeVolume  DiskType = "volume"
 	DiskTypeNetwork DiskType = "network"
+
+	RawDisk   DiskDriverType = "raw"
+	Qcow2Disk DiskDriverType = "qcow2"
 
 	DiskDeviceTypeDisk  DiskDeviceType = "disk"
 	DiskDeviceTypeCDROM DiskDeviceType = "cdrom"
@@ -114,12 +118,17 @@ type DiskTarget struct {
 	Bus string `xml:"bus,attr"`
 }
 
+type DiskDriver struct {
+	Type DiskDriverType `xml:"type,attr"`
+}
+
 type DiskDevice struct {
 	XMLName xml.Name       `xml:"disk"`
 	Type    DiskType       `xml:"type,attr"`
 	Device  DiskDeviceType `xml:"device,attr"`
 	Source  DiskSource     `xml:"source"`
 	Target  DiskTarget     `xml:"target"`
+	Driver  DiskDriver     `xml:"driver"`
 }
 
 type GraphicsDeviceType string

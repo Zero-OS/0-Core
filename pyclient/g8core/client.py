@@ -1282,6 +1282,10 @@ class KvmManager:
                 typchk.Enum('disk', 'cdrom'),
                 typchk.Missing()
             ),
+            'driver_type': typchk.Or(
+                typchk.Enum('qcow2', 'raw'),
+                typchk.Missing()
+            ),
             'url': str,
         }],
         'cpu': int,
@@ -1374,7 +1378,8 @@ class KvmManager:
         """
         :param name: Name of the kvm domain
         :param media: array of media objects to attach to the machine, where the first object is the boot device
-                      each media object is a dict of {url, and type} where type can be one of 'disk', or 'cdrom', or empty (default to disk)
+                      each media object is a dict of {url, type and driver_type} where type can be one of 'disk', or 'cdrom', or empty (default to disk)
+                      and the driver_type is either raw or qcow2 when applicable
                       example: [{'url': 'nbd+unix:///test?socket=/tmp/ndb.socket'}, {'type': 'cdrom': '/somefile.iso'}
         :param cpu: number of vcpu cores
         :param memory: memory in MiB
