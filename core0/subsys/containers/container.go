@@ -168,7 +168,7 @@ func (c *container) onexit(state bool) {
 
 func (c *container) cleanup() {
 	log.Debugf("cleaning up container-%d", c.id)
-	defer c.mgr.cleanup(c.id)
+	defer c.mgr.unset_container(c.id)
 
 	c.destroyNetwork()
 

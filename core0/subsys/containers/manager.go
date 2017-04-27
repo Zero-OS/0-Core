@@ -14,6 +14,7 @@ import (
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
 	"github.com/g8os/core0/base/utils"
+	"github.com/g8os/core0/core0/screen"
 	"github.com/garyburd/redigo/redis"
 	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
@@ -147,6 +148,8 @@ type containerManager struct {
 
 	internal *internalRouter
 	sinks    map[string]base.SinkClient
+
+	cell *screen.RowCell
 }
 
 /*
@@ -170,13 +173,15 @@ type ContainerManager interface {
 	Of(id uint16) Container
 }
 
-func ContainerSubsystem(sinks map[string]base.SinkClient) (ContainerManager, error) {
+func ContainerSubsystem(sinks map[string]base.SinkClient, cell *screen.RowCell) (ContainerManager, error) {
 	containerMgr := &containerManager{
 		pool:       utils.NewRedisPool("unix", redisSocketSrc, ""),
 		containers: make(map[uint16]*container),
 		sinks:      sinks,
 		internal:   newInternalRouter(),
+		cell:       cell,
 	}
+	cell.Text = "Containers: 0"
 
 	pm.CmdMap[cmdContainerCreate] = process.NewInternalProcessFactory(containerMgr.create)
 	pm.CmdMap[cmdContainerList] = process.NewInternalProcessFactory(containerMgr.list)
@@ -268,6 +273,23 @@ func (m *containerManager) getNextSequence() uint16 {
 	return m.sequence
 }
 
+func (m *containerManager) set_container(id uint16, c *container) {
+	m.conM.Lock()
+	defer m.conM.Unlock()
+	m.containers[id] = c
+	m.cell.Text = fmt.Sprintf("Containers: %d", len(m.containers))
+	screen.Refresh()
+}
+
+//cleanup is called when a container terminates.
+func (m *containerManager) unset_container(id uint16) {
+	m.conM.Lock()
+	defer m.conM.Unlock()
+	delete(m.containers, id)
+	m.cell.Text = fmt.Sprintf("Containers: %d", len(m.containers))
+	screen.Refresh()
+}
+
 func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
 	var args ContainerCreateArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
@@ -281,22 +303,13 @@ func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
 	id := m.getNextSequence()
 	c := newContainer(m, id, cmd.Route, args)
 
-	m.conM.Lock()
-	m.containers[id] = c
-	m.conM.Unlock()
+	m.set_container(id, c)
 
 	if err := c.Start(); err != nil {
 		return nil, err
 	}
 
 	return id, nil
-}
-
-//cleanup is called when a container terminates.
-func (m *containerManager) cleanup(id uint16) {
-	m.conM.Lock()
-	defer m.conM.Unlock()
-	delete(m.containers, id)
 }
 
 type ContainerInfo struct {

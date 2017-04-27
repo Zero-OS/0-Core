@@ -17,6 +17,7 @@ import (
 	"github.com/g8os/core0/base/pm/process"
 	"github.com/g8os/core0/base/settings"
 	"github.com/g8os/core0/base/utils"
+	"github.com/g8os/core0/core0/screen"
 	"github.com/g8os/core0/core0/subsys/containers"
 	"github.com/garyburd/redigo/redis"
 	"github.com/libvirt/libvirt-go"
@@ -37,6 +38,8 @@ type kvmManager struct {
 	pool     *redis.Pool
 
 	conmgr containers.ContainerManager
+
+	cell *screen.RowCell
 }
 
 var (
@@ -72,11 +75,12 @@ const (
 	DefaultBridgeName = "kvm0"
 )
 
-func KVMSubsystem(conmgr containers.ContainerManager) error {
+func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) error {
 	mgr := &kvmManager{
 		conmgr: conmgr,
+		cell:   cell,
 	}
-
+	cell.Text = "Virtual Machines: 0"
 	if err := mgr.setupDefaultGateway(); err != nil {
 		return err
 	}
@@ -531,7 +535,18 @@ func (m *kvmManager) setPortForwards(uuid string, seq uint16, port map[int]int) 
 	return nil
 }
 
+func (m *kvmManager) updateView() {
+	domains, err := m.conn.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE | libvirt.CONNECT_LIST_DOMAINS_INACTIVE)
+	if err != nil {
+		return
+	}
+
+	m.cell.Text = fmt.Sprintf("Virtual Machines: %d", len(domains))
+	screen.Refresh()
+}
+
 func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
+	defer m.updateView()
 	var params CreateParams
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
@@ -580,6 +595,7 @@ func (m *kvmManager) getDomain(cmd *core.Command) (*libvirt.Domain, string, erro
 }
 
 func (m *kvmManager) destroy(cmd *core.Command) (interface{}, error) {
+	defer m.updateView()
 	domain, uuid, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err

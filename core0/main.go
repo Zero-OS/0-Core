@@ -148,13 +148,20 @@ func main() {
 		}
 	}
 
+	screen.Push(&screen.SplitterSection{Title: "System Information"})
+
+	row := &screen.RowSection{
+		Cells: make([]screen.RowCell, 2),
+	}
+	screen.Push(row)
+
 	//start/register containers commands and process
-	contMgr, err := containers.ContainerSubsystem(sinks)
+	contMgr, err := containers.ContainerSubsystem(sinks, &row.Cells[0])
 	if err != nil {
 		log.Fatal("failed to intialize container subsystem", err)
 	}
 
-	if err := kvm.KVMSubsystem(contMgr); err != nil {
+	if err := kvm.KVMSubsystem(contMgr, &row.Cells[1]); err != nil {
 		log.Errorf("failed to initialize kvm subsystem", err)
 	}
 
@@ -170,6 +177,7 @@ func main() {
 	//start jobs sinks.
 	log.Infof("Starting Sinks")
 	core.StartSinks(pm.GetManager(), sinks)
+	screen.Refresh()
 
 	//wait
 	select {}

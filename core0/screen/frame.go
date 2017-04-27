@@ -116,6 +116,43 @@ func (s *GroupSection) tick() bool {
 	return v
 }
 
+type SplitterSection struct {
+	Title string
+}
+
+func (s *SplitterSection) pad(f io.Writer, padding []byte, c int) {
+	for ; c > 0; c-- {
+		f.Write(padding)
+	}
+}
+
+func (s *SplitterSection) write(f io.Writer) {
+	c := Width - (len(s.Title) + 2)
+	w := c / 2
+	s.pad(f, []byte{'='}, w)
+	fmt.Fprint(f, " ", s.Title, " ")
+	if 2*w < c {
+		w++
+	}
+	s.pad(f, []byte{'='}, w)
+}
+
+type RowCell struct {
+	Text string
+}
+
+type RowSection struct {
+	Cells []RowCell
+}
+
+func (r *RowSection) write(f io.Writer) {
+	width := Width / len(r.Cells)
+	s := fmt.Sprintf("%%-%ds", width)
+	for _, cell := range r.Cells {
+		fmt.Fprintf(f, s, cell.Text)
+	}
+}
+
 func Refresh() {
 	m.Lock()
 	defer m.Unlock()
