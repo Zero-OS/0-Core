@@ -971,7 +971,7 @@ func (m *kvmManager) monitor(cmd *core.Command) (interface{}, error) {
 			)
 			p.Aggregate(pm.AggreagteDifference,
 				fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.time", i)),
-				float64(vcpu.State),
+				float64(vcpu.Time)/1000000000,
 				"",
 			)
 		}
