@@ -211,12 +211,19 @@ func (c *container) mountPList(src string, target string, hooks ...pm.RunnerHook
 		storageUrl = settings.Settings.Globals.Get("storage", "ardb://home.maxux.net:26379")
 	}
 
+	cache := settings.Settings.Globals.Get("cache", path.Join(BackendBaseDir, "cache"))
 	cmd := &core.Command{
 		ID:      uuid.New(),
 		Command: process.CommandSystem,
 		Arguments: core.MustArguments(process.SystemCommandArguments{
-			Name:     "g8ufs",
-			Args:     []string{"-reset", "-backend", backend, "-meta", db, "-storage-url", storageUrl, target},
+			Name: "g8ufs",
+			Args: []string{
+				"-reset",
+				"-backend", backend,
+				"-cache", cache,
+				"-meta", db,
+				"-storage-url", storageUrl,
+				target},
 			NoOutput: false, //this can't be set to true other wise the MatchHook below won't work
 		}),
 	}
