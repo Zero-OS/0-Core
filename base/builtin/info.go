@@ -1,22 +1,45 @@
 package builtin
 
 import (
-	"io/ioutil"
-	"strconv"
-	"strings"
-
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/disk"
+	"github.com/shirou/gopsutil/host"
+	"github.com/shirou/gopsutil/mem"
 	"github.com/shirou/gopsutil/net"
+	"io/ioutil"
+	"strconv"
+	"strings"
 )
 
 const (
-	cmdGetNicInfo = "info.nic"
+	cmdGetCPUInfo  = "info.cpu"
+	cmdGetDiskInfo = "info.disk"
+	cmdGetMemInfo  = "info.mem"
+	cmdGetNicInfo  = "info.nic"
+	cmdGetOsInfo   = "info.os"
 )
 
 func init() {
+	pm.CmdMap[cmdGetCPUInfo] = process.NewInternalProcessFactory(getCPUInfo)
+	pm.CmdMap[cmdGetDiskInfo] = process.NewInternalProcessFactory(getDiskInfo)
+	pm.CmdMap[cmdGetMemInfo] = process.NewInternalProcessFactory(getMemInfo)
 	pm.CmdMap[cmdGetNicInfo] = process.NewInternalProcessFactory(getNicInfo)
+	pm.CmdMap[cmdGetOsInfo] = process.NewInternalProcessFactory(getOsInfo)
+}
+
+func getCPUInfo(cmd *core.Command) (interface{}, error) {
+	return cpu.Info()
+}
+
+func getDiskInfo(cmd *core.Command) (interface{}, error) {
+	return disk.Partitions(true)
+}
+
+func getMemInfo(cmd *core.Command) (interface{}, error) {
+	return mem.VirtualMemory()
 }
 
 type NicInfo struct {
@@ -51,4 +74,8 @@ func getNicInfo(cmd *core.Command) (interface{}, error) {
 		ret[i].Speed = speed
 	}
 	return ret, nil
+}
+
+func getOsInfo(cmd *core.Command) (interface{}, error) {
+	return host.Info()
 }

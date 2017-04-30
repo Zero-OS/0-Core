@@ -40,12 +40,12 @@ func main() {
 			Usage: "Run command asyncthronuslly (only commands that supports this)",
 		},
 		cli.StringFlag{
-			Name:  "id",
-			Usage: "Speicify porcess id, if not given a random guid will be generated",
-		},
-		cli.StringFlag{
 			Name:  "container",
 			Usage: "Container numeric ID or comma seperated list with tags (only with execute)",
+		},
+		cli.StringFlag{
+			Name:  "id",
+			Usage: "Speicify porcess id, if not given a random guid will be generated",
 		},
 	}
 
@@ -67,7 +67,38 @@ func main() {
 			Name:      "stop",
 			Usage:     "stops a process with `id`",
 			ArgsUsage: "id",
-			Action:    WithTransport(stop),
+			Action:    WithTransport(jobKill),
+		},
+		{
+			Name:   "job",
+			Usage:  "control system jobs",
+			Action: WithTransport(jobs),
+			Subcommands: []cli.Command{
+				{
+					Name:   "list",
+					Action: WithTransport(jobs),
+					Usage:  "list jobs",
+				},
+				{
+					Name:      "kill",
+					Action:    WithTransport(jobKill),
+					Usage:     "kill a job with `id`",
+					ArgsUsage: "id",
+				},
+			},
+		},
+		{
+			Name:   "container",
+			Usage:  "container management",
+			Action: WithTransport(containers),
+			Subcommands: []cli.Command{
+				{
+					Name:      "list",
+					Action:    WithTransport(containers),
+					Usage:     "list containers (default)",
+					ArgsUsage: "tag [tag...]",
+				},
+			},
 		},
 		{
 			Name:  "info",
@@ -98,13 +129,6 @@ func main() {
 					Name:   "os",
 					Usage:  "display OS info",
 					Action: WithTransport(info_os),
-				},
-				{
-					Name:      "process",
-					Aliases:   []string{"ps"},
-					Usage:     "display processes info",
-					ArgsUsage: "[id]",
-					Action:    WithTransport(info_ps),
 				},
 			},
 		},

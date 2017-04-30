@@ -5,18 +5,19 @@ import (
 	"github.com/g8os/core0/base/pm/core"
 )
 
-func stop(t Transport, c *cli.Context) {
-	id := c.Args().First()
-	if id == "" {
-		log.Fatal("wrong usage")
+func containers(t Transport, c *cli.Context) {
+	var tags []string
+	if c.Args().Present() {
+		tags = append(tags, c.Args().First())
+		tags = append(tags, c.Args().Tail()...)
 	}
 
 	response, err := t.Run(Command{
 		Sync: true,
 		Content: core.Command{
-			Command: "job.kill",
+			Command: "corex.find",
 			Arguments: core.MustArguments(M{
-				"id": id,
+				"tags": tags,
 			}),
 		},
 	})
@@ -26,4 +27,5 @@ func stop(t Transport, c *cli.Context) {
 	}
 
 	response.ValidateResultOrExit()
+	response.PrintYaml()
 }

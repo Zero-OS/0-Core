@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/g8os/core0/base/pm/core"
 	"gopkg.in/yaml.v2"
@@ -49,5 +50,18 @@ func (r *Response) ValidateResultOrExit() {
 		}
 
 		os.Exit(1)
+	}
+}
+
+func (r *Response) PrintYaml() {
+	var output interface{}
+	if err := json.Unmarshal([]byte(r.Data), &output); err != nil {
+		log.Fatal(err)
+	}
+
+	if out, err := yaml.Marshal(output); err != nil {
+		log.Fatal(err)
+	} else {
+		fmt.Println(string(out))
 	}
 }
