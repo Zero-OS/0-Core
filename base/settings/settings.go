@@ -20,32 +20,32 @@ const (
 //Logger settings
 type Logger struct {
 	//logger type, now only 'db' and 'ac' are supported
-	Type string
+	Type string `json:"type"`
 	//list of controlles base URLs
-	Controllers []string
+	Controllers []string `json:"controllers"`
 	//Process which levels
-	Levels []int
+	Levels []int `json:"levels"`
 
 	//Log address (for loggers that needs it)
-	Address string
+	Address string `json:"address"`
 	//Flush interval (for loggers that needs it)
-	FlushInt int
+	FlushInt int `json:"flush_int"`
 	//Flush batch size (for loggers that needs it)
-	BatchSize int
+	BatchSize int `json:"batch_size"`
 }
 
 //Extension cmd config
 type Extension struct {
 	//binary to execute
-	Binary string
+	Binary string `json:"binary"`
 	//script search path
-	Cwd string
+	Cwd string `json:"cwd"`
 	//(optional) Env variables
-	Env map[string]string
+	Env map[string]string `json:"env"`
 
-	Args []string
+	Args []string `json:"args"`
 
-	key string
+	key string `json:"key"`
 }
 
 func (e *Extension) Key() string {
@@ -61,8 +61,8 @@ type Security struct {
 
 //Controller url and certificates
 type SinkConfig struct {
-	URL      string
-	Password string
+	URL      string `json:"url"`
+	Password string `json:"password"`
 }
 
 type Globals map[string]string
@@ -79,29 +79,26 @@ func (g Globals) Get(key string, def ...string) string {
 //Settings main agent settings
 type AppSettings struct {
 	Main struct {
-		MaxJobs  int
-		Include  []string
-		Network  string
-		LogLevel string
-	}
+		MaxJobs  int      `json:"max_jobs"`
+		Include  []string `json:"include"`
+		Network  string   `json:"network"`
+		LogLevel string   `json:"log_level"`
+	} `json:"main"`
 
-	Globals Globals
-
-	Sink map[string]SinkConfig
-
-	Extension map[string]Extension
-
-	Logging map[string]Logger
+	Globals   Globals               `json:"globals"`
+	Sink      map[string]SinkConfig `json:"sink"`
+	Extension map[string]Extension  `json:"extension"`
+	Logging   map[string]Logger     `json:"logger"`
 
 	Stats struct {
 		//Interval is deprecated
-		Interval int
+		Interval int `json:"interval"`
 		Redis    struct {
-			Enabled       bool
-			FlushInterval int //in seconds
-			Address       string
-		}
-	}
+			Enabled       bool   `json:"enabled"`
+			FlushInterval int    `json:"flush_interval"` //in seconds
+			Address       string `json:"address"`
+		} `json:"redis"`
+	} `json:"stats"`
 }
 
 var Settings AppSettings

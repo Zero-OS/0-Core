@@ -1681,6 +1681,17 @@ class Logger:
         return self._client.sync('logger.set_level', args)
 
 
+class Config:
+    def __init__(self, client):
+        self._client = client
+
+    def get(self):
+        """
+        Get the config of g8os
+        """
+        return self._client.json('config.get', {})
+
+
 class Experimental:
     def __init__(self, client):
         pass
@@ -1699,6 +1710,7 @@ class Client(BaseClient):
         self._experimntal = Experimental(self)
         self._kvm = KvmManager(self)
         self._logger = Logger(self)
+        self._config = Config(self)
 
     @property
     def experimental(self):
@@ -1731,6 +1743,10 @@ class Client(BaseClient):
     @property
     def logger(self):
         return self._logger
+
+    @property
+    def config(self):
+        return self._config
 
     def raw(self, command, arguments, queue=None):
         """
