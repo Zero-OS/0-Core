@@ -2,10 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/olekukonko/tablewriter"
+	"gopkg.in/yaml.v2"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -52,7 +55,14 @@ func containers(t Transport, c *cli.Context) {
 	table.SetBorders(tablewriter.Border{})
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
 	table.SetHeader([]string{"ID", "FLIST", "HOSTNAME", "TAGS"})
-	for id, container := range containers {
+	ids := make([]string, 0, len(containers))
+	for id := range containers {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+
+	for _, id := range ids {
+		container := containers[id]
 		table.Append([]string{
 			id,
 			container.Container.Arguments.Root,
@@ -62,4 +72,37 @@ func containers(t Transport, c *cli.Context) {
 	}
 
 	table.Render()
+}
+
+func containerInspect(t Transport, c *cli.Context) {
+	id := c.Args().First()
+	if id == "" {
+		log.Fatal("missing container id")
+	}
+
+	response, err := t.Run(Command{
+		Sync: true,
+		Content: core.Command{
+			Command:   "corex.list",
+			Arguments: core.MustArguments(M{}),
+		},
+	})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	response.ValidateResultOrExit()
+	var containers map[string]interface{}
+	if err := json.Unmarshal([]byte(response.Data), &containers); err != nil {
+		log.Fatal(err)
+	}
+
+	container, ok := containers[id]
+	if !ok {
+		log.Fatalf("no container with id: %s", id)
+	}
+
+	data, _ := yaml.Marshal(container)
+	fmt.Println(string(data))
 }

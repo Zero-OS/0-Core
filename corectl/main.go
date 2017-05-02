@@ -98,6 +98,12 @@ func main() {
 					Usage:     "list containers (default)",
 					ArgsUsage: "tag [tag...]",
 				},
+				{
+					Name:      "inspect",
+					Action:    WithTransport(containerInspect),
+					Usage:     "print detailed container info",
+					ArgsUsage: "id",
+				},
 			},
 		},
 		{
