@@ -49,6 +49,11 @@
 			"Rev": "6d8485c48e5a6b79b842084c244077bb832742cb"
 		},
 		{
+			"ImportPath": "github.com/mattn/go-runewidth",
+			"Comment": "v0.0.1",
+			"Rev": "d6bea18f789704b5f83375793155289da36a3c7f"
+		},
+		{
 			"ImportPath": "github.com/naoina/go-stringutil",
 			"Rev": "6b638e95a32d0c1131db0e7fe83775cbea4a0d0b"
 		},
@@ -61,6 +66,10 @@
 			"ImportPath": "github.com/naoina/toml/ast",
 			"Comment": "v0.1.0",
 			"Rev": "751171607256bb66e64c9f0220c00662420c38e9"
+		},
+		{
+			"ImportPath": "github.com/olekukonko/tablewriter",
+			"Rev": "febf2d34b54a69ce7530036c7503b1c9fbfdf0bb"
 		},
 		{
 			"ImportPath": "github.com/op/go-logging",
@@ -137,21 +146,11 @@
 		},
 		{
 			"ImportPath": "golang.org/x/sys/unix",
-			"Rev": "833a04a10549a95dc34458c195cbad61bbb6cb4d"
+			"Rev": "f3918c30c5c2cb527c0b071a27c35120a6c0719a"
 		},
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
 			"Rev": "a5b47d31c556af34a302ce5d659e6fea44d90de0"
-		},
-		{
-			"ImportPath": "github.com/stretchr/testify/vendor/github.com/davecgh/go-spew/spew",
-			"Comment": "v1.1.4-4-g976c720",
-			"Rev": "976c720a22c8eb4eb6a0b4348ad85ad12491a506"
-		},
-		{
-			"ImportPath": "github.com/stretchr/testify/vendor/github.com/pmezard/go-difflib/difflib",
-			"Comment": "v1.1.4-4-g976c720",
-			"Rev": "976c720a22c8eb4eb6a0b4348ad85ad12491a506"
 		}
 	]
 }
