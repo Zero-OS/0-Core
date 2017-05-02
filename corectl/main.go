@@ -143,6 +143,11 @@ func main() {
 			Usage:  "reboot the machine",
 			Action: WithTransport(reboot),
 		},
+		{
+			Name:   "poweroff",
+			Usage:  "Shuts down the machine",
+			Action: WithTransport(poweroff),
+		},
 	}
 	var args []string
 	command := path.Base(os.Args[0])
