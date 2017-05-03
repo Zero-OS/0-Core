@@ -44,6 +44,12 @@ type OSType struct {
 	Arch string     `xml:"arch,attr"`
 }
 
+type FeaturesType struct {
+	Acpi string `xml:"acpi"`
+	Apic string `xml:"apic"`
+	Pae  string `xml:"pae"`
+}
+
 type OS struct {
 	Type OSType `xml:"type"`
 }
@@ -56,14 +62,15 @@ type Memory struct {
 type Device interface{}
 
 type Domain struct {
-	XMLName xml.Name   `xml:"domain"`
-	Type    DomainType `xml:"type,attr"`
-	Name    string     `xml:"name"`
-	UUID    string     `xml:"uuid"`
-	Memory  Memory     `xml:"memory"`
-	VCPU    int        `xml:"vcpu"`
-	OS      OS         `xml:"os"`
-	Devices Devices    `xml:"devices"`
+	XMLName  xml.Name     `xml:"domain"`
+	Type     DomainType   `xml:"type,attr"`
+	Name     string       `xml:"name"`
+	UUID     string       `xml:"uuid"`
+	Memory   Memory       `xml:"memory"`
+	VCPU     int          `xml:"vcpu"`
+	OS       OS           `xml:"os"`
+	Features FeaturesType `xml:"features"`
+	Devices  Devices      `xml:"devices"`
 }
 
 type DiskType string
