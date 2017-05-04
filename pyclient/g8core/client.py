@@ -1314,7 +1314,9 @@ class KvmManager:
 
     _man_nic_action_chk = typchk.Checker({
         'uuid': str,
-        'bridge': str,
+        'type': typchk.Enum('default', 'bridge', 'vxlan', 'vlan'),
+        'id': typchk.Or(str, typchk.Missing()),
+        'hwaddr': typchk.Or(str, typchk.Missing()),
     })
 
     _migrate_action_chk = typchk.Checker({
@@ -1544,31 +1546,39 @@ class KvmManager:
 
         self._client.sync('kvm.detach_disk', args)
 
-    def add_nic(self, uuid, bridge):
+    def add_nic(self, uuid, type, id=None, hwaddr=None):
         """
         Add a nic to a machine
         :param uuid: uuid of the kvm container (same as the used in create)
-        :param bridge: the name of the bridge to add. the bridge must exist on the host
+        :param type: nic_type # default, bridge, vlan, or vxlan (note, vlan and vxlan only supported by ovs)
+         param id: id # depends on the type, bridge name (bridge type) zerotier network id (zertier type), the vlan tag or the vxlan id
+         param hwaddr: the hardware address of the nic
         :return:
         """
         args = {
             'uuid': uuid,
-            'bridge': bridge,
+            'type': type,
+            'id': id,
+            'hwaddr': hwaddr,
         }
         self._man_nic_action_chk.check(args)
 
         self._client.sync('kvm.add_nic', args)
 
-    def remove_nic(self, uuid, bridge):
+    def remove_nic(self, uuid, type, id=None, hwaddr=None):
         """
         Remove a nic from a machine
         :param uuid: uuid of the kvm container (same as the used in create)
-        :param bridge: the name of the bridge to remove.
+        :param type: nic_type # default, bridge, vlan, or vxlan (note, vlan and vxlan only supported by ovs)
+         param id: id # depends on the type, bridge name (bridge type) zerotier network id (zertier type), the vlan tag or the vxlan id
+         param hwaddr: the hardware address of the nic
         :return:
         """
         args = {
             'uuid': uuid,
-            'bridge': bridge,
+            'type': type,
+            'id': id,
+            'hwaddr': hwaddr,
         }
         self._man_nic_action_chk.check(args)
 

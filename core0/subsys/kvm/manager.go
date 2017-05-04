@@ -21,8 +21,8 @@ import (
 	"github.com/g8os/core0/core0/subsys/containers"
 	"github.com/garyburd/redigo/redis"
 	"github.com/libvirt/libvirt-go"
+	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
-	"github.com/vishvananda/netlink"
 )
 
 const (
@@ -178,8 +178,8 @@ type ManDiskParams struct {
 }
 
 type ManNicParams struct {
-	UUID   string `json:"uuid"`
-	Bridge string `json:"bridge"`
+	Nic
+	UUID string `json:"uuid"`
 }
 
 type MigrateParams struct {
@@ -295,6 +295,23 @@ func StateToString(state libvirt.DomainState) string {
 		res = ""
 	}
 	return res
+}
+
+func (m *kvmManager) getDomainStruct(uuid string) (*Domain, error) {
+	domain, err := m.conn.LookupDomainByUUIDString(uuid)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't find domain with the uuid %s", uuid)
+	}
+	domainxml, err := domain.GetXMLDesc(libvirt.DOMAIN_XML_INACTIVE)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get domain xml: %v", err)
+	}
+	domainstruct := Domain{}
+	err = xml.Unmarshal([]byte(domainxml), &domainstruct)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse the domain xml: %v", err)
+	}
+	return &domainstruct, nil
 }
 
 func (m *kvmManager) setupDefaultGateway() error {
@@ -784,18 +801,9 @@ func (m *kvmManager) attachDisk(cmd *core.Command) (interface{}, error) {
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
-	domain, err := m.conn.LookupDomainByUUIDString(params.UUID)
+	domainstruct, err := m.getDomainStruct(params.UUID)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
-	}
-	domainxml, err := domain.GetXMLDesc(libvirt.DOMAIN_XML_INACTIVE)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get domain xml: %v", err)
-	}
-	domainstruct := Domain{}
-	err = xml.Unmarshal([]byte(domainxml), &domainstruct)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse the domain xml: %v", err)
+		return nil, err
 	}
 	count := len(domainstruct.Devices.Disks)
 	disk := m.mkDisk(count, params.Media)
@@ -823,26 +831,54 @@ func (m *kvmManager) detachDisk(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) addNic(cmd *core.Command) (interface{}, error) {
-	var params ManNicParams
+	var (
+		params ManNicParams
+		inf    *InterfaceDevice
+		err    error
+	)
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
-	bridge := params.Bridge
-	_, err := netlink.LinkByName(bridge)
-	if err != nil {
-		return nil, fmt.Errorf("bridge '%s' not found", bridge)
+	nic := Nic{
+		Type:      params.Type,
+		ID:        params.ID,
+		HWAddress: params.HWAddress,
 	}
 
-	ifd := InterfaceDevice{
-		Type: InterfaceDeviceTypeBridge,
-		Source: InterfaceDeviceSourceBridge{
-			Bridge: bridge,
-		},
-		Model: InterfaceDeviceModel{
-			Type: "virtio",
-		},
+	switch nic.Type {
+	case "default":
+		// TODO: support adding default network
+		// inf, err = m.prepareDefaultNetwork(domain.UUID, seq, args.Port)
+		err = fmt.Errorf("default network hot plugging is not supported at the moment")
+	case "bridge":
+		if nic.ID == DefaultBridgeName {
+			err = fmt.Errorf("the default bridge for the vm should not be added manually")
+		} else {
+			inf, err = m.prepareBridgeNetwork(&nic)
+		}
+	case "vlan":
+		inf, err = m.prepareVLanNetwork(&nic)
+	case "vxlan":
+		inf, err = m.prepareVXLanNetwork(&nic)
+	default:
+		err = fmt.Errorf("unsupported network mode: %s", nic.Type)
 	}
-	ifxml, err := xml.MarshalIndent(ifd, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+
+	domainstruct, err := m.getDomainStruct(params.UUID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, nic := range domainstruct.Devices.Interfaces {
+		if nic.Source == inf.Source {
+			return nil, fmt.Errorf("This Nic is already attached to the vm")
+		}
+	}
+
+	ifxml, err := xml.MarshalIndent(inf, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal nic to xml")
 	}
@@ -850,21 +886,60 @@ func (m *kvmManager) addNic(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) removeNic(cmd *core.Command) (interface{}, error) {
-	var params ManNicParams
+	var (
+		params ManNicParams
+		inf    *InterfaceDevice
+		source InterfaceDeviceSource
+		err    error
+	)
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
-	bridge := params.Bridge
-	ifd := InterfaceDevice{
-		Type: InterfaceDeviceTypeBridge,
-		Source: InterfaceDeviceSourceBridge{
-			Bridge: bridge,
-		},
-		Model: InterfaceDeviceModel{
-			Type: "virtio",
-		},
+	nic := Nic{
+		Type:      params.Type,
+		ID:        params.ID,
+		HWAddress: params.HWAddress,
 	}
-	ifxml, err := xml.MarshalIndent(ifd, "", "  ")
+
+	switch nic.Type {
+	case "default":
+		source = InterfaceDeviceSource{
+			Bridge: DefaultBridgeName,
+		}
+	case "bridge":
+		source = InterfaceDeviceSource{
+			Bridge: nic.ID,
+		}
+	case "vlan":
+		source = InterfaceDeviceSource{
+			Network: OVSBackPlane,
+		}
+	case "vxlan":
+		source = InterfaceDeviceSource{
+			Network: OVSVXBackend,
+		}
+	default:
+		err = fmt.Errorf("unsupported network mode: %s", nic.Type)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	domainstruct, err := m.getDomainStruct(params.UUID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, nic := range domainstruct.Devices.Interfaces {
+		if nic.Source == source {
+			inf = &nic
+		}
+	}
+	if inf == nil {
+		return nil, fmt.Errorf("The nic you tried is not attached to the vm")
+	}
+
+	ifxml, err := xml.MarshalIndent(inf, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal nic to xml")
 	}

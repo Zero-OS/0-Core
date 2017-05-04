@@ -161,14 +161,13 @@ const (
 	InterfaceDeviceTypeNetwork InterfaceDeviceType = "network"
 )
 
-type InterfaceDeviceSource interface{}
-
-type InterfaceDeviceSourceBridge struct {
-	Bridge string `xml:"bridge,attr"`
+type InterfaceDeviceSource struct {
+	Bridge  string `xml:"bridge,attr,omitempty"`
+	Network string `xml:"network,attr,omitempty"`
 }
 
-type InterfaceDeviceSourceNetwork struct {
-	Network string `xml:"network,attr"`
+type InterfaceDeviceTarget struct {
+	Dev string `xml:"dev,attr"`
 }
 
 type InterfaceDeviceModel struct {
@@ -183,6 +182,7 @@ type InterfaceDevice struct {
 	XMLName xml.Name              `xml:"interface"`
 	Type    InterfaceDeviceType   `xml:"type,attr"`
 	Source  InterfaceDeviceSource `xml:"source"`
+	Target  InterfaceDeviceTarget `xml:"target,omitempty"`
 	Model   InterfaceDeviceModel  `xml:"model"`
 	Mac     *InterfaceDeviceMac   `xml:"mac,omitempty"`
 }

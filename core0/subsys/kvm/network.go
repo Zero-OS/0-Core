@@ -41,39 +41,40 @@ func (m *kvmManager) setVirtNetwork(network Network) error {
 }
 
 func (m *kvmManager) setNetworking(args *CreateParams, seq uint16, domain *Domain) error {
+	var (
+		inf *InterfaceDevice
+		err error
+	)
+
 	for _, nic := range args.Nics {
 		switch nic.Type {
 		case "default":
-			if err := m.setDefaultNetwork(args, seq, domain); err != nil {
-				return err
-			}
+			inf, err = m.prepareDefaultNetwork(domain.UUID, seq, args.Port)
 		case "bridge":
-			if err := m.setBridgeNetwork(domain, &nic); err != nil {
-				return err
-			}
+			inf, err = m.prepareBridgeNetwork(&nic)
 		case "vlan":
-			if err := m.setVLanNetwork(domain, &nic); err != nil {
-				return err
-			}
+			inf, err = m.prepareVLanNetwork(&nic)
 		case "vxlan":
-			if err := m.setVXLanNetwork(domain, &nic); err != nil {
-				return err
-			}
+			inf, err = m.prepareVXLanNetwork(&nic)
 		default:
-			return fmt.Errorf("unsupported network mode: %s", nic.Type)
+			err = fmt.Errorf("unsupported network mode: %s", nic.Type)
 		}
+		if err != nil {
+			return err
+		}
+		domain.Devices.Devices = append(domain.Devices.Devices, inf)
 	}
 
 	return nil
 }
 
-func (m *kvmManager) setVLanNetwork(domain *Domain, nic *Nic) error {
+func (m *kvmManager) prepareVLanNetwork(nic *Nic) (*InterfaceDevice, error) {
 	vlanID, err := strconv.ParseInt(nic.ID, 10, 16)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if vlanID < 0 || vlanID >= 4095 {
-		return fmt.Errorf("invalid vlan id (0-4094)")
+		return nil, fmt.Errorf("invalid vlan id (0-4094)")
 	}
 
 	inf := InterfaceDevice{
@@ -86,7 +87,7 @@ func (m *kvmManager) setVLanNetwork(domain *Domain, nic *Nic) error {
 	if nic.HWAddress != "" {
 		hw, err := net.ParseMAC(nic.HWAddress)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		inf.Mac = &InterfaceDeviceMac{
 			Address: hw.String(),
@@ -95,7 +96,7 @@ func (m *kvmManager) setVLanNetwork(domain *Domain, nic *Nic) error {
 	//find the container with OVS tag
 	ovs := m.conmgr.GetOneWithTags(OVSTag)
 	if ovs == nil {
-		return fmt.Errorf("ovs is needed for VLAN network type")
+		return nil, fmt.Errorf("ovs is needed for VLAN network type")
 	}
 
 	//ensure that a bridge is available with that vlan tag.
@@ -109,16 +110,16 @@ func (m *kvmManager) setVLanNetwork(domain *Domain, nic *Nic) error {
 	})
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if result.State != core.StateSuccess {
-		return fmt.Errorf("failed to ensure vlan bridge: %v", result.Data)
+		return nil, fmt.Errorf("failed to ensure vlan bridge: %v", result.Data)
 	}
 
 	var bridge string
 	if err := json.Unmarshal([]byte(result.Data), &bridge); err != nil {
-		return fmt.Errorf("failed to load vlan-ensure result: %s", err)
+		return nil, fmt.Errorf("failed to load vlan-ensure result: %s", err)
 	}
 
 	net := Network{
@@ -130,21 +131,19 @@ func (m *kvmManager) setVLanNetwork(domain *Domain, nic *Nic) error {
 	net.VirtualPort.Type = "openvswitch"
 
 	if err := m.setVirtNetwork(net); err != nil {
-		return err
+		return nil, err
 	}
 
-	inf.Source = InterfaceDeviceSourceNetwork{
+	inf.Source = InterfaceDeviceSource{
 		Network: bridge,
 	}
-
-	domain.Devices.Devices = append(domain.Devices.Devices, inf)
-	return nil
+	return &inf, nil
 }
 
-func (m *kvmManager) setVXLanNetwork(domain *Domain, nic *Nic) error {
+func (m *kvmManager) prepareVXLanNetwork(nic *Nic) (*InterfaceDevice, error) {
 	vxlan, err := strconv.ParseInt(nic.ID, 10, 64)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	inf := InterfaceDevice{
 		Type: InterfaceDeviceTypeNetwork,
@@ -155,7 +154,7 @@ func (m *kvmManager) setVXLanNetwork(domain *Domain, nic *Nic) error {
 	if nic.HWAddress != "" {
 		hw, err := net.ParseMAC(nic.HWAddress)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		inf.Mac = &InterfaceDeviceMac{
 			Address: hw.String(),
@@ -164,7 +163,7 @@ func (m *kvmManager) setVXLanNetwork(domain *Domain, nic *Nic) error {
 	//find the container with OVS tag
 	ovs := m.conmgr.GetOneWithTags(OVSTag)
 	if ovs == nil {
-		return fmt.Errorf("ovs is needed for VXLAN network type")
+		return nil, fmt.Errorf("ovs is needed for VXLAN network type")
 	}
 
 	//ensure that a bridge is available with that vlan tag.
@@ -178,16 +177,16 @@ func (m *kvmManager) setVXLanNetwork(domain *Domain, nic *Nic) error {
 	})
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if result.State != core.StateSuccess {
-		return fmt.Errorf("failed to ensure vlan bridge: %v", result.Data)
+		return nil, fmt.Errorf("failed to ensure vlan bridge: %v", result.Data)
 	}
 	//brname:
 	var bridge string
 	if err := json.Unmarshal([]byte(result.Data), &bridge); err != nil {
-		return fmt.Errorf("failed to load vlan-ensure result: %s", err)
+		return nil, fmt.Errorf("failed to load vlan-ensure result: %s", err)
 	}
 
 	net := Network{
@@ -199,27 +198,25 @@ func (m *kvmManager) setVXLanNetwork(domain *Domain, nic *Nic) error {
 	net.VirtualPort.Type = "openvswitch"
 
 	if err := m.setVirtNetwork(net); err != nil {
-		return err
+		return nil, err
 	}
 
-	inf.Source = InterfaceDeviceSourceNetwork{
+	inf.Source = InterfaceDeviceSource{
 		Network: bridge,
 	}
-
-	domain.Devices.Devices = append(domain.Devices.Devices, inf)
-	return nil
+	return &inf, nil
 }
 
-func (m *kvmManager) setDefaultNetwork(args *CreateParams, seq uint16, domain *Domain) error {
+func (m *kvmManager) prepareDefaultNetwork(uuid string, seq uint16, port map[int]int) (*InterfaceDevice, error) {
 	_, err := netlink.LinkByName(DefaultBridgeName)
 	if err != nil {
-		return fmt.Errorf("bridge '%s' not found", DefaultBridgeName)
+		return nil, fmt.Errorf("bridge '%s' not found", DefaultBridgeName)
 	}
 
 	//attach to default bridge.
-	domain.Devices.Devices = append(domain.Devices.Devices, InterfaceDevice{
+	inf := InterfaceDevice{
 		Type: InterfaceDeviceTypeBridge,
-		Source: InterfaceDeviceSourceBridge{
+		Source: InterfaceDeviceSource{
 			Bridge: DefaultBridgeName,
 		},
 		Mac: &InterfaceDeviceMac{
@@ -228,29 +225,28 @@ func (m *kvmManager) setDefaultNetwork(args *CreateParams, seq uint16, domain *D
 		Model: InterfaceDeviceModel{
 			Type: "virtio",
 		},
-	})
+	}
 
 	if err := m.setDHCPHost(seq); err != nil {
-		return err
+		return nil, err
 	}
 
 	//start port forwarders
-	if err := m.setPortForwards(domain.UUID, seq, args.Port); err != nil {
-		return err
+	if err := m.setPortForwards(uuid, seq, port); err != nil {
+		return nil, err
 	}
-
-	return nil
+	return &inf, nil
 }
 
-func (m *kvmManager) setBridgeNetwork(domain *Domain, nic *Nic) error {
+func (m *kvmManager) prepareBridgeNetwork(nic *Nic) (*InterfaceDevice, error) {
 	_, err := netlink.LinkByName(nic.ID)
 	if err != nil {
-		return fmt.Errorf("bridge '%s' not found", nic.ID)
+		return nil, fmt.Errorf("bridge '%s' not found", nic.ID)
 	}
 
 	inf := InterfaceDevice{
 		Type: InterfaceDeviceTypeBridge,
-		Source: InterfaceDeviceSourceBridge{
+		Source: InterfaceDeviceSource{
 			Bridge: nic.ID,
 		},
 		Model: InterfaceDeviceModel{
@@ -261,16 +257,13 @@ func (m *kvmManager) setBridgeNetwork(domain *Domain, nic *Nic) error {
 	if nic.HWAddress != "" {
 		hw, err := net.ParseMAC(nic.HWAddress)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		inf.Mac = &InterfaceDeviceMac{
 			Address: hw.String(),
 		}
 	}
-
-	//attach to the bridge.
-	domain.Devices.Devices = append(domain.Devices.Devices, inf)
-	return nil
+	return &inf, nil
 }
 
 func (m *kvmManager) setDHCPHost(seq uint16) error {
