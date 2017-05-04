@@ -14,7 +14,7 @@ core0: $(OUTPUT)
 	cd core0 && go build -ldflags $(ldflags0) -o ../$(OUTPUT)/$@
 
 coreX: $(OUTPUT)
-	cd coreX && CGO_ENABLED=0 GOOS=linux go build -ldflags $(ldflagsX) -o ../$(OUTPUT)/$@
+	cd coreX && GOOS=linux go build -ldflags $(ldflagsX) -o ../$(OUTPUT)/$@
 
 corectl: $(OUTPUT)
 	cd corectl && go build -ldflags $(ldflags0) -o ../$(OUTPUT)/$@

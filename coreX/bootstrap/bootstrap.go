@@ -111,6 +111,10 @@ func (b *Bootstrap) Bootstrap(hostname string) error {
 		return err
 	}
 
+	if err := b.revoke(); err != nil {
+		return err
+	}
+
 	log.Debugf("startup services")
 
 	if err := b.plugins(); err != nil {
