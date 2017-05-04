@@ -9,6 +9,8 @@ import (
 	"syscall"
 )
 
+type mkg func(name, subsys string) Group
+
 type Group interface {
 	Name() string
 	Subsystem() string
@@ -22,8 +24,8 @@ const (
 
 var (
 	once       sync.Once
-	subsystems = map[string]struct{}{
-		DevicesSubsystem: struct{}{},
+	subsystems = map[string]mkg{
+		DevicesSubsystem: mkDevicesGroup,
 	}
 )
 
@@ -50,7 +52,8 @@ func Init() (err error) {
 }
 
 func GetGroup(name string, subsystem string) (Group, error) {
-	if _, ok := subsystems[subsystem]; !ok {
+	mkg, ok := subsystems[subsystem]
+	if !ok {
 		return nil, fmt.Errorf("unknown subsystem '%s'", subsystem)
 	}
 
@@ -59,7 +62,7 @@ func GetGroup(name string, subsystem string) (Group, error) {
 		return nil, err
 	}
 
-	return &cgroup{name, subsystem}, nil
+	return mkg(name, subsystem), nil
 }
 
 type cgroup struct {

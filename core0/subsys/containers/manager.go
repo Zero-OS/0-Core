@@ -150,7 +150,7 @@ type containerManager struct {
 	internal *internalRouter
 	sinks    map[string]base.SinkClient
 
-	cell *screen.RowCell
+	cell   *screen.RowCell
 	cgroup cgroups.Group
 }
 
@@ -212,6 +212,25 @@ func (m *containerManager) setUpCGroups() error {
 	devices, err := cgroups.GetGroup("corex", cgroups.DevicesSubsystem)
 	if err != nil {
 		return err
+	}
+
+	if devices, ok := devices.(cgroups.DevicesGroup); ok {
+		devices.Deny("a")
+		for _, spec := range []string{
+			"c 1:5 rwm",
+			"c 1:3 rwm",
+			"c 1:9 rwm",
+			"c 1:7 rwm",
+			"c 1:8 rwm",
+			"c 5:0 rwm",
+			"c 5:1 rwm",
+			"c 5:2 rwm",
+			"c *:* m",
+		} {
+			devices.Allow(spec)
+		}
+	} else {
+		return fmt.Errorf("failed to setup devices cgroups")
 	}
 
 	m.cgroup = devices
