@@ -640,6 +640,7 @@ class ContainerManager:
             typchk.Map(int, int),
             typchk.IsNone()
         ),
+        'privileged': bool,
         'hostname': typchk.Or(
             str,
             typchk.IsNone()
@@ -657,7 +658,7 @@ class ContainerManager:
     def __init__(self, client):
         self._client = client
 
-    def create(self, root_url, mount=None, host_network=False, nics=DefaultNetworking, port=None, hostname=None, storage=None, tags=None):
+    def create(self, root_url, mount=None, host_network=False, nics=DefaultNetworking, port=None, hostname=None, privileged=True, storage=None, tags=None):
         """
         Creater a new container with the given root flist, mount points and
         zerotier id, and connected to the given bridges
@@ -686,6 +687,7 @@ class ContainerManager:
         :param hostname: Specific hostname you want to give to the container.
                          if None it will automatically be set to core-x,
                          x beeing the ID of the container
+        :param privileged: If true, container runs in privileged mode.
         :param storage: A Url to the ardb storage to use to mount the root flist (or any other mount that requires g8fs)
                         if not provided, the default one from core0 configuration will be used.
         """
@@ -702,6 +704,7 @@ class ContainerManager:
             'nics': nics,
             'port': port,
             'hostname': hostname,
+            'privileged': privileged,
             'storage': storage,
             'tags': tags,
         }
@@ -1678,7 +1681,7 @@ class Logger:
         }
         self._level_chk.check(args)
 
-        return self._client.sync('logger.set_level', args)
+        return self._client.json('logger.set_level', args)
 
 
 class Config:

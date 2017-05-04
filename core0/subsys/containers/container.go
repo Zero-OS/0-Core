@@ -166,7 +166,9 @@ func (c *container) preStart() error {
 
 func (c *container) onpid(pid int) {
 	c.PID = pid
-	c.mgr.cgroup.Task(pid)
+	if !c.Args.Privileged {
+		c.mgr.cgroup.Task(pid)
+	}
 
 	if err := c.postStart(); err != nil {
 		log.Errorf("Container post start error: %s", err)

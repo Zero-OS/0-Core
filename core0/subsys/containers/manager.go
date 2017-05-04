@@ -65,6 +65,7 @@ type ContainerCreateArguments struct {
 	HostNetwork bool              `json:"host_network"` //share host networking stack
 	Nics        []Nic             `json:"nics"`         //network setup (only respected if HostNetwork is false)
 	Port        map[int]int       `json:"port"`         //port forwards (only if default networking is enabled)
+	Privileged  bool              `json:"privileged"`   //Apply cgroups and capabilities limitations on the container
 	Hostname    string            `json:"hostname"`     //hostname
 	Storage     string            `json:"storage"`      //ardb storage needed for g8ufs mounts.
 	Tags        []string          `json:"tags"`         //for searching containers
