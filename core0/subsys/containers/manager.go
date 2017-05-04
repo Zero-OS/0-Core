@@ -15,6 +15,7 @@ import (
 	"github.com/g8os/core0/base/pm/process"
 	"github.com/g8os/core0/base/utils"
 	"github.com/g8os/core0/core0/screen"
+	"github.com/g8os/core0/core0/subsys/cgroups"
 	"github.com/garyburd/redigo/redis"
 	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
@@ -150,6 +151,7 @@ type containerManager struct {
 	sinks    map[string]base.SinkClient
 
 	cell *screen.RowCell
+	cgroup cgroups.Group
 }
 
 /*
@@ -174,6 +176,10 @@ type ContainerManager interface {
 }
 
 func ContainerSubsystem(sinks map[string]base.SinkClient, cell *screen.RowCell) (ContainerManager, error) {
+	if err := cgroups.Init(); err != nil {
+		return nil, err
+	}
+
 	containerMgr := &containerManager{
 		pool:       utils.NewRedisPool("unix", redisSocketSrc, ""),
 		containers: make(map[uint16]*container),
@@ -181,7 +187,15 @@ func ContainerSubsystem(sinks map[string]base.SinkClient, cell *screen.RowCell) 
 		internal:   newInternalRouter(),
 		cell:       cell,
 	}
+
 	cell.Text = "Containers: 0"
+
+	if err := containerMgr.setUpCGroups(); err != nil {
+		return nil, err
+	}
+	if err := containerMgr.setUpDefaultBridge(); err != nil {
+		return nil, err
+	}
 
 	pm.CmdMap[cmdContainerCreate] = process.NewInternalProcessFactory(containerMgr.create)
 	pm.CmdMap[cmdContainerList] = process.NewInternalProcessFactory(containerMgr.list)
@@ -189,13 +203,19 @@ func ContainerSubsystem(sinks map[string]base.SinkClient, cell *screen.RowCell) 
 	pm.CmdMap[cmdContainerTerminate] = process.NewInternalProcessFactory(containerMgr.terminate)
 	pm.CmdMap[cmdContainerFind] = process.NewInternalProcessFactory(containerMgr.find)
 
-	if err := containerMgr.setUpDefaultBridge(); err != nil {
-		return nil, err
-	}
-
 	go containerMgr.startForwarder()
 
 	return containerMgr, nil
+}
+
+func (m *containerManager) setUpCGroups() error {
+	devices, err := cgroups.GetGroup("corex", cgroups.DevicesSubsystem)
+	if err != nil {
+		return err
+	}
+
+	m.cgroup = devices
+	return nil
 }
 
 func (m *containerManager) setUpDefaultBridge() error {

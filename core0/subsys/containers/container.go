@@ -166,6 +166,8 @@ func (c *container) preStart() error {
 
 func (c *container) onpid(pid int) {
 	c.PID = pid
+	c.mgr.cgroup.Task(pid)
+
 	if err := c.postStart(); err != nil {
 		log.Errorf("Container post start error: %s", err)
 		//TODO. Should we shut the container down?
