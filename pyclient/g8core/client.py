@@ -1563,7 +1563,7 @@ class KvmManager:
         }
         self._man_nic_action_chk.check(args)
 
-        self._client.sync('kvm.add_nic', args)
+        return self._client.json('kvm.add_nic', args)
 
     def remove_nic(self, uuid, type, id=None, hwaddr=None):
         """
@@ -1582,7 +1582,7 @@ class KvmManager:
         }
         self._man_nic_action_chk.check(args)
 
-        self._client.sync('kvm.remove_nic', args)
+        return self._client.json('kvm.remove_nic', args)
 
     def limit_disk_io(self, uuid, targetname, totalbytessecset=False, totalbytessec=0, readbytessecset=False, readbytessec=0, writebytessecset=False,
                     writebytessec=0, totaliopssecset=False, totaliopssec=0, readiopssecset=False, readiopssec=0, writeiopssecset=False, writeiopssec=0,

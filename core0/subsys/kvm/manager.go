@@ -21,7 +21,6 @@ import (
 	"github.com/g8os/core0/core0/subsys/containers"
 	"github.com/garyburd/redigo/redis"
 	"github.com/libvirt/libvirt-go"
-	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
 )
 
