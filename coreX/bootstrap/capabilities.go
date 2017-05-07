@@ -9,7 +9,7 @@ import (
 	"unsafe"
 )
 
-func (b *Bootstrap) revoke() error {
+func (b *Bootstrap) revokePrivileges() error {
 	cap := C.cap_init()
 	defer C.cap_free(unsafe.Pointer(cap))
 

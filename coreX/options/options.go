@@ -14,6 +14,7 @@ type AppOptions struct {
 	replyTo       string
 	maxJobs       int
 	hostname      string
+	unprivileged  bool
 }
 
 func (o *AppOptions) Version() bool {
@@ -44,6 +45,10 @@ func (o *AppOptions) Hostname() string {
 	return o.hostname
 }
 
+func (o *AppOptions) Unprivileged() bool {
+	return o.unprivileged
+}
+
 func (o *AppOptions) Validate() []error {
 	errors := make([]error, 0)
 	if o.coreID == 0 {
@@ -69,6 +74,7 @@ func init() {
 	flag.StringVar(&Options.replyTo, "reply-to", "corex:results", "Reply to queue")
 	flag.IntVar(&Options.maxJobs, "max-jobs", 100, "Max number of jobs that can run concurrently")
 	flag.StringVar(&Options.hostname, "hostname", "", "Hostname of the container")
+	flag.BoolVar(&Options.unprivileged, "unprivileged", false, "Unprivileged container (strips down container capabilites)")
 
 	flag.Parse()
 
