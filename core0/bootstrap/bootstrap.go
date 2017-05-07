@@ -167,7 +167,7 @@ func (b *Bootstrap) screen() {
 	for {
 		links, err := netlink.LinkList()
 		if err != nil {
-			time.Sleep(10 * time.Second)
+			<-time.After(10 * time.Second)
 			continue
 		}
 		section.Sections = []screen.Section{}
@@ -196,7 +196,7 @@ func (b *Bootstrap) screen() {
 
 		progress.Stop(true)
 		screen.Refresh()
-		time.Sleep(5 * time.Second)
+		<-time.After(5 * time.Second)
 	}
 }
 
@@ -230,7 +230,7 @@ func (b *Bootstrap) Bootstrap() {
 		log.Errorf("Failed to configure networking: %s", err)
 		log.Infof("Retrying in 2 seconds")
 
-		time.Sleep(2 * time.Second)
+		<-time.After(2 * time.Second)
 		log.Infof("Retrying setting up network")
 	}
 

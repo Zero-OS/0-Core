@@ -99,6 +99,6 @@ func render() {
 			fmt.Fprint(tty, string(space), "\n")
 		}
 		tty.Sync()
-		time.Sleep(200 * time.Millisecond)
+		<-time.After(200 * time.Millisecond)
 	}
 }

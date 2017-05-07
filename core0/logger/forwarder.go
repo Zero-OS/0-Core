@@ -15,7 +15,7 @@ func StartForwarder() {
 				log.Errorf("failed to forwar logs: %v", err)
 			}
 
-			time.Sleep(2 * time.Second)
+			<-time.After(2 * time.Second)
 		}
 	}()
 }

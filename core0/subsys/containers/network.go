@@ -53,7 +53,7 @@ func (c *container) zerotierDaemon() error {
 					if err == nil {
 						break
 					}
-					time.Sleep(1 * time.Second)
+					<-time.After(1 * time.Second)
 				}
 
 				if err != nil {

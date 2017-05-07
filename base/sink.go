@@ -55,7 +55,7 @@ func (poll *sinkImpl) run() {
 		err := poll.client.GetNext(&command)
 		if err != nil {
 			log.Errorf("Failed to get next command from %s: %s", poll.client, err)
-			time.Sleep(200 * time.Millisecond)
+			<-time.After(200 * time.Millisecond)
 			continue
 		}
 
