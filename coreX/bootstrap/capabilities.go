@@ -44,7 +44,7 @@ func (b *Bootstrap) revoke() error {
 		return fmt.Errorf("failed to set capabiliteis flags (inheritable)")
 	}
 
-	//drop bound for children.
+	//drop bounding set for children.
 	bound := []uintptr{
 		C.CAP_SYS_MODULE,
 		C.CAP_SYS_RAWIO,

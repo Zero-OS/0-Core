@@ -18,6 +18,7 @@ import (
 
 	_ "github.com/g8os/core0/base/builtin"
 	_ "github.com/g8os/core0/coreX/builtin"
+	"runtime"
 )
 
 var (
@@ -42,6 +43,7 @@ func handleSignal(bs *bootstrap.Bootstrap) {
 }
 
 func main() {
+	runtime.LockOSThread()
 	var opt = options.Options
 	fmt.Println(core.Version())
 	if opt.Version() {
@@ -84,6 +86,7 @@ func main() {
 	mgr.Run()
 
 	bs := bootstrap.NewBootstrap()
+	runtime.UnlockOSThread()
 
 	handleSignal(bs)
 
