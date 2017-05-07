@@ -492,6 +492,7 @@ func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error)
 				Arch: ArchX86_64,
 			},
 		},
+		Features: FeaturesType{},
 		Devices: Devices{
 			Emulator:   "/usr/bin/qemu-system-x86_64",
 			Disks:      []DiskDevice{},
