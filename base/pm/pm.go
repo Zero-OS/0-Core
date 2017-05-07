@@ -3,7 +3,6 @@ package pm
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"strconv"
@@ -63,6 +62,8 @@ type PM struct {
 
 	pids    map[int]chan syscall.WaitStatus
 	pidsMux sync.Mutex
+
+	unprivileged bool
 }
 
 var pm *PM
@@ -91,24 +92,6 @@ func GetManager() *PM {
 		panic("Process manager is not intialized")
 	}
 	return pm
-}
-
-func loadMid(midfile string) uint32 {
-	content, err := ioutil.ReadFile(midfile)
-	if err != nil {
-		log.Errorf("%s", err)
-		return 0
-	}
-	v, err := strconv.ParseUint(string(content), 10, 32)
-	if err != nil {
-		log.Errorf("%s", err)
-		return 0
-	}
-	return uint32(v)
-}
-
-func saveMid(midfile string, mid uint32) {
-	ioutil.WriteFile(midfile, []byte(fmt.Sprintf("%d", mid)), 0644)
 }
 
 //PushCmd schedules a command to run, might block if no free slots available
@@ -153,6 +136,10 @@ func (pm *PM) AddStatsHandler(handler StatsHandler) {
 	pm.statsFlushHandlers = append(pm.statsFlushHandlers, handler)
 }
 
+func (pm *PM) SetUnprivileged() {
+	pm.unprivileged = true
+}
+
 func (pm *PM) NewRunner(cmd *core.Command, factory process.ProcessFactory, hooks ...RunnerHook) (Runner, error) {
 	pm.runnersMux.Lock()
 	defer pm.runnersMux.Unlock()
@@ -165,7 +152,7 @@ func (pm *PM) NewRunner(cmd *core.Command, factory process.ProcessFactory, hooks
 	runner := NewRunner(pm, cmd, factory, hooks...)
 	pm.runners[cmd.ID] = runner
 
-	go runner.Run()
+	go runner.start(pm.unprivileged)
 
 	return runner, nil
 }

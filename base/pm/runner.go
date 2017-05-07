@@ -1,11 +1,15 @@
 package pm
 
+// #cgo LDFLAGS: -lcap
+// #include <sys/capability.h>
+import "C"
 import (
 	"fmt"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
 	"github.com/g8os/core0/base/pm/stream"
 	"github.com/g8os/core0/base/utils"
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -19,11 +23,12 @@ const (
 
 type Runner interface {
 	Command() *core.Command
-	Run()
 	Terminate()
 	Process() process.Process
 	Wait() *core.JobResult
 	StartTime() int64
+
+	start(unprivileged bool)
 }
 
 type runnerImpl struct {
@@ -83,7 +88,44 @@ func (runner *runnerImpl) timeout() <-chan time.Time {
 	return timeout
 }
 
-func (runner *runnerImpl) run() (jobresult *core.JobResult) {
+//set the bounding set for current thread, of course this is un-reversable once set on the
+//pm it affects all threads from now on.
+func (process *runnerImpl) setUnprivileged() {
+	//drop bounding set for children.
+	bound := []uintptr{
+		C.CAP_SETPCAP,
+		C.CAP_SYS_MODULE,
+		C.CAP_SYS_RAWIO,
+		C.CAP_SYS_PACCT,
+		C.CAP_SYS_ADMIN,
+		C.CAP_SYS_NICE,
+		C.CAP_SYS_RESOURCE,
+		C.CAP_SYS_TIME,
+		C.CAP_SYS_TTY_CONFIG,
+		C.CAP_AUDIT_CONTROL,
+		C.CAP_MAC_OVERRIDE,
+		C.CAP_MAC_ADMIN,
+		C.CAP_NET_ADMIN,
+		C.CAP_SYSLOG,
+		C.CAP_DAC_READ_SEARCH,
+		C.CAP_LINUX_IMMUTABLE,
+		C.CAP_NET_BROADCAST,
+		C.CAP_IPC_LOCK,
+		C.CAP_IPC_OWNER,
+		C.CAP_SYS_PTRACE,
+		C.CAP_SYS_BOOT,
+		C.CAP_LEASE,
+		C.CAP_WAKE_ALARM,
+		C.CAP_BLOCK_SUSPEND,
+	}
+
+	for _, c := range bound {
+		syscall.Syscall6(syscall.SYS_PRCTL, syscall.PR_CAPBSET_DROP,
+			c, 0, 0, 0, 0)
+	}
+}
+
+func (runner *runnerImpl) run(unprivileged bool) (jobresult *core.JobResult) {
 	runner.startTime = time.Now()
 	jobresult = core.NewBasicJobResult(runner.command)
 	jobresult.State = core.StateError
@@ -103,8 +145,12 @@ func (runner *runnerImpl) run() (jobresult *core.JobResult) {
 	runner.process = runner.factory(runner, runner.command)
 
 	ps := runner.process
-
+	runtime.LockOSThread()
+	if unprivileged {
+		runner.setUnprivileged()
+	}
 	channel, err := ps.Run()
+	runtime.UnlockOSThread()
 
 	if err != nil {
 		//this basically means process couldn't spawn
@@ -189,7 +235,7 @@ loop:
 	return jobresult
 }
 
-func (runner *runnerImpl) Run() {
+func (runner *runnerImpl) start(unprivileged bool) {
 	runs := 0
 	var result *core.JobResult
 	defer func() {
@@ -207,7 +253,7 @@ func (runner *runnerImpl) Run() {
 
 loop:
 	for {
-		result = runner.run()
+		result = runner.run(unprivileged)
 
 		for _, hook := range runner.hooks {
 			hook.Exit(result.State)
