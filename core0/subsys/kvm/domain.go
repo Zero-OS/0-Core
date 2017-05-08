@@ -94,27 +94,22 @@ type Devices struct {
 	Devices    []Device
 }
 
-type DiskSource interface{}
-
-type DiskSourceFile struct {
-	File string `xml:"file,attr"`
-}
-
-type DiskSourceBlock struct {
-	Dev string `xml:"dev,attr"`
+type DiskSource struct {
+	// File
+	File string `xml:"file,attr,omitempty"`
+	// Block
+	Dev string `xml:"dev,attr.,omitempty"`
+	// Network
+	Protocol string                `xml:"protocol,attr,omitempty"`
+	Host     DiskSourceNetworkHost `xml:"host,omitempty"`
+	Name     string                `xml:"name,attr,omitempty,omitempty"`
 }
 
 type DiskSourceNetworkHost struct {
-	Transport string `xml:"transport,attr"`
+	Transport string `xml:"transport,attr,omitempty"`
 	Socket    string `xml:"socket,attr,omitempty"`
 	Port      string `xml:"port,attr,omitempty"`
 	Name      string `xml:"name,attr,omitempty"`
-}
-
-type DiskSourceNetwork struct {
-	Protocol string                `xml:"protocol,attr"`
-	Host     DiskSourceNetworkHost `xml:"host"`
-	Name     string                `xml:"name,attr,omitempty"`
 }
 
 type DiskTarget struct {

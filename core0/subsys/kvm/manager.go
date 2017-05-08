@@ -362,13 +362,12 @@ func (m *kvmManager) mkNBDDisk(idx int, u *url.URL) DiskDevice {
 			Target: DiskTarget{
 				Dev: target,
 			},
-			Source: DiskSourceNetwork{
+			Source: DiskSource{
 				Protocol: "nbd",
 				Name:     name,
 				Host: DiskSourceNetworkHost{
-					Transport: "tcp",
-					Port:      port,
-					Name:      u.Hostname(),
+					Port: port,
+					Name: u.Hostname(),
 				},
 			},
 		}
@@ -378,7 +377,7 @@ func (m *kvmManager) mkNBDDisk(idx int, u *url.URL) DiskDevice {
 			Target: DiskTarget{
 				Dev: target,
 			},
-			Source: DiskSourceNetwork{
+			Source: DiskSource{
 				Protocol: "nbd",
 				Name:     name,
 				Host: DiskSourceNetworkHost{
@@ -426,7 +425,7 @@ func (m *kvmManager) mkFileDisk(idx int, u *url.URL) DiskDevice {
 		Target: DiskTarget{
 			Dev: target,
 		},
-		Source: DiskSourceFile{
+		Source: DiskSource{
 			File: u.String(),
 		},
 		Driver: DiskDriver{
@@ -814,14 +813,28 @@ func (m *kvmManager) attachDisk(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) detachDisk(cmd *core.Command) (interface{}, error) {
-	var params ManDiskParams
+	var (
+		params ManDiskParams
+		disk   *DiskDevice
+	)
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
-	// FIXME: get the idx of the disk
-	idx := 0
-	media := params.Media
-	disk := m.mkDisk(idx, media)
+	domainstruct, err := m.getDomainStruct(params.UUID)
+	if err != nil {
+		return nil, err
+	}
+	disks := domainstruct.Devices.Disks
+	inp := m.mkDisk(0, params.Media)
+	for _, d := range disks {
+		if d.Source == inp.Source {
+			disk = &d
+			break
+		}
+	}
+	if disk == nil {
+		return nil, fmt.Errorf("The disk you tried is not attached to the vm")
+	}
 	diskxml, err := xml.MarshalIndent(disk, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal disk to xml")
