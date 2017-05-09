@@ -138,6 +138,6 @@ func (cl *channel) Flagged(id string) bool {
 	defer db.Close()
 
 	key := fmt.Sprintf("result:%s:flag", id)
-	_, err := db.Do("GET", key)
-	return err == nil
+	v, _ := redis.Int(db.Do("EXISTS", key))
+	return v == 1
 }
