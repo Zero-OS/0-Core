@@ -18,19 +18,16 @@ const (
 /*
 ControllerClient represents an active agent controller connection.
 */
-type sinkClient struct {
+type channel struct {
 	url   string
 	redis *redis.Pool
-	id    string
-
-	responseQueue string
 }
 
 /*
 NewSinkClient gets a new sink connection with the given identity. Identity is used by the sink client to
 introduce itself to the sink terminal.
 */
-func NewSinkClient(cfg *settings.SinkConfig, id string, responseQueue ...string) (SinkClient, error) {
+func newChannel(cfg *settings.Channel) (*channel, error) {
 	u, err := url.Parse(cfg.URL)
 	if err != nil {
 		return nil, err
@@ -49,36 +46,23 @@ func NewSinkClient(cfg *settings.SinkConfig, id string, responseQueue ...string)
 
 	pool := utils.NewRedisPool(network, address, cfg.Password)
 
-	client := &sinkClient{
-		id:    id,
+	ch := &channel{
 		url:   strings.TrimRight(cfg.URL, "/"),
 		redis: pool,
 	}
 
-	if len(responseQueue) == 1 {
-		client.responseQueue = responseQueue[0]
-	} else if len(responseQueue) > 1 {
-		return nil, fmt.Errorf("only one response queue can be provided")
-	}
-
-	return client, nil
+	return ch, nil
 }
 
-func (client *sinkClient) String() string {
+func (client *channel) String() string {
 	return client.url
 }
 
-func (client *sinkClient) DefaultQueue() string {
-	return fmt.Sprintf("core:%v",
-		client.id,
-	)
-}
-
-func (cl *sinkClient) GetNext(command *core.Command) error {
+func (cl *channel) GetNext(queue string, command *core.Command) error {
 	db := cl.redis.Get()
 	defer db.Close()
 
-	payload, err := redis.ByteSlices(db.Do("BLPOP", cl.DefaultQueue(), 0))
+	payload, err := redis.ByteSlices(db.Do("BLPOP", queue, 0))
 	if err != nil {
 		return err
 	}
@@ -86,7 +70,7 @@ func (cl *sinkClient) GetNext(command *core.Command) error {
 	return json.Unmarshal(payload[1], command)
 }
 
-func (cl *sinkClient) Respond(result *core.JobResult) error {
+func (cl *channel) Respond(result *core.JobResult) error {
 	if result.ID == "" {
 		return fmt.Errorf("result with no ID, not pushing results back...")
 	}
@@ -94,12 +78,7 @@ func (cl *sinkClient) Respond(result *core.JobResult) error {
 	db := cl.redis.Get()
 	defer db.Close()
 
-	var queue string
-	if cl.responseQueue != "" {
-		queue = cl.responseQueue
-	} else {
-		queue = fmt.Sprintf("result:%s", result.ID)
-	}
+	queue := fmt.Sprintf("result:%s", result.ID)
 
 	payload, err := json.Marshal(result)
 	if err != nil {
@@ -114,4 +93,22 @@ func (cl *sinkClient) Respond(result *core.JobResult) error {
 	}
 
 	return nil
+}
+
+func (cl *channel) GetResponse(id string, timeout int) (*core.JobResult, error) {
+	db := cl.redis.Get()
+	defer db.Close()
+
+	queue := fmt.Sprintf("result:%s", id)
+	payload, err := redis.Bytes(db.Do("BRPOPLPUSH", queue, queue, timeout))
+	if err != nil {
+		return nil, err
+	}
+
+	var result core.JobResult
+	if err := json.Unmarshal(payload, &result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }

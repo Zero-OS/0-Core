@@ -3,13 +3,6 @@ package containers
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
-	"os"
-	"path"
-	"sync"
-	"time"
-
-	base "github.com/g8os/core0/base"
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
@@ -19,6 +12,10 @@ import (
 	"github.com/garyburd/redigo/redis"
 	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
+	"net/url"
+	"os"
+	"path"
+	"sync"
 )
 
 const (
@@ -149,7 +146,6 @@ type containerManager struct {
 	pool *redis.Pool
 
 	internal *internalRouter
-	sinks    map[string]base.SinkClient
 
 	cell   *screen.RowCell
 	cgroup cgroups.Group
@@ -176,7 +172,7 @@ type ContainerManager interface {
 	Of(id uint16) Container
 }
 
-func ContainerSubsystem(sinks map[string]base.SinkClient, cell *screen.RowCell) (ContainerManager, error) {
+func ContainerSubsystem(cell *screen.RowCell) (ContainerManager, error) {
 	if err := cgroups.Init(); err != nil {
 		return nil, err
 	}
@@ -184,7 +180,6 @@ func ContainerSubsystem(sinks map[string]base.SinkClient, cell *screen.RowCell) 
 	containerMgr := &containerManager{
 		pool:       utils.NewRedisPool("unix", redisSocketSrc, ""),
 		containers: make(map[uint16]*container),
-		sinks:      sinks,
 		internal:   newInternalRouter(),
 		cell:       cell,
 	}
@@ -203,8 +198,6 @@ func ContainerSubsystem(sinks map[string]base.SinkClient, cell *screen.RowCell) 
 	pm.CmdMap[cmdContainerDispatch] = process.NewInternalProcessFactory(containerMgr.dispatch)
 	pm.CmdMap[cmdContainerTerminate] = process.NewInternalProcessFactory(containerMgr.terminate)
 	pm.CmdMap[cmdContainerFind] = process.NewInternalProcessFactory(containerMgr.find)
-
-	go containerMgr.startForwarder()
 
 	return containerMgr, nil
 }
@@ -268,44 +261,6 @@ func (m *containerManager) setUpDefaultBridge() error {
 	}
 
 	return nil
-}
-
-func (m *containerManager) forwardNext() error {
-	db := m.pool.Get()
-	defer db.Close()
-
-	payload, err := redis.ByteSlices(db.Do("BLPOP", coreXResponseQueue, 0))
-	if err != nil {
-		return err
-	}
-
-	var result core.JobResult
-	if err := json.Unmarshal(payload[1], &result); err != nil {
-		log.Errorf("Failed to load command: %s", err)
-		return nil //no wait.
-	}
-
-	//use command tags for routing.
-	if result.Tags == string(InternalRoute) {
-		m.internal.Route(&result)
-	} else if sink, ok := m.sinks[result.Tags]; ok {
-		log.Debugf("Forwarding job result to %s", result.Tags)
-		return sink.Respond(&result)
-	} else {
-		log.Warningf("Received a corex result for an unknown sink: %s", result.Tags)
-	}
-
-	return nil
-}
-
-func (m *containerManager) startForwarder() {
-	log.Debugf("Start container results forwarder")
-	for {
-		if err := m.forwardNext(); err != nil {
-			log.Warningf("Failed to forward command result: %s", err)
-			<-time.After(2 * time.Second)
-		}
-	}
 }
 
 func (m *containerManager) getNextSequence() uint16 {

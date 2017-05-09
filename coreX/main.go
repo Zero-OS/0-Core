@@ -95,22 +95,6 @@ func main() {
 
 	handleSignal(bs)
 
-	sinkID := fmt.Sprintf("%d", opt.CoreID())
-
-	sinkCfg := settings.SinkConfig{
-		URL:      fmt.Sprintf("redis://%s", opt.RedisSocket()),
-		Password: opt.RedisPassword(),
-	}
-
-	cl, err := core.NewSinkClient(&sinkCfg, sinkID, opt.ReplyTo())
-	if err != nil {
-		log.Fatal("Failed to get connection to redis at %s", sinkCfg.URL)
-	}
-
-	sinks := map[string]core.SinkClient{
-		"main": cl,
-	}
-
 	log.Infof("Configure redis logger")
 
 	mgr.AddMessageHandler(rl.Log)
@@ -120,8 +104,22 @@ func main() {
 		fmt.Printf("10::core-%d.%s:%f|%s|%s\n", opt.CoreID(), key, value, op, tags)
 	})
 
-	//start jobs sinks.
-	core.StartSinks(pm.GetManager(), sinks)
+	sinkID := fmt.Sprintf("%d", opt.CoreID())
+
+	channel := settings.Channel{
+		URL:      fmt.Sprintf("redis://%s", opt.RedisSocket()),
+		Password: opt.RedisPassword(),
+	}
+
+	sinkCfg := settings.Sink{
+		Public:  channel,
+		Private: channel,
+	}
+	sink, err := core.NewSink(sinkID, mgr, &sinkCfg)
+	if err != nil {
+		log.Errorf("failed to start command sink: %s", err)
+	}
+	sink.Start()
 
 	//wait
 	select {}

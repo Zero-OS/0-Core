@@ -3,80 +3,113 @@ package core
 import (
 	"time"
 
+	"encoding/json"
+	"fmt"
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
+	"github.com/g8os/core0/base/pm/process"
+	"github.com/g8os/core0/base/settings"
 )
 
-type Sink interface {
-	Run()
+const (
+	PublicRoute  = core.Route("public")
+	PrivateRoute = core.Route("private")
+)
+
+//
+//type Channel interface {
+//	GetNext(queue string, command *core.Command) error
+//	Respond(result *core.JobResult) error
+//}
+
+type Sink struct {
+	key     string
+	mgr     *pm.PM
+	public  *channel
+	private *channel
 }
 
-type SinkClient interface {
-	GetNext(command *core.Command) error
-	Respond(result *core.JobResult) error
-}
-
-type sinkImpl struct {
-	key    string
-	mgr    *pm.PM
-	client SinkClient
-}
-
-func getKeys(m map[string]SinkClient) []string {
-	keys := make([]string, 0, len(m))
-	for key := range m {
-		keys = append(keys, key)
+func NewSink(key string, mgr *pm.PM, config *settings.Sink) (*Sink, error) {
+	public, err := newChannel(&config.Public)
+	if err != nil {
+		return nil, err
 	}
 
-	return keys
-}
-
-func NewSink(key string, mgr *pm.PM, client SinkClient) Sink {
-	poll := &sinkImpl{
-		key:    key,
-		mgr:    mgr,
-		client: client,
+	private, err := newChannel(&config.Private)
+	if err != nil {
+		return nil, err
 	}
 
-	return poll
+	sink := &Sink{
+		key:     key,
+		mgr:     mgr,
+		public:  public,
+		private: private,
+	}
+
+	return sink, nil
 }
 
-func (poll *sinkImpl) handler(cmd *core.Command, result *core.JobResult) {
-	if err := poll.client.Respond(result); err != nil {
+func (sink *Sink) DefaultQueue() string {
+	return fmt.Sprintf("core:%v",
+		sink.key,
+	)
+}
+
+func (sink *Sink) handlePublic(cmd *core.Command, result *core.JobResult) {
+	if err := sink.public.Respond(result); err != nil {
 		log.Errorf("Failed to respond to command %s: %s", cmd, err)
 	}
 }
 
-func (poll *sinkImpl) run() {
-	poll.mgr.AddRouteResultHandler(core.Route(poll.key), poll.handler)
+func (sink *Sink) handlePrivate(cmd *core.Command, result *core.JobResult) {
+	if err := sink.private.Respond(result); err != nil {
+		log.Errorf("Failed to respond to command %s: %s", cmd, err)
+	}
+}
 
+func (sink *Sink) run() {
+	sink.mgr.AddRouteResultHandler(PublicRoute, sink.handlePublic)
+	sink.mgr.AddRouteResultHandler(PrivateRoute, sink.handlePrivate)
+
+	queue := sink.DefaultQueue()
 	for {
 		var command core.Command
-		err := poll.client.GetNext(&command)
+		err := sink.public.GetNext(queue, &command)
 		if err != nil {
-			log.Errorf("Failed to get next command from %s: %s", poll.client, err)
+			log.Errorf("Failed to get next command from %s(%s): %s", sink.key, queue, err)
 			<-time.After(200 * time.Millisecond)
 			continue
 		}
 
-		command.Route = core.Route(poll.key)
+		command.Route = PrivateRoute
 
 		log.Debugf("Starting command %s", &command)
 
-		poll.mgr.PushCmd(&command)
+		sink.mgr.PushCmd(&command)
 	}
 }
 
-func (poll *sinkImpl) Run() {
-	go poll.run()
+func (sink *Sink) Start() {
+	go sink.run()
 }
 
-/*
-StartSinks starts the long polling routines and feed the manager with received commands
-*/
-func StartSinks(mgr *pm.PM, sinks map[string]SinkClient) {
-	for key, sinkCl := range sinks {
-		poll := NewSink(key, mgr, sinkCl)
-		poll.Run()
+func (sink *Sink) getResult(cmd *core.Command) (interface{}, error) {
+	cmd.Route = PublicRoute
+	var args struct {
+		ID string `json:"id"`
 	}
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, err
+	}
+
+	log.Debugf("Getting result for '%s'", args.ID)
+
+	//push result from private to public
+	return sink.private.GetResponse(args.ID, 10)
+}
+
+func (sink *Sink) StartResponder() {
+	pm.CmdMap["core.result"] = process.NewInternalProcessFactory(sink.getResult)
 }
