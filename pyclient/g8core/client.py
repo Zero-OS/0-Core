@@ -5,10 +5,15 @@ import textwrap
 import shlex
 import base64
 import signal
+import socket
+import logging
+import time
 from g8core import typchk
 
 
 DefaultTimeout = 10  # seconds
+
+g8logger = logging.getLogger('g8core')
 
 
 class Timeout(Exception):
@@ -98,11 +103,18 @@ class Response:
         if timeout is None:
             timeout = self._client.timeout
         r = self._client._redis
-        v = r.brpoplpush(self._queue, self._queue, timeout)
-        if v is None:
-            raise Timeout()
-        payload = json.loads(v.decode())
-        return Return(payload)
+        start = time.time()
+        maxwait = timeout
+        while maxwait > 0:
+            v = r.brpoplpush(self._queue, self._queue, 10)
+            if not v is None:
+                payload = json.loads(v.decode())
+                r = Return(payload)
+                g8logger.debug('%s << %s, stdout="%s", stderr="%s", data="%s"', self._id, r.state, r.stdout, r.stderr, r.data)
+                return r
+            g8logger.debug('%s still waiting (%ss)', self._id, int(time.time() - start))
+            maxwait -= 10
+        raise Timeout()
 
 
 class InfoManager:
@@ -1701,7 +1713,12 @@ class Client(BaseClient):
     def __init__(self, host, port=6379, password="", db=0, timeout=None, testConnectionAttempts=10):
         super().__init__(timeout=timeout)
 
-        self._redis = redis.Redis(host=host, port=port, password=password, db=db)
+        self._redis = redis.Redis(host=host, port=port, password=password, db=db,
+                                  socket_keepalive=True, socket_keepalive_options={
+                                    socket.TCP_KEEPIDLE:1,
+                                    socket.TCP_KEEPINTVL:1,
+                                    socket.TCP_KEEPCNT:10
+                                  })
         self._container_manager = ContainerManager(self)
         self._bridge_manager = BridgeManager(self)
         self._disk_manager = DiskManager(self)
@@ -1778,6 +1795,7 @@ class Client(BaseClient):
         }
 
         self._redis.rpush('core:default', json.dumps(payload))
+        g8logger.debug('%s >> g8core.%s(%s)', id, command, ', '.join(("%s=%s" % (k,v) for k, v in arguments.items())))
 
         return Response(self, id)
 
