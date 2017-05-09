@@ -592,7 +592,8 @@ class ContainerClient(BaseClient):
         'command': {
             'command': str,
             'arguments': typchk.Any(),
-            'queue': typchk.Or(str, typchk.IsNone())
+            'queue': typchk.Or(str, typchk.IsNone()),
+            'max_time': typchk.Or(int, typchk.IsNone()),
         }
     })
 

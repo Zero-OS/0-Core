@@ -16,12 +16,6 @@ const (
 	PrivateRoute = core.Route("private")
 )
 
-//
-//type Channel interface {
-//	GetNext(queue string, command *core.Command) error
-//	Respond(result *core.JobResult) error
-//}
-
 type Sink struct {
 	key     string
 	mgr     *pm.PM
@@ -98,6 +92,14 @@ func (sink *Sink) Start() {
 	go sink.run()
 }
 
+func (sink *Sink) Result(job string, timeout int) (*core.JobResult, error) {
+	if sink.private.Flagged(job) {
+		return sink.private.GetResponse(job, timeout)
+	} else {
+		return nil, fmt.Errorf("unknown job id '%s' (may be it has expired)", job)
+	}
+}
+
 func (sink *Sink) getResult(cmd *core.Command) (interface{}, error) {
 	cmd.Route = PublicRoute
 	var args struct {
@@ -108,11 +110,7 @@ func (sink *Sink) getResult(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	if sink.private.Flagged(args.ID) {
-		return sink.private.GetResponse(args.ID, cmd.MaxTime)
-	} else {
-		return nil, fmt.Errorf("unknown job id '%s' (may be it has expired)", args.ID)
-	}
+	return sink.Result(args.ID, cmd.MaxTime)
 }
 
 func (sink *Sink) StartResponder() {

@@ -1,26 +1,26 @@
 package main
 
 import (
-	"time"
-
+	"fmt"
 	"github.com/g8os/core0/base"
 	"github.com/g8os/core0/base/pm"
 	pmcore "github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/settings"
+	"github.com/g8os/core0/core0/assets"
 	"github.com/g8os/core0/core0/bootstrap"
 	"github.com/g8os/core0/core0/logger"
-	"github.com/op/go-logging"
-
-	"fmt"
-	"os"
-
-	_ "github.com/g8os/core0/base/builtin"
-	"github.com/g8os/core0/core0/assets"
-	_ "github.com/g8os/core0/core0/builtin"
-	_ "github.com/g8os/core0/core0/builtin/btrfs"
 	"github.com/g8os/core0/core0/options"
 	"github.com/g8os/core0/core0/screen"
 	"github.com/g8os/core0/core0/stats"
+	"github.com/g8os/core0/core0/subsys/containers"
+	"github.com/g8os/core0/core0/subsys/kvm"
+	"github.com/op/go-logging"
+	"os"
+	"time"
+
+	_ "github.com/g8os/core0/base/builtin"
+	_ "github.com/g8os/core0/core0/builtin"
+	_ "github.com/g8os/core0/core0/builtin/btrfs"
 )
 
 var (
@@ -134,32 +134,34 @@ func main() {
 		Cells: make([]screen.RowCell, 2),
 	}
 	screen.Push(row)
-	//
-	////start/register containers commands and process
-	//contMgr, err := containers.ContainerSubsystem(sinks, &row.Cells[0])
-	//if err != nil {
-	//	log.Fatal("failed to intialize container subsystem", err)
-	//}
-	//
-	//if err := kvm.KVMSubsystem(contMgr, &row.Cells[1]); err != nil {
-	//	log.Errorf("failed to initialize kvm subsystem", err)
-	//}
-	//
-	////start local transport
-	//log.Infof("Starting local transport")
-	//local, err := NewLocal(contMgr, "/var/run/core.sock")
-	//if err != nil {
-	//	log.Errorf("Failed to start local transport: %s", err)
-	//} else {
-	//	go local.Serve()
-	//}
 
-	//start jobs sinks.
-	log.Infof("Starting Sinks")
 	sink, err := core.NewSink("default", mgr, &config.Sink)
 	if err != nil {
 		log.Errorf("failed to start command sink: %s", err)
 	}
+
+	//
+	////start/register containers commands and process
+	contMgr, err := containers.ContainerSubsystem(sink, &row.Cells[0])
+	if err != nil {
+		log.Fatal("failed to intialize container subsystem", err)
+	}
+
+	if err := kvm.KVMSubsystem(contMgr, &row.Cells[1]); err != nil {
+		log.Errorf("failed to initialize kvm subsystem", err)
+	}
+
+	log.Infof("Starting local transport")
+	local, err := NewLocal(contMgr, "/var/run/core.sock")
+	if err != nil {
+		log.Errorf("Failed to start local transport: %s", err)
+	} else {
+		go local.Serve()
+	}
+
+	//start jobs sinks.
+	log.Infof("Starting Sinks")
+
 	sink.Start()
 	sink.StartResponder()
 	screen.Refresh()

@@ -3,6 +3,7 @@ package containers
 import (
 	"encoding/json"
 	"fmt"
+	base "github.com/g8os/core0/base"
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
@@ -145,10 +146,10 @@ type containerManager struct {
 
 	pool *redis.Pool
 
-	internal *internalRouter
-
 	cell   *screen.RowCell
 	cgroup cgroups.Group
+
+	sink *base.Sink
 }
 
 /*
@@ -172,7 +173,7 @@ type ContainerManager interface {
 	Of(id uint16) Container
 }
 
-func ContainerSubsystem(cell *screen.RowCell) (ContainerManager, error) {
+func ContainerSubsystem(sink *base.Sink, cell *screen.RowCell) (ContainerManager, error) {
 	if err := cgroups.Init(); err != nil {
 		return nil, err
 	}
@@ -180,7 +181,7 @@ func ContainerSubsystem(cell *screen.RowCell) (ContainerManager, error) {
 	containerMgr := &containerManager{
 		pool:       utils.NewRedisPool("unix", redisSocketSrc, ""),
 		containers: make(map[uint16]*container),
-		internal:   newInternalRouter(),
+		sink:       sink,
 		cell:       cell,
 	}
 
@@ -391,18 +392,12 @@ func (m *containerManager) dispatch(cmd *core.Command) (interface{}, error) {
 //Dispatch command to container with ID (id)
 func (m *containerManager) Dispatch(id uint16, cmd *core.Command) (*core.JobResult, error) {
 	cmd.ID = uuid.New()
-	cmd.Tags = string(InternalRoute)
 
-	m.internal.Prepare(cmd.ID)
 	if err := m.pushToContainer(id, cmd); err != nil {
 		return nil, err
 	}
-	job := m.internal.Get(cmd.ID)
-	if job == nil {
-		return nil, fmt.Errorf("timeout")
-	}
 
-	return job, nil
+	return m.sink.Result(cmd.ID, base.ReturnExpire)
 }
 
 type ContainerTerminateArguments struct {
