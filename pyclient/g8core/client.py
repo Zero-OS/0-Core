@@ -13,7 +13,7 @@ from g8core import typchk
 
 DefaultTimeout = 10  # seconds
 
-g8logger = logging.getLogger('g8core')
+logger = logging.getLogger('g8core')
 
 
 class Timeout(Exception):
@@ -110,9 +110,9 @@ class Response:
             if not v is None:
                 payload = json.loads(v.decode())
                 r = Return(payload)
-                g8logger.debug('%s << %s, stdout="%s", stderr="%s", data="%s"', self._id, r.state, r.stdout, r.stderr, r.data)
+                logger.debug('%s << %s, stdout="%s", stderr="%s", data="%s"', self._id, r.state, r.stdout, r.stderr, r.data[:1000])
                 return r
-            g8logger.debug('%s still waiting (%ss)', self._id, int(time.time() - start))
+            logger.debug('%s still waiting (%ss)', self._id, int(time.time() - start))
             maxwait -= 10
         raise Timeout()
 
@@ -1795,7 +1795,7 @@ class Client(BaseClient):
         }
 
         self._redis.rpush('core:default', json.dumps(payload))
-        g8logger.debug('%s >> g8core.%s(%s)', id, command, ', '.join(("%s=%s" % (k,v) for k, v in arguments.items())))
+        logger.debug('%s >> g8core.%s(%s)', id, command, ', '.join(("%s=%s" % (k,v) for k, v in arguments.items())))
 
         return Response(self, id)
 
