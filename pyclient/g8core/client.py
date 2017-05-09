@@ -100,21 +100,33 @@ class Response:
         return self._id
 
     def get(self, timeout=None):
-        if timeout is None:
-            timeout = self._client.timeout
+        response = self._client.raw('core.result', {'id': self._id}, max_time=timeout)
         r = self._client._redis
-        start = time.time()
-        maxwait = timeout
-        while maxwait > 0:
-            v = r.brpoplpush(self._queue, self._queue, 10)
-            if not v is None:
-                payload = json.loads(v.decode())
-                r = Return(payload)
-                logger.debug('%s << %s, stdout="%s", stderr="%s", data="%s"', self._id, r.state, r.stdout, r.stderr, r.data[:1000])
-                return r
-            logger.debug('%s still waiting (%ss)', self._id, int(time.time() - start))
-            maxwait -= 10
-        raise Timeout()
+        queue = 'result:{}'.format(response.id)
+        v = r.brpop(queue, timeout=timeout)
+        ret = Return(json.loads(v[1].decode()))
+
+        if ret.state != 'SUCCESS':
+            raise Exception(ret.data)
+
+        return Return(json.loads(ret.data))
+
+    # def get(self, timeout=None):
+    #     if timeout is None:
+    #         timeout = self._client.timeout
+    #     r = self._client._redis
+    #     start = time.time()
+    #     maxwait = timeout
+    #     while maxwait > 0:
+    #         v = r.brpoplpush(self._queue, self._queue, 10)
+    #         if not v is None:
+    #             payload = json.loads(v.decode())
+    #             r = Return(payload)
+    #             logger.debug('%s << %s, stdout="%s", stderr="%s", data="%s"', self._id, r.state, r.stdout, r.stderr, r.data[:1000])
+    #             return r
+    #         logger.debug('%s still waiting (%ss)', self._id, int(time.time() - start))
+    #         maxwait -= 10
+    #     raise Timeout()
 
 
 class InfoManager:
@@ -477,7 +489,7 @@ class BaseClient:
     def filesystem(self):
         return self._filesystem
 
-    def raw(self, command, arguments, queue=None):
+    def raw(self, command, arguments, queue=None, max_time=None):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -594,7 +606,7 @@ class ContainerClient(BaseClient):
     def container(self):
         return self._container
 
-    def raw(self, command, arguments, queue=None):
+    def raw(self, command, arguments, queue=None, max_time=None):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -610,6 +622,7 @@ class ContainerClient(BaseClient):
                 'command': command,
                 'arguments': arguments,
                 'queue': queue,
+                'max_time': max_time,
             },
         }
 
@@ -1788,7 +1801,7 @@ class Client(BaseClient):
     def config(self):
         return self._config
 
-    def raw(self, command, arguments, queue=None):
+    def raw(self, command, arguments, queue=None, max_time=None):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -1805,6 +1818,7 @@ class Client(BaseClient):
             'command': command,
             'arguments': arguments,
             'queue': queue,
+            'max_time': max_time,
         }
 
         self._redis.rpush('core:default', json.dumps(payload))

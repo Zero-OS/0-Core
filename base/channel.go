@@ -101,7 +101,9 @@ func (cl *channel) GetResponse(id string, timeout int) (*core.JobResult, error) 
 
 	queue := fmt.Sprintf("result:%s", id)
 	payload, err := redis.Bytes(db.Do("BRPOPLPUSH", queue, queue, timeout))
-	if err != nil {
+	if err == redis.ErrNil {
+		return nil, fmt.Errorf("timeout")
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -111,4 +113,31 @@ func (cl *channel) GetResponse(id string, timeout int) (*core.JobResult, error) 
 	}
 
 	return &result, nil
+}
+
+func (cl *channel) Flag(id string) error {
+	db := cl.redis.Get()
+	defer db.Close()
+
+	key := fmt.Sprintf("result:%s:flag", id)
+	_, err := db.Do("SET", key, "")
+	return err
+}
+
+func (cl *channel) UnFlag(id string) error {
+	db := cl.redis.Get()
+	defer db.Close()
+
+	key := fmt.Sprintf("result:%s:flag", id)
+	_, err := db.Do("EXPIRE", key, ReturnExpire)
+	return err
+}
+
+func (cl *channel) Flagged(id string) bool {
+	db := cl.redis.Get()
+	defer db.Close()
+
+	key := fmt.Sprintf("result:%s:flag", id)
+	_, err := db.Do("GET", key)
+	return err == nil
 }

@@ -57,12 +57,16 @@ func (sink *Sink) DefaultQueue() string {
 }
 
 func (sink *Sink) handlePublic(cmd *core.Command, result *core.JobResult) {
+	//yes, we unflag the command on the private redis not the public, it's were we
+	//keep the flags.
+	sink.private.UnFlag(cmd.ID)
 	if err := sink.public.Respond(result); err != nil {
 		log.Errorf("Failed to respond to command %s: %s", cmd, err)
 	}
 }
 
 func (sink *Sink) handlePrivate(cmd *core.Command, result *core.JobResult) {
+	sink.private.UnFlag(cmd.ID)
 	if err := sink.private.Respond(result); err != nil {
 		log.Errorf("Failed to respond to command %s: %s", cmd, err)
 	}
@@ -82,8 +86,8 @@ func (sink *Sink) run() {
 			continue
 		}
 
+		sink.private.Flag(command.ID)
 		command.Route = PrivateRoute
-
 		log.Debugf("Starting command %s", &command)
 
 		sink.mgr.PushCmd(&command)
@@ -104,10 +108,11 @@ func (sink *Sink) getResult(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	log.Debugf("Getting result for '%s'", args.ID)
-
-	//push result from private to public
-	return sink.private.GetResponse(args.ID, 10)
+	if sink.private.Flagged(args.ID) {
+		return sink.private.GetResponse(args.ID, cmd.MaxTime)
+	} else {
+		return nil, fmt.Errorf("unknown job id '%s' (may be it has expired)", args.ID)
+	}
 }
 
 func (sink *Sink) StartResponder() {
