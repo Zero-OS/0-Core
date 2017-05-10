@@ -115,9 +115,6 @@ func main() {
 	bs := bootstrap.NewBootstrap()
 	bs.Bootstrap()
 
-	// start logs forwarder
-	logger.StartForwarder()
-
 	log.Infof("Setting up stats aggregator clients")
 	if config.Stats.Redis.Enabled {
 		aggregator, err := stats.NewRedisStatsAggregator(config.Stats.Redis.Address, "", 1000, time.Duration(config.Stats.Redis.FlushInterval)*time.Second)
