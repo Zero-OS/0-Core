@@ -805,6 +805,12 @@ func (m *kvmManager) attachDisk(cmd *core.Command) (interface{}, error) {
 	}
 	count := len(domainstruct.Devices.Disks)
 	disk := m.mkDisk(count, params.Media)
+	disks := domainstruct.Devices.Disks
+	for _, d := range disks {
+		if d.Source == disk.Source {
+			return nil, fmt.Errorf("The disk you tried is already attached to the vm")
+		}
+	}
 	diskxml, err := xml.MarshalIndent(disk, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal disk to xml")
