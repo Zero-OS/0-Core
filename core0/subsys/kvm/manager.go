@@ -924,11 +924,11 @@ func (m *kvmManager) removeNic(cmd *core.Command) (interface{}, error) {
 		}
 	case "vlan":
 		source = InterfaceDeviceSource{
-			Network: OVSBackPlane,
+			Network: fmt.Sprintf("vlbr%s", nic.ID),
 		}
 	case "vxlan":
 		source = InterfaceDeviceSource{
-			Network: OVSVXBackend,
+			Network: fmt.Sprintf("vxlbr%s", nic.ID),
 		}
 	default:
 		err = fmt.Errorf("unsupported network mode: %s", nic.Type)
