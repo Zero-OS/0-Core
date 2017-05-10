@@ -915,6 +915,7 @@ func (m *kvmManager) removeNic(cmd *core.Command) (interface{}, error) {
 	var (
 		params ManNicParams
 		inf    *InterfaceDevice
+		tmp    *InterfaceDevice
 		source InterfaceDeviceSource
 		err    error
 	)
@@ -937,14 +938,11 @@ func (m *kvmManager) removeNic(cmd *core.Command) (interface{}, error) {
 			Bridge: nic.ID,
 		}
 	case "vlan":
-		// TODO: add a way to get he network name from the ovs plugin
-		source = InterfaceDeviceSource{
-			Network: fmt.Sprintf("vlbr%s", nic.ID),
-		}
+		tmp, err = m.prepareVLanNetwork(&nic)
+		source = tmp.Source
 	case "vxlan":
-		source = InterfaceDeviceSource{
-			Network: fmt.Sprintf("vxlbr%s", nic.ID),
-		}
+		tmp, err = m.prepareVXLanNetwork(&nic)
+		source = tmp.Source
 	default:
 		err = fmt.Errorf("unsupported network mode: %s", nic.Type)
 	}
