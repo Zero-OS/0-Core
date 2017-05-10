@@ -79,7 +79,7 @@ func (sink *Sink) run() {
 }
 
 func (sink *Sink) Forward(queue string, cmd *core.Command) error {
-	defer sink.ch.Flagged(cmd.ID)
+	defer sink.ch.Flag(cmd.ID)
 	return sink.ch.Push(queue, cmd)
 }
 
