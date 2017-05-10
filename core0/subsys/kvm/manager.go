@@ -863,11 +863,21 @@ func (m *kvmManager) addNic(cmd *core.Command) (interface{}, error) {
 		HWAddress: params.HWAddress,
 	}
 
+	domainstruct, err := m.getDomainStruct(params.UUID)
+	if err != nil {
+		return nil, err
+	}
+
 	switch nic.Type {
 	case "default":
-		// TODO: support adding default network
-		// inf, err = m.prepareDefaultNetwork(domain.UUID, seq, args.Port)
-		err = fmt.Errorf("default network hot plugging is not supported at the moment")
+		for _, nic := range domainstruct.Devices.Interfaces {
+			if nic.Source.Bridge == DefaultBridgeName {
+				return nil, fmt.Errorf("The default nic is already attached to the vm")
+			}
+		}
+		seq := m.getNextSequence()
+		// TODO: use the ports that the domain was created with initially
+		inf, err = m.prepareDefaultNetwork(params.UUID, seq, map[int]int{})
 	case "bridge":
 		if nic.ID == DefaultBridgeName {
 			err = fmt.Errorf("the default bridge for the vm should not be added manually")
@@ -885,14 +895,12 @@ func (m *kvmManager) addNic(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	domainstruct, err := m.getDomainStruct(params.UUID)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, nic := range domainstruct.Devices.Interfaces {
-		if nic.Source == inf.Source {
-			return nil, fmt.Errorf("This Nic is already attached to the vm")
+	// We check for the default network upfront
+	if nic.Type != "default" {
+		for _, nic := range domainstruct.Devices.Interfaces {
+			if nic.Source == inf.Source {
+				return nil, fmt.Errorf("This nic is already attached to the vm")
+			}
 		}
 	}
 
@@ -929,6 +937,7 @@ func (m *kvmManager) removeNic(cmd *core.Command) (interface{}, error) {
 			Bridge: nic.ID,
 		}
 	case "vlan":
+		// TODO: add a way to get he network name from the ovs plugin
 		source = InterfaceDeviceSource{
 			Network: fmt.Sprintf("vlbr%s", nic.ID),
 		}
