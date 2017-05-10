@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/g8os/core0/base/pm/core"
-	"github.com/g8os/core0/base/settings"
 	"github.com/g8os/core0/base/utils"
 	"github.com/garyburd/redigo/redis"
 	"net/url"
@@ -27,8 +26,8 @@ type channel struct {
 NewSinkClient gets a new sink connection with the given identity. Identity is used by the sink client to
 introduce itself to the sink terminal.
 */
-func newChannel(cfg *settings.Channel) (*channel, error) {
-	u, err := url.Parse(cfg.URL)
+func newChannel(con string, password string) (*channel, error) {
+	u, err := url.Parse(con)
 	if err != nil {
 		return nil, err
 	}
@@ -44,10 +43,10 @@ func newChannel(cfg *settings.Channel) (*channel, error) {
 		address = u.Path
 	}
 
-	pool := utils.NewRedisPool(network, address, cfg.Password)
+	pool := utils.NewRedisPool(network, address, password)
 
 	ch := &channel{
-		url:   strings.TrimRight(cfg.URL, "/"),
+		url:   strings.TrimRight(con, "/"),
 		redis: pool,
 	}
 
@@ -75,20 +74,32 @@ func (cl *channel) Respond(result *core.JobResult) error {
 		return fmt.Errorf("result with no ID, not pushing results back...")
 	}
 
+	queue := fmt.Sprintf("result:%s", result.ID)
+
+	if err := cl.Push(queue, result); err != nil {
+		return err
+	}
+
 	db := cl.redis.Get()
 	defer db.Close()
 
-	queue := fmt.Sprintf("result:%s", result.ID)
+	if _, err := db.Do("EXPIRE", queue, ReturnExpire); err != nil {
+		return err
+	}
 
-	payload, err := json.Marshal(result)
+	return nil
+}
+
+func (cl *channel) Push(queue string, payload interface{}) error {
+	db := cl.redis.Get()
+	defer db.Close()
+
+	data, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
 
-	if _, err := db.Do("RPUSH", queue, payload); err != nil {
-		return err
-	}
-	if _, err := db.Do("EXPIRE", queue, ReturnExpire); err != nil {
+	if _, err := db.Do("RPUSH", queue, data); err != nil {
 		return err
 	}
 
@@ -120,7 +131,7 @@ func (cl *channel) Flag(id string) error {
 	defer db.Close()
 
 	key := fmt.Sprintf("result:%s:flag", id)
-	_, err := db.Do("SET", key, "")
+	_, err := db.Do("RPUSH", key, "")
 	return err
 }
 

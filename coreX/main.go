@@ -8,7 +8,6 @@ import (
 	"github.com/g8os/core0/base/logger"
 	"github.com/g8os/core0/base/pm"
 	pmcore "github.com/g8os/core0/base/pm/core"
-	"github.com/g8os/core0/base/settings"
 	"github.com/g8os/core0/coreX/bootstrap"
 	"github.com/g8os/core0/coreX/options"
 	"github.com/op/go-logging"
@@ -106,16 +105,7 @@ func main() {
 
 	sinkID := fmt.Sprintf("%d", opt.CoreID())
 
-	channel := settings.Channel{
-		URL:      fmt.Sprintf("redis://%s", opt.RedisSocket()),
-		Password: opt.RedisPassword(),
-	}
-
-	sinkCfg := settings.Sink{
-		Public:  channel,
-		Private: channel,
-	}
-	sink, err := core.NewSink(sinkID, mgr, &sinkCfg)
+	sink, err := core.NewSink(sinkID, mgr, core.SinkConfig{URL: fmt.Sprintf("redis://%s", opt.RedisSocket())})
 	if err != nil {
 		log.Errorf("failed to start command sink: %s", err)
 	}

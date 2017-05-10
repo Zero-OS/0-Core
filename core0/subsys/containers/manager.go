@@ -347,17 +347,7 @@ func (m *containerManager) getCoreXQueue(id uint16) string {
 }
 
 func (m *containerManager) pushToContainer(container uint16, cmd *core.Command) error {
-	db := m.pool.Get()
-	defer db.Close()
-
-	data, err := json.Marshal(cmd)
-	if err != nil {
-		return err
-	}
-
-	_, err = db.Do("RPUSH", m.getCoreXQueue(container), string(data))
-
-	return err
+	return m.sink.Forward(m.getCoreXQueue(container), cmd)
 }
 
 func (m *containerManager) dispatch(cmd *core.Command) (interface{}, error) {

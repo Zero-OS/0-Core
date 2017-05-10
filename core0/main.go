@@ -135,13 +135,11 @@ func main() {
 	}
 	screen.Push(row)
 
-	sink, err := core.NewSink("default", mgr, &config.Sink)
+	sink, err := core.NewSink("default", mgr, core.SinkConfig{URL: "redis://127.0.0.1:6379"})
 	if err != nil {
 		log.Errorf("failed to start command sink: %s", err)
 	}
 
-	//
-	////start/register containers commands and process
 	contMgr, err := containers.ContainerSubsystem(sink, &row.Cells[0])
 	if err != nil {
 		log.Fatal("failed to intialize container subsystem", err)
@@ -163,7 +161,6 @@ func main() {
 	log.Infof("Starting Sinks")
 
 	sink.Start()
-	sink.StartResponder()
 	screen.Refresh()
 
 	//wait

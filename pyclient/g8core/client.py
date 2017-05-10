@@ -19,6 +19,8 @@ logger = logging.getLogger('g8core')
 class Timeout(Exception):
     pass
 
+class JobNotFound(Exception):
+    pass
 
 class Return:
     def __init__(self, payload):
@@ -99,34 +101,30 @@ class Response:
     def id(self):
         return self._id
 
-    def get(self, timeout=None):
-        response = self._client.raw('core.result', {'id': self._id}, max_time=timeout)
+    @property
+    def exists(self):
         r = self._client._redis
-        queue = 'result:{}'.format(response.id)
-        v = r.brpop(queue, timeout=timeout)
-        ret = Return(json.loads(v[1].decode()))
+        flag = '{}:flag'.format(self._queue)
+        return r.rpoplpush(flag, flag) is not None
 
-        if ret.state != 'SUCCESS':
-            raise Exception(ret.data)
-
-        return Return(json.loads(ret.data))
-
-    # def get(self, timeout=None):
-    #     if timeout is None:
-    #         timeout = self._client.timeout
-    #     r = self._client._redis
-    #     start = time.time()
-    #     maxwait = timeout
-    #     while maxwait > 0:
-    #         v = r.brpoplpush(self._queue, self._queue, 10)
-    #         if not v is None:
-    #             payload = json.loads(v.decode())
-    #             r = Return(payload)
-    #             logger.debug('%s << %s, stdout="%s", stderr="%s", data="%s"', self._id, r.state, r.stdout, r.stderr, r.data[:1000])
-    #             return r
-    #         logger.debug('%s still waiting (%ss)', self._id, int(time.time() - start))
-    #         maxwait -= 10
-    #     raise Timeout()
+    def get(self, timeout=None):
+        if timeout is None:
+            timeout = self._client.timeout
+        r = self._client._redis
+        start = time.time()
+        maxwait = timeout
+        while maxwait > 0:
+            if not self.exists:
+                raise JobNotFound(self.id)
+            v = r.brpoplpush(self._queue, self._queue, 10)
+            if v is not None:
+                payload = json.loads(v.decode())
+                r = Return(payload)
+                logger.debug('%s << %s, stdout="%s", stderr="%s", data="%s"', self._id, r.state, r.stdout, r.stderr, r.data[:1000])
+                return r
+            logger.debug('%s still waiting (%ss)', self._id, int(time.time() - start))
+            maxwait -= 10
+        raise Timeout()
 
 
 class InfoManager:
@@ -1822,7 +1820,10 @@ class Client(BaseClient):
             'max_time': max_time,
         }
 
+        flag = 'result:{}:flag'.format(id)
         self._redis.rpush('core:default', json.dumps(payload))
+        if self._redis.brpoplpush(flag, flag, DefaultTimeout) is None:
+            Timeout('failed to queue job {}'.format(id))
         logger.debug('%s >> g8core.%s(%s)', id, command, ', '.join(("%s=%s" % (k,v) for k, v in arguments.items())))
 
         return Response(self, id)

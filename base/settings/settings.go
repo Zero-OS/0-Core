@@ -56,17 +56,6 @@ type Security struct {
 	ClientCertificateKey string
 }
 
-//Controller url and certificates
-type Channel struct {
-	URL      string `json:"url"`
-	Password string `json:"password"`
-}
-
-type Sink struct {
-	Public  Channel `json:"public"`
-	Private Channel `json:"private"`
-}
-
 type Globals map[string]string
 
 func (g Globals) Get(key string, def ...string) string {
@@ -88,7 +77,6 @@ type AppSettings struct {
 	} `json:"main"`
 
 	Globals   Globals              `json:"globals"`
-	Sink      Sink                 `json:"sink"`
 	Extension map[string]Extension `json:"extension"`
 	Logging   map[string]Logger    `json:"logger"`
 
