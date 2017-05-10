@@ -89,6 +89,7 @@ const (
 
 type Devices struct {
 	Emulator   string            `xml:"emulator"`
+	Graphics   []GraphicsDevice  `xml:"graphics"`
 	Disks      []DiskDevice      `xml:"disk"`
 	Interfaces []InterfaceDevice `xml:"interface"`
 	Devices    []Device

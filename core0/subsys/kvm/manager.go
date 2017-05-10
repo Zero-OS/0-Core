@@ -301,7 +301,7 @@ func (m *kvmManager) getDomainStruct(uuid string) (*Domain, error) {
 	if err != nil {
 		return nil, fmt.Errorf("couldn't find domain with the uuid %s", uuid)
 	}
-	domainxml, err := domain.GetXMLDesc(libvirt.DOMAIN_XML_INACTIVE)
+	domainxml, err := domain.GetXMLDesc(libvirt.DOMAIN_XML_SECURE)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get domain xml: %v", err)
 	}
@@ -539,6 +539,8 @@ func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error)
 						Name: "serial0",
 					},
 				},
+			},
+			Graphics: []GraphicsDevice{
 				GraphicsDevice{
 					Type:   GraphicsDeviceTypeVNC,
 					Port:   -1,
@@ -1048,6 +1050,7 @@ type Machine struct {
 	UUID  string `json:"uuid"`
 	Name  string `json:"name"`
 	State string `json:"state"`
+	VNC   int    `json:"vnc"`
 }
 
 func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
@@ -1059,11 +1062,15 @@ func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
 	found := make([]Machine, 0)
 
 	for _, domain := range domains {
-		id, err := domain.GetID()
+		uuid, err := domain.GetUUIDString()
 		if err != nil {
 			return nil, err
 		}
-		uuid, err := domain.GetUUIDString()
+		domainstruct, err := m.getDomainStruct(uuid)
+		if err != nil {
+			return nil, err
+		}
+		id, err := domain.GetID()
 		if err != nil {
 			return nil, err
 		}
@@ -1075,11 +1082,19 @@ func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
+		port := -1
+		for _, graphics := range domainstruct.Devices.Graphics {
+			if graphics.Type == GraphicsDeviceTypeVNC {
+				port = graphics.Port
+				break
+			}
+		}
 		found = append(found, Machine{
 			ID:    int(id),
 			UUID:  uuid,
 			Name:  name,
 			State: StateToString(state),
+			VNC:   port,
 		})
 	}
 
