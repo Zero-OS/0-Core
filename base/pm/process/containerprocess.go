@@ -6,6 +6,7 @@ import (
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/stream"
 	psutils "github.com/shirou/gopsutil/process"
+	"os"
 	"os/exec"
 	"syscall"
 )
@@ -17,6 +18,7 @@ type ContainerCommandArguments struct {
 	Env         map[string]string `json:"env"`
 	HostNetwork bool              `json:"host_network"`
 	Chroot      string            `json:"chroot"`
+	Files       []uintptr         `json:"files"`
 }
 
 type containerProcessImpl struct {
@@ -91,6 +93,12 @@ func (process *containerProcessImpl) Run() (<-chan *stream.Message, error) {
 
 	if !process.args.HostNetwork {
 		flags |= syscall.CLONE_NEWNET | syscall.CLONE_NEWUTS
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	for _, fd := range process.args.Files {
+		cmd.ExtraFiles = append(cmd.ExtraFiles, os.NewFile(fd, fmt.Sprintf("f(%d)", fd)))
 	}
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{

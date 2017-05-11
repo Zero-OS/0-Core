@@ -365,23 +365,11 @@ func (c *container) sandbox() error {
 		}
 	}
 
-	redisSocketTarget := path.Join(root, "redis.socket")
 	coreXTarget := path.Join(root, coreXBinaryName)
-
-	if f, err := os.Create(redisSocketTarget); err == nil {
-		f.Close()
-	} else {
-		log.Errorf("Failed to touch file '%s': %s", redisSocketTarget, err)
-	}
-
 	if f, err := os.Create(coreXTarget); err == nil {
 		f.Close()
 	} else {
 		log.Errorf("Failed to touch file '%s': %s", coreXTarget, err)
-	}
-
-	if err := syscall.Mount(redisSocketSrc, redisSocketTarget, "", syscall.MS_BIND, ""); err != nil {
-		return err
 	}
 
 	coreXSrc, err := exec.LookPath(coreXBinaryName)

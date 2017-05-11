@@ -44,11 +44,8 @@ func (sink *Sink) DefaultQueue() string {
 }
 
 func (sink *Sink) handlePublic(cmd *core.Command, result *core.JobResult) {
-	//yes, we unflag the command on the private redis not the public, it's were we
-	//keep the flags.
-	sink.ch.UnFlag(cmd.ID)
-	if err := sink.ch.Respond(result); err != nil {
-		log.Errorf("Failed to respond to command %s: %s", cmd, err)
+	if err := sink.Forward(result); err != nil {
+		log.Errorf("failed to forward result: %s", cmd.ID)
 	}
 }
 
@@ -78,9 +75,13 @@ func (sink *Sink) run() {
 	}
 }
 
-func (sink *Sink) Forward(queue string, cmd *core.Command) error {
-	defer sink.ch.Flag(cmd.ID)
-	return sink.ch.Push(queue, cmd)
+func (sink *Sink) Forward(result *core.JobResult) error {
+	sink.ch.UnFlag(result.ID)
+	return sink.ch.Respond(result)
+}
+
+func (sink *Sink) Flag(id string) error {
+	return sink.ch.Flag(id)
 }
 
 func (sink *Sink) Start() {

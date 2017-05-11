@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/g8os/core0/base"
-	"github.com/g8os/core0/base/logger"
 	"github.com/g8os/core0/base/pm"
 	pmcore "github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/coreX/bootstrap"
@@ -15,6 +14,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"encoding/json"
 	_ "github.com/g8os/core0/base/builtin"
 	_ "github.com/g8os/core0/coreX/builtin"
 )
@@ -26,7 +26,7 @@ var (
 func init() {
 	formatter := logging.MustStringFormatter("%{color}%{module} %{level:.1s} > %{message} %{color:reset}")
 	logging.SetFormatter(formatter)
-	logging.SetLevel(logging.INFO, "")
+	logging.SetLevel(logging.DEBUG, "")
 }
 
 func handleSignal(bs *bootstrap.Bootstrap) {
@@ -55,30 +55,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	//redis logger for commands
-	rl := logger.NewRedisLogger(uint16(opt.CoreID()), opt.RedisSocket(), "", nil, 100000)
-
-	//set backend so coreX logs itself also get pushed to redis
-	logging.SetBackend(
-		&logBackend{
-			logger: rl,
-			cmd: pmcore.Command{
-				ID: "core-x",
-			},
-		},
-	)
-
 	pm.InitProcessManager(opt.MaxJobs())
 
 	//start process mgr.
 	log.Infof("Starting process manager")
 	mgr := pm.GetManager()
-
-	//handle process results. Forwards the result to the correct controller.
-	mgr.AddResultHandler(func(cmd *pmcore.Command, result *pmcore.JobResult) {
-		result.Container = opt.CoreID()
-		log.Debugf("Job result for command '%s' is '%s'", cmd, result.State)
-	})
 
 	mgr.Run()
 
@@ -94,23 +75,31 @@ func main() {
 
 	handleSignal(bs)
 
-	log.Infof("Configure redis logger")
+	input := os.NewFile(3, "|input")
+	output := os.NewFile(4, "|output")
 
-	mgr.AddMessageHandler(rl.Log)
-
-	//forward stats messages to core0
-	mgr.AddStatsHandler(func(op, key string, value float64, tags string) {
-		fmt.Printf("10::core-%d.%s:%f|%s|%s\n", opt.CoreID(), key, value, op, tags)
+	enc := json.NewEncoder(output)
+	mgr.AddResultHandler(func(cmd *pmcore.Command, result *pmcore.JobResult) {
+		if err := enc.Encode(result); err != nil {
+			log.Errorf("failed to send result: %s", err)
+		}
 	})
 
-	sinkID := fmt.Sprintf("%d", opt.CoreID())
+	//forward stats messages to core0
+	//TODO: since containers stdout is not processed anymore, this doesn't
+	//get through anymore.
 
-	sink, err := core.NewSink(sinkID, mgr, core.SinkConfig{URL: fmt.Sprintf("redis://%s", opt.RedisSocket())})
-	if err != nil {
-		log.Errorf("failed to start command sink: %s", err)
+	//mgr.AddStatsHandler(func(op, key string, value float64, tags string) {
+	//	fmt.Printf("10::core-%d.%s:%f|%s|%s\n", opt.CoreID(), key, value, op, tags)
+	//})
+
+	dec := json.NewDecoder(input)
+	for {
+		var cmd pmcore.Command
+		if err := dec.Decode(&cmd); err != nil {
+			log.Errorf("failed to decode command message: %s", err)
+
+		}
+		mgr.PushCmd(&cmd)
 	}
-	sink.Start()
-
-	//wait
-	select {}
 }

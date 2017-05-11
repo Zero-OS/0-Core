@@ -346,8 +346,10 @@ func (m *containerManager) getCoreXQueue(id uint16) string {
 	return fmt.Sprintf("core:%v", id)
 }
 
-func (m *containerManager) pushToContainer(container uint16, cmd *core.Command) error {
-	return m.sink.Forward(m.getCoreXQueue(container), cmd)
+func (m *containerManager) pushToContainer(container *container, cmd *core.Command) error {
+	m.sink.Flag(cmd.ID)
+	enc := json.NewEncoder(container.ch)
+	return enc.Encode(cmd)
 }
 
 func (m *containerManager) dispatch(cmd *core.Command) (interface{}, error) {
@@ -361,29 +363,35 @@ func (m *containerManager) dispatch(cmd *core.Command) (interface{}, error) {
 	}
 
 	m.conM.RLock()
-	_, ok := m.containers[args.Container]
+	cont, ok := m.containers[args.Container]
 	m.conM.RUnlock()
 
 	if !ok {
 		return nil, fmt.Errorf("container does not exist")
 	}
 
-	id := uuid.New()
-	args.Command.ID = id
-	args.Command.Tags = string(cmd.Route)
+	args.Command.ID = uuid.New()
 
-	if err := m.pushToContainer(args.Container, &args.Command); err != nil {
+	if err := m.pushToContainer(cont, &args.Command); err != nil {
 		return nil, err
 	}
 
-	return id, nil
+	return args.Command.ID, nil
 }
 
 //Dispatch command to container with ID (id)
 func (m *containerManager) Dispatch(id uint16, cmd *core.Command) (*core.JobResult, error) {
 	cmd.ID = uuid.New()
 
-	if err := m.pushToContainer(id, cmd); err != nil {
+	m.conM.RLock()
+	cont, ok := m.containers[id]
+	m.conM.RUnlock()
+
+	if !ok {
+		return nil, fmt.Errorf("container does not exist")
+	}
+
+	if err := m.pushToContainer(cont, cmd); err != nil {
 		return nil, err
 	}
 

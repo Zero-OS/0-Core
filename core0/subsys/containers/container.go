@@ -1,11 +1,13 @@
 package containers
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
 	"github.com/pborman/uuid"
+	"io"
 	"os"
 	"path"
 	"sync"
@@ -34,6 +36,8 @@ type container struct {
 	zt    pm.Runner
 	zterr error
 	zto   sync.Once
+
+	ch Channel
 }
 
 func newContainer(mgr *containerManager, id uint16, route core.Route, args ContainerCreateArguments) *container {
@@ -85,8 +89,16 @@ func (c *container) sync(bin string, args ...string) (*core.JobResult, error) {
 func (c *container) Start() (err error) {
 	coreID := fmt.Sprintf("core-%d", c.id)
 
+	var local, remote Channel
+	local, remote, err = Pipe()
+	if err != nil {
+		return err
+	}
+
+	c.ch = local
 	defer func() {
 		if err != nil {
+			remote.Close()
 			c.cleanup()
 		}
 	}()
@@ -102,9 +114,6 @@ func (c *container) Start() (err error) {
 	}
 
 	args := []string{
-		"-core-id", fmt.Sprintf("%d", c.id),
-		"-redis-socket", "/redis.socket",
-		"-reply-to", coreXResponseQueue,
 		"-hostname", c.Args.Hostname,
 	}
 
@@ -123,6 +132,7 @@ func (c *container) Start() (err error) {
 				Dir:         "/",
 				HostNetwork: c.Args.HostNetwork,
 				Args:        args,
+				Files:       []uintptr{remote.Reader(), remote.Writer()},
 				Env: map[string]string{
 					"PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 					"HOME": "/",
@@ -132,7 +142,10 @@ func (c *container) Start() (err error) {
 	}
 
 	onpid := &pm.PIDHook{
-		Action: c.onpid,
+		Action: func(pid int) {
+			remote.Close()
+			c.onpid(pid)
+		},
 	}
 
 	onexit := &pm.ExitHook{
@@ -180,6 +193,24 @@ func (c *container) onpid(pid int) {
 		log.Errorf("Container post start error: %s", err)
 		//TODO. Should we shut the container down?
 	}
+
+	go c.communicate()
+}
+
+func (c *container) communicate() {
+	decoder := json.NewDecoder(c.ch)
+	for {
+		var result core.JobResult
+		err := decoder.Decode(&result)
+		if err == io.EOF {
+			return
+		} else if err != nil {
+			log.Errorf("failed to process corex message: %s", err)
+			continue
+		}
+
+		c.mgr.sink.Forward(&result)
+	}
 }
 
 func (c *container) onexit(state bool) {
@@ -191,6 +222,7 @@ func (c *container) cleanup() {
 	log.Debugf("cleaning up container-%d", c.id)
 	defer c.mgr.unset_container(c.id)
 
+	c.ch.Close()
 	c.destroyNetwork()
 
 	if err := c.unMountAll(); err != nil {
