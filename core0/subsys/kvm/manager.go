@@ -121,9 +121,10 @@ func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) erro
 }
 
 type Media struct {
-	URL  string         `json:"url"`
-	Type DiskDeviceType `json:"type"`
-	Bus  string         `json:"bus"`
+	URL    string         `json:"url"`
+	Type   DiskDeviceType `json:"type"`
+	Bus    string         `json:"bus"`
+	IOTune *IOTuneParams  `json:"iotune,omitempty"`
 }
 
 type Nic struct {
@@ -186,9 +187,7 @@ type MigrateParams struct {
 	DestURI string `json:"desturi"`
 }
 
-type LimitDiskIOParams struct {
-	UUID                      string `json:"uuid"`
-	TargetName                string `json:"targetname"`
+type IOTuneParams struct {
 	TotalBytesSecSet          bool   `json:"totalbytessecset"`
 	TotalBytesSec             uint64 `json:"totalbytessec"`
 	ReadBytesSecSet           bool   `json:"readbytessecset"`
@@ -229,6 +228,12 @@ type LimitDiskIOParams struct {
 	SizeIopsSec               uint64 `json:"sizeiopssec"`
 	GroupNameSet              bool   `json:"groupnameset"`
 	GroupName                 string `json:"groupname"`
+}
+
+type LimitDiskIOParams struct {
+	IOTuneParams
+	UUID  string `json:"uuid"`
+	Media Media  `json:"media"`
 }
 
 type DomainStats struct {
@@ -294,6 +299,71 @@ func StateToString(state libvirt.DomainState) string {
 		res = ""
 	}
 	return res
+}
+
+func IOTuneParamsToIOTune(inp IOTuneParams) IOTune {
+	out := IOTune{}
+	if inp.TotalBytesSecSet {
+		out.TotalBytesSec = &inp.TotalBytesSec
+	}
+	if inp.ReadBytesSecSet {
+		out.ReadBytesSec = &inp.ReadBytesSec
+	}
+	if inp.WriteBytesSecSet {
+		out.WriteBytesSec = &inp.WriteBytesSec
+	}
+	if inp.TotalIopsSecSet {
+		out.TotalIopsSec = &inp.TotalIopsSec
+	}
+	if inp.ReadIopsSecSet {
+		out.ReadIopsSec = &inp.ReadIopsSec
+	}
+	if inp.WriteIopsSecSet {
+		out.WriteIopsSec = &inp.WriteIopsSec
+	}
+	if inp.TotalBytesSecMaxSet {
+		out.TotalBytesSecMax = &inp.TotalBytesSecMax
+	}
+	if inp.ReadBytesSecMaxSet {
+		out.ReadBytesSecMax = &inp.ReadBytesSecMax
+	}
+	if inp.WriteBytesSecMaxSet {
+		out.WriteBytesSecMax = &inp.WriteBytesSecMax
+	}
+	if inp.TotalIopsSecMaxSet {
+		out.TotalIopsSecMax = &inp.TotalIopsSecMax
+	}
+	if inp.ReadIopsSecMaxSet {
+		out.ReadIopsSecMax = &inp.ReadIopsSecMax
+	}
+	if inp.WriteIopsSecMaxSet {
+		out.WriteIopsSecMax = &inp.WriteIopsSecMax
+	}
+	if inp.TotalBytesSecMaxLengthSet {
+		out.TotalBytesSecMaxLength = &inp.TotalBytesSecMaxLength
+	}
+	if inp.ReadBytesSecMaxLengthSet {
+		out.ReadBytesSecMaxLength = &inp.ReadBytesSecMaxLength
+	}
+	if inp.WriteBytesSecMaxLengthSet {
+		out.WriteBytesSecMaxLength = &inp.WriteBytesSecMaxLength
+	}
+	if inp.TotalIopsSecMaxLengthSet {
+		out.TotalIopsSecMaxLength = &inp.TotalIopsSecMaxLength
+	}
+	if inp.ReadIopsSecMaxLengthSet {
+		out.ReadIopsSecMaxLength = &inp.ReadIopsSecMaxLength
+	}
+	if inp.WriteIopsSecMaxLengthSet {
+		out.WriteIopsSecMaxLength = &inp.WriteIopsSecMaxLength
+	}
+	if inp.SizeIopsSecSet {
+		out.SizeIopsSec = &inp.SizeIopsSec
+	}
+	if inp.GroupNameSet {
+		out.GroupName = &inp.GroupName
+	}
+	return out
 }
 
 func (m *kvmManager) getDomainStruct(uuid string) (*Domain, error) {
@@ -458,6 +528,10 @@ func (m *kvmManager) mkDisk(idx int, media Media) DiskDevice {
 	if media.Type == DiskDeviceTypeCDROM {
 		disk.Target.Dev = "hd" + string(97+idx)
 		disk.Target.Bus = "ide"
+	}
+
+	if media.IOTune != nil {
+		disk.IOTune = IOTuneParamsToIOTune(*media.IOTune)
 	}
 
 	return disk
@@ -1024,7 +1098,23 @@ func (m *kvmManager) limitDiskIO(cmd *core.Command) (interface{}, error) {
 		GroupNameSet:              params.GroupNameSet,
 		GroupName:                 params.GroupName,
 	}
-	if err := domain.SetBlockIoTune(params.TargetName, &blockParams, libvirt.DOMAIN_AFFECT_LIVE); err != nil {
+	domainstruct, err := m.getDomainStruct(params.UUID)
+	if err != nil {
+		return nil, err
+	}
+	disks := domainstruct.Devices.Disks
+	inp := m.mkDisk(0, params.Media)
+	target := ""
+	for _, d := range disks {
+		if d.Source == inp.Source {
+			target = d.Target.Dev
+			break
+		}
+	}
+	if target == "" {
+		return nil, fmt.Errorf("The disk you tried is not attached to the vm")
+	}
+	if err := domain.SetBlockIoTune(target, &blockParams, libvirt.DOMAIN_AFFECT_LIVE); err != nil {
 		return nil, fmt.Errorf("failed to tune disk: %s", err)
 	}
 	return nil, nil

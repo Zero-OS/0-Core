@@ -1310,58 +1310,7 @@ class ZerotierManager:
 
 
 class KvmManager:
-    _create_chk = typchk.Checker({
-        'name': str,
-        'media': [{
-            'type': typchk.Or(
-                typchk.Enum('disk', 'cdrom'),
-                typchk.Missing()
-            ),
-            'url': str,
-        }],
-        'cpu': int,
-        'memory': int,
-        'nics': [{
-            'type': typchk.Enum('default', 'bridge', 'vxlan', 'vlan'),
-            'id': typchk.Or(str, typchk.Missing()),
-            'hwaddr': typchk.Or(str, typchk.Missing()),
-        }],
-        'port': typchk.Or(
-            typchk.Map(int, int),
-            typchk.IsNone()
-        ),
-    })
-
-    _domain_action_chk = typchk.Checker({
-        'uuid': str,
-    })
-
-    _man_disk_action_chk = typchk.Checker({
-        'uuid': str,
-        'media': {
-            'type': typchk.Or(
-                typchk.Enum('disk', 'cdrom'),
-                typchk.Missing()
-            ),
-            'url': str,
-        },
-    })
-
-    _man_nic_action_chk = typchk.Checker({
-        'uuid': str,
-        'type': typchk.Enum('default', 'bridge', 'vxlan', 'vlan'),
-        'id': typchk.Or(str, typchk.Missing()),
-        'hwaddr': typchk.Or(str, typchk.Missing()),
-    })
-
-    _migrate_action_chk = typchk.Checker({
-        'uuid': str,
-        'desturi': str,
-    })
-
-    _limit_disk_io_action_chk = typchk.Checker({
-        'uuid': str,
-        'targetname': str,
+    _iotune_dict = {
         'totalbytessecset': bool,
         'totalbytessec': int,
         'readbytessecset': bool,
@@ -1402,7 +1351,63 @@ class KvmManager:
         'sizeiopssec': int,
         'groupnameset': bool,
         'groupname': str,
+    }
+    _media_dict = {
+        'type': typchk.Or(
+            typchk.Enum('disk', 'cdrom'),
+            typchk.Missing()
+        ),
+        'url': str,
+        'iotune': typchk.Or(
+            _iotune_dict,
+            typchk.Missing
+        )
+    }
+    _create_chk = typchk.Checker({
+        'name': str,
+        'media': [_media_dict],
+        'cpu': int,
+        'memory': int,
+        'nics': [{
+            'type': typchk.Enum('default', 'bridge', 'vxlan', 'vlan'),
+            'id': typchk.Or(str, typchk.Missing()),
+            'hwaddr': typchk.Or(str, typchk.Missing()),
+        }],
+        'port': typchk.Or(
+            typchk.Map(int, int),
+            typchk.IsNone()
+        ),
     })
+
+    _domain_action_chk = typchk.Checker({
+        'uuid': str,
+    })
+
+    _man_disk_action_chk = typchk.Checker({
+        'uuid': str,
+        'media': _media_dict,
+    })
+
+    _man_nic_action_chk = typchk.Checker({
+        'uuid': str,
+        'type': typchk.Enum('default', 'bridge', 'vxlan', 'vlan'),
+        'id': typchk.Or(str, typchk.Missing()),
+        'hwaddr': typchk.Or(str, typchk.Missing()),
+    })
+
+    _migrate_action_chk = typchk.Checker({
+        'uuid': str,
+        'desturi': str,
+    })
+
+    _limit_disk_io_dict = {
+        'uuid': str,
+        'media': _media_dict,
+    }
+
+    _limit_disk_io_dict.update(_iotune_dict)
+
+    _limit_disk_io_action_chk = typchk.Checker(_limit_disk_io_dict)
 
     def __init__(self, client):
         self._client = client
@@ -1619,7 +1624,7 @@ class KvmManager:
 
         return self._client.json('kvm.remove_nic', args)
 
-    def limit_disk_io(self, uuid, targetname, totalbytessecset=False, totalbytessec=0, readbytessecset=False, readbytessec=0, writebytessecset=False,
+    def limit_disk_io(self, uuid, media, totalbytessecset=False, totalbytessec=0, readbytessecset=False, readbytessec=0, writebytessecset=False,
                       writebytessec=0, totaliopssecset=False, totaliopssec=0, readiopssecset=False, readiopssec=0, writeiopssecset=False, writeiopssec=0,
                       totalbytessecmaxset=False, totalbytessecmax=0, readbytessecmaxset=False, readbytessecmax=0, writebytessecmaxset=False, writebytessecmax=0,
                       totaliopssecmaxset=False, totaliopssecmax=0, readiopssecmaxset=False, readiopssecmax=0, writeiopssecmaxset=False, writeiopssecmax=0,
@@ -1630,12 +1635,12 @@ class KvmManager:
         """
         Remove a nic from a machine
         :param uuid: uuid of the kvm container (same as the used in create)
-        :param targetname: the name of the target disk
+        :param media: the media to limit the diskio
         :return:
         """
         args = {
             'uuid': uuid,
-            'targetname': targetname,
+            'media': media,
             'totalbytessecset': totalbytessecset,
             'totalbytessec': totalbytessec,
             'readbytessecset': readbytessecset,
