@@ -1,4 +1,4 @@
-package core
+package transport
 
 import (
 	"fmt"
@@ -9,10 +9,10 @@ import (
 
 const (
 	SinkRoute = core.Route("sink")
+	SinkQueue = "core:default"
 )
 
 type Sink struct {
-	key string
 	mgr *pm.PM
 	ch  *channel
 }
@@ -22,25 +22,18 @@ type SinkConfig struct {
 	Password string `json:"password"`
 }
 
-func NewSink(key string, mgr *pm.PM, config SinkConfig) (*Sink, error) {
+func NewSink(mgr *pm.PM, config SinkConfig) (*Sink, error) {
 	public, err := newChannel(config.URL, config.Password)
 	if err != nil {
 		return nil, err
 	}
 
 	sink := &Sink{
-		key: key,
 		mgr: mgr,
 		ch:  public,
 	}
 
 	return sink, nil
-}
-
-func (sink *Sink) DefaultQueue() string {
-	return fmt.Sprintf("core:%v",
-		sink.key,
-	)
 }
 
 func (sink *Sink) handlePublic(cmd *core.Command, result *core.JobResult) {
@@ -52,12 +45,11 @@ func (sink *Sink) handlePublic(cmd *core.Command, result *core.JobResult) {
 func (sink *Sink) run() {
 	sink.mgr.AddRouteResultHandler(SinkRoute, sink.handlePublic)
 
-	queue := sink.DefaultQueue()
 	for {
 		var command core.Command
-		err := sink.ch.GetNext(queue, &command)
+		err := sink.ch.GetNext(SinkQueue, &command)
 		if err != nil {
-			log.Errorf("Failed to get next command from %s(%s): %s", sink.key, queue, err)
+			log.Errorf("Failed to get next command from (%s): %s", SinkQueue, err)
 			<-time.After(200 * time.Millisecond)
 			continue
 		}

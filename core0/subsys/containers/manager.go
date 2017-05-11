@@ -3,13 +3,13 @@ package containers
 import (
 	"encoding/json"
 	"fmt"
-	base "github.com/g8os/core0/base"
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
 	"github.com/g8os/core0/base/utils"
 	"github.com/g8os/core0/core0/screen"
 	"github.com/g8os/core0/core0/subsys/cgroups"
+	"github.com/g8os/core0/core0/transport"
 	"github.com/garyburd/redigo/redis"
 	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
@@ -149,7 +149,7 @@ type containerManager struct {
 	cell   *screen.RowCell
 	cgroup cgroups.Group
 
-	sink *base.Sink
+	sink *transport.Sink
 }
 
 /*
@@ -173,7 +173,7 @@ type ContainerManager interface {
 	Of(id uint16) Container
 }
 
-func ContainerSubsystem(sink *base.Sink, cell *screen.RowCell) (ContainerManager, error) {
+func ContainerSubsystem(sink *transport.Sink, cell *screen.RowCell) (ContainerManager, error) {
 	if err := cgroups.Init(); err != nil {
 		return nil, err
 	}
@@ -299,7 +299,10 @@ func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
 	}
 
 	id := m.getNextSequence()
-	c := newContainer(m, id, cmd.Route, args)
+	c, err := newContainer(m, id, cmd.Route, args)
+	if err != nil {
+		return nil, err
+	}
 
 	m.set_container(id, c)
 
@@ -348,8 +351,7 @@ func (m *containerManager) getCoreXQueue(id uint16) string {
 
 func (m *containerManager) pushToContainer(container *container, cmd *core.Command) error {
 	m.sink.Flag(cmd.ID)
-	enc := json.NewEncoder(container.ch)
-	return enc.Encode(cmd)
+	return container.dispatch(cmd)
 }
 
 func (m *containerManager) dispatch(cmd *core.Command) (interface{}, error) {
@@ -395,7 +397,7 @@ func (m *containerManager) Dispatch(id uint16, cmd *core.Command) (*core.JobResu
 		return nil, err
 	}
 
-	return m.sink.Result(cmd.ID, base.ReturnExpire)
+	return m.sink.Result(cmd.ID, transport.ReturnExpire)
 }
 
 type ContainerTerminateArguments struct {

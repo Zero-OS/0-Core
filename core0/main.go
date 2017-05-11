@@ -21,6 +21,7 @@ import (
 	_ "github.com/g8os/core0/base/builtin"
 	_ "github.com/g8os/core0/core0/builtin"
 	_ "github.com/g8os/core0/core0/builtin/btrfs"
+	"github.com/g8os/core0/core0/transport"
 )
 
 var (
@@ -132,7 +133,7 @@ func main() {
 	}
 	screen.Push(row)
 
-	sink, err := core.NewSink("default", mgr, core.SinkConfig{URL: "redis://127.0.0.1:6379"})
+	sink, err := transport.NewSink(mgr, transport.SinkConfig{URL: "redis://127.0.0.1:6379"})
 	if err != nil {
 		log.Errorf("failed to start command sink: %s", err)
 	}
@@ -151,7 +152,7 @@ func main() {
 	if err != nil {
 		log.Errorf("Failed to start local transport: %s", err)
 	} else {
-		go local.Serve()
+		local.Start()
 	}
 
 	//start jobs sinks.

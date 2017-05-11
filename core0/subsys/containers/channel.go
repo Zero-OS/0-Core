@@ -3,6 +3,7 @@ package containers
 import (
 	"io"
 	"os"
+	"sync"
 	"syscall"
 )
 
@@ -15,17 +16,15 @@ type Channel interface {
 type channel struct {
 	r *os.File
 	w *os.File
+	o sync.Once
 }
 
 func (c *channel) Close() error {
-	e1 := c.r.Close()
-	e2 := c.w.Close()
-	if e1 != nil {
-		return e1
-	}
-	if e2 != nil {
-		return e2
-	}
+	c.o.Do(func() {
+		c.r.Close()
+		c.w.Close()
+	})
+
 	return nil
 }
 

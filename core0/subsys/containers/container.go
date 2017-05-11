@@ -37,22 +37,35 @@ type container struct {
 	zterr error
 	zto   sync.Once
 
-	ch Channel
+	master Channel
+	slave  Channel
 }
 
-func newContainer(mgr *containerManager, id uint16, route core.Route, args ContainerCreateArguments) *container {
+func newContainer(mgr *containerManager, id uint16, route core.Route, args ContainerCreateArguments) (*container, error) {
+	master, slave, err := Pipe()
+	if err != nil {
+		return nil, err
+	}
+
 	c := &container{
-		mgr:   mgr,
-		id:    id,
-		route: route,
-		Args:  args,
+		mgr:    mgr,
+		id:     id,
+		route:  route,
+		Args:   args,
+		master: master,
+		slave:  slave,
 	}
 	c.Root = c.root()
-	return c
+	return c, nil
 }
 
 func (c *container) ID() uint16 {
 	return c.id
+}
+
+func (c *container) dispatch(cmd *core.Command) error {
+	enc := json.NewEncoder(c.master)
+	return enc.Encode(cmd)
 }
 
 func (c *container) Arguments() ContainerCreateArguments {
@@ -89,16 +102,8 @@ func (c *container) sync(bin string, args ...string) (*core.JobResult, error) {
 func (c *container) Start() (err error) {
 	coreID := fmt.Sprintf("core-%d", c.id)
 
-	var local, remote Channel
-	local, remote, err = Pipe()
-	if err != nil {
-		return err
-	}
-
-	c.ch = local
 	defer func() {
 		if err != nil {
-			remote.Close()
 			c.cleanup()
 		}
 	}()
@@ -132,7 +137,7 @@ func (c *container) Start() (err error) {
 				Dir:         "/",
 				HostNetwork: c.Args.HostNetwork,
 				Args:        args,
-				Files:       []uintptr{remote.Reader(), remote.Writer()},
+				Files:       []uintptr{c.slave.Reader(), c.slave.Writer()},
 				Env: map[string]string{
 					"PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 					"HOME": "/",
@@ -143,7 +148,7 @@ func (c *container) Start() (err error) {
 
 	onpid := &pm.PIDHook{
 		Action: func(pid int) {
-			remote.Close()
+			c.slave.Close()
 			c.onpid(pid)
 		},
 	}
@@ -198,15 +203,15 @@ func (c *container) onpid(pid int) {
 }
 
 func (c *container) communicate() {
-	decoder := json.NewDecoder(c.ch)
+	decoder := json.NewDecoder(c.master)
 	for {
 		var result core.JobResult
 		err := decoder.Decode(&result)
 		if err == io.EOF {
 			return
 		} else if err != nil {
-			log.Errorf("failed to process corex message: %s", err)
-			continue
+			log.Errorf("failed to process corex %d message: %s", c.id, err)
+			return
 		}
 
 		c.mgr.sink.Forward(&result)
@@ -222,7 +227,8 @@ func (c *container) cleanup() {
 	log.Debugf("cleaning up container-%d", c.id)
 	defer c.mgr.unset_container(c.id)
 
-	c.ch.Close()
+	c.master.Close()
+	c.slave.Close()
 	c.destroyNetwork()
 
 	if err := c.unMountAll(); err != nil {

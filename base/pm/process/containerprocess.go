@@ -94,8 +94,6 @@ func (process *containerProcessImpl) Run() (<-chan *stream.Message, error) {
 	if !process.args.HostNetwork {
 		flags |= syscall.CLONE_NEWNET | syscall.CLONE_NEWUTS
 	}
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
 	for _, fd := range process.args.Files {
 		cmd.ExtraFiles = append(cmd.ExtraFiles, os.NewFile(fd, fmt.Sprintf("f(%d)", fd)))

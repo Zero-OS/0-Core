@@ -115,7 +115,7 @@ func (l *Local) server(con net.Conn) {
 	}
 }
 
-func (l *Local) Serve() {
+func (l *Local) start() {
 	defer l.listener.Close()
 	for {
 		con, err := l.listener.Accept()
@@ -124,4 +124,8 @@ func (l *Local) Serve() {
 		}
 		go l.server(con)
 	}
+}
+
+func (l *Local) Start() {
+	go l.start()
 }
