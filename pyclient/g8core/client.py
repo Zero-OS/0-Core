@@ -1717,6 +1717,12 @@ class Logger:
 
         return self._client.json('logger.set_level', args)
 
+    def reopen(self):
+        """
+        Reopen log file
+        """
+        return self._client.json('logger.reopen', {})
+
 
 class Config:
     def __init__(self, client):

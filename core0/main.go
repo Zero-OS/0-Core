@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/g8os/core0/base"
 	"github.com/g8os/core0/base/pm"
 	pmcore "github.com/g8os/core0/base/pm/core"
@@ -15,8 +18,6 @@ import (
 	"github.com/g8os/core0/core0/subsys/containers"
 	"github.com/g8os/core0/core0/subsys/kvm"
 	"github.com/op/go-logging"
-	"os"
-	"time"
 
 	_ "github.com/g8os/core0/base/builtin"
 	_ "github.com/g8os/core0/core0/builtin"
@@ -26,22 +27,6 @@ import (
 var (
 	log = logging.MustGetLogger("main")
 )
-
-func setupLogging() {
-	l, err := os.Create("/var/log/core.log")
-	if err != nil {
-		panic(err)
-	}
-
-	formatter := logging.MustStringFormatter("%{time}: %{color}%{module} %{level:.1s} > %{message} %{color:reset}")
-	logging.SetFormatter(formatter)
-
-	logging.SetBackend(
-		logging.NewLogBackend(os.Stdout, "", 0),
-		logging.NewLogBackend(l, "", 0),
-	)
-
-}
 
 func main() {
 	var options = options.Options
@@ -66,7 +51,7 @@ func main() {
 	screen.Push(&screen.TextSection{})
 	screen.Refresh()
 
-	setupLogging()
+	logger.SetupLogging()
 
 	if err := settings.LoadSettings(options.Config()); err != nil {
 		log.Fatal(err)

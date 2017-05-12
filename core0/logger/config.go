@@ -79,3 +79,19 @@ func InitLogging() {
 
 	pm.GetManager().AddMessageHandler(loggers.Log)
 }
+
+func SetupLogging() {
+	l, err := os.Create("/var/log/core.log")
+	if err != nil {
+		panic(err)
+	}
+
+	formatter := logging.MustStringFormatter("%{time}: %{color}%{module} %{level:.1s} > %{message} %{color:reset}")
+	logging.SetFormatter(formatter)
+
+	logging.SetBackend(
+		logging.NewLogBackend(os.Stdout, "", 0),
+		logging.NewLogBackend(l, "", 0),
+	)
+
+}
