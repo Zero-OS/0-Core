@@ -464,8 +464,7 @@ class BaseClient:
     })
 
     def __init__(self, timeout=None):
-        if timeout is None:
-            self.timeout = DefaultTimeout
+        self.timeout = timeout or DefaultTimeout
         self._info = InfoManager(self)
         self._job = JobManager(self)
         self._process = ProcessManager(self)
@@ -1738,11 +1737,13 @@ class Client(BaseClient):
     def __init__(self, host, port=6379, password="", db=0, timeout=None, testConnectionAttempts=10):
         super().__init__(timeout=timeout)
 
+        socket_timeout = (timeout + 5) if timeout else 15
         self._redis = redis.Redis(host=host, port=port, password=password, db=db,
+                                  socket_timeout=socket_timeout,
                                   socket_keepalive=True, socket_keepalive_options={
-                                    socket.TCP_KEEPIDLE:1,
-                                    socket.TCP_KEEPINTVL:1,
-                                    socket.TCP_KEEPCNT:10
+                                    socket.TCP_KEEPIDLE: 1,
+                                    socket.TCP_KEEPINTVL: 1,
+                                    socket.TCP_KEEPCNT: 10
                                   })
         self._container_manager = ContainerManager(self)
         self._bridge_manager = BridgeManager(self)
