@@ -19,10 +19,13 @@ logger = logging.getLogger('g8core')
 class Timeout(Exception):
     pass
 
+
 class JobNotFound(Exception):
     pass
 
+
 class Return:
+
     def __init__(self, payload):
         self._payload = payload
 
@@ -92,6 +95,7 @@ class Return:
 
 
 class Response:
+
     def __init__(self, client, id):
         self._client = client
         self._id = id
@@ -120,7 +124,8 @@ class Response:
             if v is not None:
                 payload = json.loads(v.decode())
                 r = Return(payload)
-                logger.debug('%s << %s, stdout="%s", stderr="%s", data="%s"', self._id, r.state, r.stdout, r.stderr, r.data[:1000])
+                logger.debug('%s << %s, stdout="%s", stderr="%s", data="%s"',
+                             self._id, r.state, r.stdout, r.stderr, r.data[:1000])
                 return r
             logger.debug('%s still waiting (%ss)', self._id, int(time.time() - start))
             maxwait -= 10
@@ -128,6 +133,7 @@ class Response:
 
 
 class InfoManager:
+
     def __init__(self, client):
         self._client = client
 
@@ -226,6 +232,7 @@ class ProcessManager:
 
 
 class FilesystemManager:
+
     def __init__(self, client):
         self._client = client
 
@@ -407,7 +414,7 @@ class FilesystemManager:
 
         fd = self.open(remote, 'w')
         while True:
-            chunk = reader.read(512*1024)
+            chunk = reader.read(512 * 1024)
             if chunk == b'':
                 break
             self.write(fd, chunk)
@@ -448,6 +455,7 @@ class FilesystemManager:
         """
         file = open(local, 'wb')
         self.download(remote, file)
+
 
 class BaseClient:
     _system_chk = typchk.Checker({
@@ -624,7 +632,7 @@ class ContainerClient(BaseClient):
             },
         }
 
-        #check input
+        # check input
         self._raw_chk.check(args)
 
         response = self._client.raw('corex.dispatch', args)
@@ -1611,13 +1619,13 @@ class KvmManager:
         return self._client.json('kvm.remove_nic', args)
 
     def limit_disk_io(self, uuid, targetname, totalbytessecset=False, totalbytessec=0, readbytessecset=False, readbytessec=0, writebytessecset=False,
-                    writebytessec=0, totaliopssecset=False, totaliopssec=0, readiopssecset=False, readiopssec=0, writeiopssecset=False, writeiopssec=0,
-                    totalbytessecmaxset=False, totalbytessecmax=0, readbytessecmaxset=False, readbytessecmax=0, writebytessecmaxset=False, writebytessecmax=0,
-                    totaliopssecmaxset=False, totaliopssecmax=0, readiopssecmaxset=False, readiopssecmax=0, writeiopssecmaxset=False, writeiopssecmax=0,
-                    totalbytessecmaxlengthset=False, totalbytessecmaxlength=0, readbytessecmaxlengthset=False, readbytessecmaxlength=0,
-                    writebytessecmaxlengthset=False, writebytessecmaxlength=0, totaliopssecmaxlengthset=False, totaliopssecmaxlength=0,
-                    readiopssecmaxlengthset=False, readiopssecmaxlength=0, writeiopssecmaxlengthset=False, writeiopssecmaxlength=0, sizeiopssecset=False,
-                    sizeiopssec=0, groupnameset=False, groupname=''):
+                      writebytessec=0, totaliopssecset=False, totaliopssec=0, readiopssecset=False, readiopssec=0, writeiopssecset=False, writeiopssec=0,
+                      totalbytessecmaxset=False, totalbytessecmax=0, readbytessecmaxset=False, readbytessecmax=0, writebytessecmaxset=False, writebytessecmax=0,
+                      totaliopssecmaxset=False, totaliopssecmax=0, readiopssecmaxset=False, readiopssecmax=0, writeiopssecmaxset=False, writeiopssecmax=0,
+                      totalbytessecmaxlengthset=False, totalbytessecmaxlength=0, readbytessecmaxlengthset=False, readbytessecmaxlength=0,
+                      writebytessecmaxlengthset=False, writebytessecmaxlength=0, totaliopssecmaxlengthset=False, totaliopssecmaxlength=0,
+                      readiopssecmaxlengthset=False, readiopssecmaxlength=0, writeiopssecmaxlengthset=False, writeiopssecmaxlength=0, sizeiopssecset=False,
+                      sizeiopssec=0, groupnameset=False, groupname=''):
         """
         Remove a nic from a machine
         :param uuid: uuid of the kvm container (same as the used in create)
@@ -1718,6 +1726,7 @@ class Logger:
 
 
 class Config:
+
     def __init__(self, client):
         self._client = client
 
@@ -1729,11 +1738,13 @@ class Config:
 
 
 class Experimental:
+
     def __init__(self, client):
         pass
 
 
 class Client(BaseClient):
+
     def __init__(self, host, port=6379, password="", db=0, timeout=None, testConnectionAttempts=10):
         super().__init__(timeout=timeout)
 
@@ -1741,9 +1752,9 @@ class Client(BaseClient):
         self._redis = redis.Redis(host=host, port=port, password=password, db=db,
                                   socket_timeout=socket_timeout,
                                   socket_keepalive=True, socket_keepalive_options={
-                                    socket.TCP_KEEPIDLE: 1,
-                                    socket.TCP_KEEPINTVL: 1,
-                                    socket.TCP_KEEPCNT: 10
+                                      socket.TCP_KEEPIDLE: 1,
+                                      socket.TCP_KEEPINTVL: 1,
+                                      socket.TCP_KEEPCNT: 10
                                   })
         self._container_manager = ContainerManager(self)
         self._bridge_manager = BridgeManager(self)
@@ -1825,7 +1836,7 @@ class Client(BaseClient):
         self._redis.rpush('core:default', json.dumps(payload))
         if self._redis.brpoplpush(flag, flag, DefaultTimeout) is None:
             Timeout('failed to queue job {}'.format(id))
-        logger.debug('%s >> g8core.%s(%s)', id, command, ', '.join(("%s=%s" % (k,v) for k, v in arguments.items())))
+        logger.debug('%s >> g8core.%s(%s)', id, command, ', '.join(("%s=%s" % (k, v) for k, v in arguments.items())))
 
         return Response(self, id)
 
