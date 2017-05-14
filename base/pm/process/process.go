@@ -40,10 +40,12 @@ type Process interface {
 }
 
 type Signaler interface {
+	Process
 	Signal(sig syscall.Signal) error
 }
 
 type Stater interface {
+	Process
 	Stats() *ProcessStats
 }
 

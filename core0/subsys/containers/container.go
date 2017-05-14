@@ -37,23 +37,15 @@ type container struct {
 	zterr error
 	zto   sync.Once
 
-	master Channel
-	slave  Channel
+	channel process.Channel
 }
 
 func newContainer(mgr *containerManager, id uint16, route core.Route, args ContainerCreateArguments) (*container, error) {
-	master, slave, err := Pipe()
-	if err != nil {
-		return nil, err
-	}
-
 	c := &container{
-		mgr:    mgr,
-		id:     id,
-		route:  route,
-		Args:   args,
-		master: master,
-		slave:  slave,
+		mgr:   mgr,
+		id:    id,
+		route: route,
+		Args:  args,
 	}
 	c.Root = c.root()
 	return c, nil
@@ -64,7 +56,7 @@ func (c *container) ID() uint16 {
 }
 
 func (c *container) dispatch(cmd *core.Command) error {
-	enc := json.NewEncoder(c.master)
+	enc := json.NewEncoder(c.channel)
 	return enc.Encode(cmd)
 }
 
@@ -137,7 +129,6 @@ func (c *container) Start() (err error) {
 				Dir:         "/",
 				HostNetwork: c.Args.HostNetwork,
 				Args:        args,
-				Files:       []uintptr{c.slave.Reader(), c.slave.Writer()},
 				Env: map[string]string{
 					"PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 					"HOME": "/",
@@ -147,14 +138,11 @@ func (c *container) Start() (err error) {
 	}
 
 	onpid := &pm.PIDHook{
-		Action: func(pid int) {
-			c.slave.Close()
-			c.onpid(pid)
-		},
+		Action: c.onStart,
 	}
 
 	onexit := &pm.ExitHook{
-		Action: c.onexit,
+		Action: c.onExit,
 	}
 	var runner pm.Runner
 	runner, err = mgr.NewRunner(extCmd, process.NewContainerProcess, onpid, onexit)
@@ -188,7 +176,17 @@ func (c *container) preStart() error {
 	return nil
 }
 
-func (c *container) onpid(pid int) {
+func (c *container) onStart(pid int) {
+	//get channel
+	ps := c.runner.Process()
+	if ps, ok := ps.(process.ContainerProcess); !ok {
+		log.Errorf("not a valid container process")
+		c.runner.Terminate()
+		return
+	} else {
+		c.channel = ps.Channel()
+	}
+
 	c.PID = pid
 	if !c.Args.Privileged {
 		c.mgr.cgroup.Task(pid)
@@ -203,7 +201,7 @@ func (c *container) onpid(pid int) {
 }
 
 func (c *container) communicate() {
-	decoder := json.NewDecoder(c.master)
+	decoder := json.NewDecoder(c.channel)
 	for {
 		var result core.JobResult
 		err := decoder.Decode(&result)
@@ -218,7 +216,7 @@ func (c *container) communicate() {
 	}
 }
 
-func (c *container) onexit(state bool) {
+func (c *container) onExit(state bool) {
 	log.Debugf("Container %v exited with state %v", c.id, state)
 	c.cleanup()
 }
@@ -227,8 +225,7 @@ func (c *container) cleanup() {
 	log.Debugf("cleaning up container-%d", c.id)
 	defer c.mgr.unset_container(c.id)
 
-	c.master.Close()
-	c.slave.Close()
+	c.channel.Close()
 	c.destroyNetwork()
 
 	if err := c.unMountAll(); err != nil {
