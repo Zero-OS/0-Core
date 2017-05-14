@@ -39,7 +39,7 @@ type container struct {
 	channel process.Channel
 }
 
-func newContainer(mgr *containerManager, id uint16, route core.Route, args ContainerCreateArguments) (*container, error) {
+func newContainer(mgr *containerManager, id uint16, route core.Route, args ContainerCreateArguments) *container {
 	c := &container{
 		mgr:   mgr,
 		id:    id,
@@ -47,7 +47,7 @@ func newContainer(mgr *containerManager, id uint16, route core.Route, args Conta
 		Args:  args,
 	}
 	c.Root = c.root()
-	return c, nil
+	return c
 }
 
 func (c *container) ID() uint16 {

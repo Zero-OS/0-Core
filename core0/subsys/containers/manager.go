@@ -299,11 +299,7 @@ func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
 	}
 
 	id := m.getNextSequence()
-	c, err := newContainer(m, id, cmd.Route, args)
-	if err != nil {
-		return nil, err
-	}
-
+	c := newContainer(m, id, cmd.Route, args)
 	m.set_container(id, c)
 
 	if err := c.Start(); err != nil {
