@@ -208,7 +208,10 @@ func (c *container) cleanup() {
 	log.Debugf("cleaning up container-%d", c.id)
 	defer c.mgr.unset_container(c.id)
 
-	c.channel.Close()
+	if c.channel != nil {
+		c.channel.Close()
+	}
+
 	c.destroyNetwork()
 
 	if err := c.unMountAll(); err != nil {
