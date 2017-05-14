@@ -57,41 +57,28 @@ func main() {
 
 	pm.InitProcessManager(opt.MaxJobs())
 
+	input := os.NewFile(3, "|input")
+	output := os.NewFile(4, "|output")
+
+	dispatcher := NewDispatcher(output)
+
 	//start process mgr.
 	log.Infof("Starting process manager")
 	mgr := pm.GetManager()
 
+	mgr.AddResultHandler(dispatcher.Result)
+	mgr.AddMessageHandler(dispatcher.Message)
+	mgr.AddStatsHandler(dispatcher.Stats)
+
 	mgr.Run()
 
 	bs := bootstrap.NewBootstrap()
-
-	if opt.Unprivileged() {
-		mgr.SetUnprivileged()
-	}
 
 	if err := bs.Bootstrap(opt.Hostname()); err != nil {
 		log.Fatalf("Failed to bootstrap corex: %s", err)
 	}
 
 	handleSignal(bs)
-
-	input := os.NewFile(3, "|input")
-	output := os.NewFile(4, "|output")
-
-	enc := json.NewEncoder(output)
-	mgr.AddResultHandler(func(cmd *pmcore.Command, result *pmcore.JobResult) {
-		if err := enc.Encode(result); err != nil {
-			log.Errorf("failed to send result: %s", err)
-		}
-	})
-
-	//forward stats messages to core0
-	//TODO: since containers stdout is not processed anymore, this doesn't
-	//get through anymore.
-
-	//mgr.AddStatsHandler(func(op, key string, value float64, tags string) {
-	//	fmt.Printf("10::core-%d.%s:%f|%s|%s\n", opt.CoreID(), key, value, op, tags)
-	//})
 
 	dec := json.NewDecoder(input)
 	for {

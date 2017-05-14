@@ -18,7 +18,7 @@ import (
 var (
 	log = logging.MustGetLogger("logger")
 
-	loggers Loggers
+	Current Loggers
 )
 
 type Loggers []logger.Logger
@@ -63,19 +63,19 @@ func InitLogging() {
 				log.Fatalf("DB logger failed to initialize: %s", err)
 			}
 
-			loggers = append(loggers, handler)
+			Current = append(Current, handler)
 			registerGetMsgsFunction(db)
 			dbLoggerConfigured = true
 		case "redis":
 			handler := logger.NewRedisLogger(0, logcfg.Address, "", logcfg.Levels, logcfg.BatchSize)
-			loggers = append(loggers, handler)
+			Current = append(Current, handler)
 		case "console":
 			handler := logger.NewConsoleLogger(0, logcfg.Levels)
-			loggers = append(loggers, handler)
+			Current = append(Current, handler)
 		default:
 			log.Fatalf("Unsupported logger type: %s", logcfg.Type)
 		}
 	}
 
-	pm.GetManager().AddMessageHandler(loggers.Log)
+	pm.GetManager().AddMessageHandler(Current.Log)
 }

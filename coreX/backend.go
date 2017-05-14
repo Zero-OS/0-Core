@@ -1,23 +1,57 @@
 package main
 
 import (
-	"github.com/g8os/core0/base/logger"
+	"encoding/json"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/stream"
-	"github.com/op/go-logging"
+	"os"
+	"sync"
 )
 
-type logBackend struct {
-	logger logger.Logger
-	cmd    core.Command
+type MessageType string
+
+const (
+	ResultMessage MessageType = "result"
+	LogMessage    MessageType = "log"
+	StatsMessage  MessageType = "stats"
+)
+
+type Message struct {
+	Type    MessageType `json:"type"`
+	Command string      `json:"command"`
+	Payload interface{} `json:"payload"`
+}
+type Dispatcher struct {
+	enc *json.Encoder
+	m   sync.Mutex
 }
 
-func (l *logBackend) Log(level logging.Level, _ int, r *logging.Record) error {
-	l.logger.Log(&l.cmd, &stream.Message{
-		Level:   1,
-		Message: r.Message(),
-		Epoch:   r.Time.Unix(),
-	})
+func NewDispatcher(out *os.File) *Dispatcher {
+	return &Dispatcher{enc: json.NewEncoder(out)}
+}
 
-	return nil
+func (d *Dispatcher) Result(cmd *core.Command, result *core.JobResult) {
+	d.m.Lock()
+	defer d.m.Unlock()
+
+	d.enc.Encode(Message{Type: ResultMessage, Command: cmd.ID, Payload: result})
+}
+
+func (d *Dispatcher) Message(cmd *core.Command, msg *stream.Message) {
+	d.m.Lock()
+	defer d.m.Unlock()
+
+	d.enc.Encode(Message{Type: LogMessage, Command: cmd.ID, Payload: msg})
+}
+
+func (d *Dispatcher) Stats(operation string, key string, value float64, tags string) {
+	d.m.Lock()
+	defer d.m.Unlock()
+
+	d.enc.Encode(Message{Type: StatsMessage, Payload: map[string]interface{}{
+		"operation": operation,
+		"key":       key,
+		"value":     value,
+		"tags":      tags,
+	}})
 }

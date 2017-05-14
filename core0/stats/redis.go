@@ -31,10 +31,10 @@ type Aggregator interface {
 }
 
 type Stats struct {
-	Operation Operation
-	Key       string
-	Value     float64
-	Tags      string
+	Operation Operation `json:"operation"`
+	Key       string    `json:"key"`
+	Value     float64   `json:"value"`
+	Tags      string    `json:"tags"`
 }
 
 type redisStatsBuffer struct {

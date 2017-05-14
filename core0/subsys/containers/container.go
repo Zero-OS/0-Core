@@ -7,7 +7,6 @@ import (
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
 	"github.com/pborman/uuid"
-	"io"
 	"os"
 	"path"
 	"sync"
@@ -198,22 +197,6 @@ func (c *container) onStart(pid int) {
 	}
 
 	go c.communicate()
-}
-
-func (c *container) communicate() {
-	decoder := json.NewDecoder(c.channel)
-	for {
-		var result core.JobResult
-		err := decoder.Decode(&result)
-		if err == io.EOF {
-			return
-		} else if err != nil {
-			log.Errorf("failed to process corex %d message: %s", c.id, err)
-			return
-		}
-
-		c.mgr.sink.Forward(&result)
-	}
 }
 
 func (c *container) onExit(state bool) {

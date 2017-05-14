@@ -113,6 +113,7 @@ func (b *Bootstrap) Bootstrap(hostname string) error {
 	}
 
 	if options.Options.Unprivileged() {
+		pm.GetManager().SetUnprivileged()
 		if err := b.revokePrivileges(); err != nil {
 			return err
 		}
