@@ -156,10 +156,10 @@ func (process *containerProcessImpl) Run() (<-chan *stream.Message, error) {
 		process.args.Args...)
 	cmd.Dir = process.args.Dir
 
-	var flags uintptr = syscall.CLONE_NEWPID | syscall.CLONE_NEWNS
+	var flags uintptr = syscall.CLONE_NEWPID | syscall.CLONE_NEWNS | syscall.CLONE_NEWUTS
 
 	if !process.args.HostNetwork {
-		flags |= syscall.CLONE_NEWNET | syscall.CLONE_NEWUTS
+		flags |= syscall.CLONE_NEWNET
 	}
 
 	r, w, err := process.setupChannel()
