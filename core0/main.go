@@ -38,17 +38,17 @@ func init() {
 }
 
 func main() {
-	if err := Redirect(LogPath); err != nil {
-		log.Errorf("failed to redirect output streams: %s", err)
-	}
-
-	HandleRotation()
-
 	var options = options.Options
 	fmt.Println(core.Version())
 	if options.Version() {
 		os.Exit(0)
 	}
+
+	if err := Redirect(LogPath); err != nil {
+		log.Errorf("failed to redirect output streams: %s", err)
+	}
+
+	HandleRotation()
 
 	if err := screen.New(2); err != nil {
 		log.Critical(err)
