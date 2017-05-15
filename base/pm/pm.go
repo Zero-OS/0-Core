@@ -49,7 +49,7 @@ type PM struct {
 	cmds    chan *core.Command
 	runners map[string]Runner
 
-	runnersMux sync.Mutex
+	runnersMux sync.RWMutex
 	maxJobs    int
 	jobsCond   *sync.Cond
 
@@ -401,13 +401,28 @@ func (pm *PM) cleanUp(runner Runner) {
 
 //Processes returs a list of running processes
 func (pm *PM) Runners() map[string]Runner {
-	return pm.runners
+	res := make(map[string]Runner)
+	pm.runnersMux.RLock()
+	defer pm.runnersMux.RUnlock()
+
+	for k, v := range pm.runners {
+		res[k] = v
+	}
+
+	return res
+}
+
+func (pm *PM) Runner(id string) (Runner, bool) {
+	pm.runnersMux.RLock()
+	defer pm.runnersMux.RUnlock()
+	r, ok := pm.runners[id]
+	return r, ok
 }
 
 //Killall kills all running processes.
 func (pm *PM) Killall() {
-	pm.runnersMux.Lock()
-	defer pm.runnersMux.Unlock()
+	pm.runnersMux.RLock()
+	defer pm.runnersMux.RUnlock()
 
 	for _, v := range pm.runners {
 		if v.Command().Protected {
@@ -419,6 +434,8 @@ func (pm *PM) Killall() {
 
 //Kill kills a process by the cmd ID
 func (pm *PM) Kill(cmdID string) error {
+	pm.runnersMux.RLock()
+	defer pm.runnersMux.RUnlock()
 	v, ok := pm.runners[cmdID]
 	if !ok {
 		return fmt.Errorf("not found")

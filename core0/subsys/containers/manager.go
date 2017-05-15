@@ -321,7 +321,7 @@ func (m *containerManager) list(cmd *core.Command) (interface{}, error) {
 	defer m.conM.RUnlock()
 	for id, c := range m.containers {
 		name := fmt.Sprintf("core-%d", id)
-		runner, ok := pm.GetManager().Runners()[name]
+		runner, ok := pm.GetManager().Runner(name)
 		if !ok {
 			continue
 		}
@@ -430,7 +430,7 @@ func (m *containerManager) find(cmd *core.Command) (interface{}, error) {
 	result := make(map[uint16]ContainerInfo)
 	for _, c := range containers {
 		name := fmt.Sprintf("core-%d", c.ID())
-		runner, ok := pm.GetManager().Runners()[name]
+		runner, ok := pm.GetManager().Runner(name)
 		if !ok {
 			continue
 		}

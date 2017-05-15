@@ -330,7 +330,7 @@ func (b *bridgeMgr) addHost(cmd *core.Command) (interface{}, error) {
 	}
 
 	name := b.dnsmasqPName(args.Bridge)
-	runner, ok := pm.GetManager().Runners()[name]
+	runner, ok := pm.GetManager().Runner(name)
 	if !ok {
 		//either no bridge with that name, or this bridge does't have dnsmasq settings.
 		return nil, fmt.Errorf("not supported no dnsmasq process found")

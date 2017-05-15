@@ -39,11 +39,11 @@ func jobList(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	stats := make([]processData, 0, len(pm.GetManager().Runners()))
+	var stats []processData
 	var runners []pm.Runner
 
 	if data.ID != "" {
-		runner, ok := pm.GetManager().Runners()[data.ID]
+		runner, ok := pm.GetManager().Runner(data.ID)
 
 		if !ok {
 			return nil, fmt.Errorf("Process with id '%s' doesn't exist", data.ID)
@@ -96,7 +96,7 @@ func jobKill(cmd *core.Command) (interface{}, error) {
 		data.Signal = syscall.SIGTERM
 	}
 
-	runner, ok := pm.GetManager().Runners()[data.ID]
+	runner, ok := pm.GetManager().Runner(data.ID)
 	if !ok {
 		return false, nil
 	}
