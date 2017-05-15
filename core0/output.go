@@ -17,7 +17,7 @@ var (
 )
 
 func Redirect(p string) error {
-	f, err := os.Create(p)
+	f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_APPEND|os.O_SYNC, 0600) 
 	if err != nil {
 		return err
 	}
