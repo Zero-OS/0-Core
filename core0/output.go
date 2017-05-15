@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/g8os/core0/core0/options"
 	"os"
 	"os/signal"
 	"syscall"
@@ -17,7 +18,11 @@ var (
 )
 
 func Redirect(p string) error {
-	f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_APPEND|os.O_SYNC, 0600) 
+	flags := os.O_CREATE | os.O_WRONLY | os.O_APPEND
+	if options.Options.Kernel.Is("debug") {
+		flags |= os.O_SYNC
+	}
+	f, err := os.OpenFile(p, flags, 0600)
 	if err != nil {
 		return err
 	}
