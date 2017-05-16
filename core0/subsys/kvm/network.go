@@ -21,7 +21,7 @@ const (
 )
 
 func (m *kvmManager) setVirtNetwork(network Network) error {
-	conn, err := m.getConnection()
+	conn, err := m.libvirt.getConnection()
 	if err != nil {
 		return err
 	}

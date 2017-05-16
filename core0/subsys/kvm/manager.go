@@ -372,28 +372,26 @@ func IOTuneParamsToIOTune(inp IOTuneParams) IOTune {
 	return out
 }
 
-func (m *kvmManager) getConnection() (*libvirt.Connect, error) {
-	if alive, err := m.libvirt.conn.IsAlive(); err == nil && alive == true {
-		return m.libvirt.conn, nil
-	} else {
-		m.libvirt.m.Lock()
-		defer m.libvirt.m.Unlock()
-		if alive, err := m.libvirt.conn.IsAlive(); err == nil && alive == true {
-			return m.libvirt.conn, nil
-		} else {
-			m.libvirt.conn.Close()
-			conn, err := libvirt.NewConnect("qemu:///system")
-			if err != nil {
-				return nil, err
-			}
-			m.libvirt.conn = conn
-			return m.libvirt.conn, nil
-		}
+func (c *LibvirtConnection) getConnection() (*libvirt.Connect, error) {
+	if alive, err := c.conn.IsAlive(); err == nil && alive == true {
+		return c.conn, nil
 	}
+	c.m.Lock()
+	defer c.m.Unlock()
+	if alive, err := c.conn.IsAlive(); err == nil && alive == true {
+		return c.conn, nil
+	}
+	c.conn.Close()
+	conn, err := libvirt.NewConnect("qemu:///system")
+	if err != nil {
+		return nil, err
+	}
+	c.conn = conn
+	return c.conn, nil
 }
 
 func (m *kvmManager) getDomainStruct(uuid string) (*Domain, error) {
-	conn, err := m.getConnection()
+	conn, err := m.libvirt.getConnection()
 	if err != nil {
 		return nil, err
 	}
@@ -692,7 +690,7 @@ func (m *kvmManager) setPortForwards(uuid string, seq uint16, port map[int]int) 
 }
 
 func (m *kvmManager) updateView() {
-	conn, err := m.getConnection()
+	conn, err := m.libvirt.getConnection()
 	if err != nil {
 		return
 	}
@@ -732,7 +730,7 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, fmt.Errorf("failed to generate domain xml: %s", err)
 	}
 
-	conn, err := m.getConnection()
+	conn, err := m.libvirt.getConnection()
 	if err != nil {
 		return nil, err
 	}
@@ -751,7 +749,7 @@ func (m *kvmManager) getDomain(cmd *core.Command) (*libvirt.Domain, string, erro
 		return nil, "", err
 	}
 
-	conn, err := m.getConnection()
+	conn, err := m.libvirt.getConnection()
 	if err != nil {
 		return nil, "", err
 	}
@@ -843,7 +841,7 @@ func (m *kvmManager) info(cmd *core.Command) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	conn, err := m.getConnection()
+	conn, err := m.libvirt.getConnection()
 	if err != nil {
 		return nil, err
 	}
@@ -893,7 +891,7 @@ func (m *kvmManager) info(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) attachDevice(uuid, xml string) error {
-	conn, err := m.getConnection()
+	conn, err := m.libvirt.getConnection()
 	if err != nil {
 		return err
 	}
@@ -909,7 +907,7 @@ func (m *kvmManager) attachDevice(uuid, xml string) error {
 }
 
 func (m *kvmManager) detachDevice(uuid, xml string) error {
-	conn, err := m.getConnection()
+	conn, err := m.libvirt.getConnection()
 	if err != nil {
 		return err
 	}
@@ -1106,7 +1104,7 @@ func (m *kvmManager) limitDiskIO(cmd *core.Command) (interface{}, error) {
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
-	conn, err := m.getConnection()
+	conn, err := m.libvirt.getConnection()
 	if err != nil {
 		return nil, err
 	}
@@ -1215,7 +1213,7 @@ type Machine struct {
 }
 
 func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
-	conn, err := m.getConnection()
+	conn, err := m.libvirt.getConnection()
 	if err != nil {
 		return nil, err
 	}
@@ -1267,7 +1265,7 @@ func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) monitor(cmd *core.Command) (interface{}, error) {
-	conn, err := m.getConnection()
+	conn, err := m.libvirt.getConnection()
 	if err != nil {
 		return nil, err
 	}
