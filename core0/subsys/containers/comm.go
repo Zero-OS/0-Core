@@ -18,7 +18,16 @@ type Message struct {
 	Payload json.RawMessage `json:"payload"`
 }
 
-func (c *container) communicate() {
+func (c *container) forward() {
+	enc := json.NewEncoder(c.channel)
+	for cmd := range c.forwardChan {
+		if err := enc.Encode(cmd); err != nil {
+			log.Errorf("failed to forward command (%s) to container (%d)", cmd.ID, c.id)
+		}
+	}
+}
+
+func (c *container) rewind() {
 	decoder := json.NewDecoder(c.channel)
 	for {
 

@@ -1,7 +1,6 @@
 package containers
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
@@ -11,6 +10,7 @@ import (
 	"path"
 	"sync"
 	"syscall"
+	"time"
 )
 
 const (
@@ -36,15 +36,17 @@ type container struct {
 	zterr error
 	zto   sync.Once
 
-	channel process.Channel
+	channel     process.Channel
+	forwardChan chan *core.Command
 }
 
 func newContainer(mgr *containerManager, id uint16, route core.Route, args ContainerCreateArguments) *container {
 	c := &container{
-		mgr:   mgr,
-		id:    id,
-		route: route,
-		Args:  args,
+		mgr:         mgr,
+		id:          id,
+		route:       route,
+		Args:        args,
+		forwardChan: make(chan *core.Command),
 	}
 	c.Root = c.root()
 	return c
@@ -55,8 +57,12 @@ func (c *container) ID() uint16 {
 }
 
 func (c *container) dispatch(cmd *core.Command) error {
-	enc := json.NewEncoder(c.channel)
-	return enc.Encode(cmd)
+	select {
+	case c.forwardChan <- cmd:
+	case <-time.After(5 * time.Second):
+		return fmt.Errorf("failed to dispatch command to container, check system logs for errors")
+	}
+	return nil
 }
 
 func (c *container) Arguments() ContainerCreateArguments {
@@ -196,7 +202,8 @@ func (c *container) onStart(pid int) {
 		//TODO. Should we shut the container down?
 	}
 
-	go c.communicate()
+	go c.rewind()
+	go c.forward()
 }
 
 func (c *container) onExit(state bool) {
@@ -208,6 +215,7 @@ func (c *container) cleanup() {
 	log.Debugf("cleaning up container-%d", c.id)
 	defer c.mgr.unset_container(c.id)
 
+	close(c.forwardChan)
 	if c.channel != nil {
 		c.channel.Close()
 	}
