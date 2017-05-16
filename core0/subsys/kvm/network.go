@@ -140,6 +140,7 @@ func (m *kvmManager) prepareVLanNetwork(nic *Nic) (*InterfaceDevice, error) {
 
 	inf.Source = InterfaceDeviceSource{
 		Network: bridge,
+		Bridge:  bridge,
 	}
 	return &inf, nil
 }
@@ -207,6 +208,7 @@ func (m *kvmManager) prepareVXLanNetwork(nic *Nic) (*InterfaceDevice, error) {
 
 	inf.Source = InterfaceDeviceSource{
 		Network: bridge,
+		Bridge:  bridge,
 	}
 	return &inf, nil
 }
