@@ -11,7 +11,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup (
     name='g8core',
-    version='0.11.1',
+    version='1.1.0-alpha-2',
     description='G8OS cores client',
     long_description=long_description,
     url='https://github.com/g8os/core0',
