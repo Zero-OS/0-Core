@@ -13,24 +13,36 @@ import (
 )
 
 const (
-	Width  = 80
-	Height = 25
+	DefaultWidth  = 80
+	DefaultHeight = 25
 
-	wipeSequence  = "\033[2J\033[;H"
-	resetSequence = "\033[0;0f"
-	lineFmt       = "%-80s\n"
+	wipeSequence      = "\033[2J\033[;H"
+	resetSequence     = "\033[0;0f"
+	clearLineSequence = "\033[K"
+	lineFmt           = "%-80s\n"
 )
 
 var (
 	log = logging.MustGetLogger("screen")
 
-	o    sync.Once
-	tty  *os.File
-	serr error
+	width  int = DefaultWidth
+	height int = DefaultHeight
+	o      sync.Once
+	tty    *os.File
+	serr   error
 
 	m  sync.RWMutex
 	fb bytes.Buffer
 )
+
+func getSize(tty string) {
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("ttysize < %s", tty))
+	out, err := cmd.Output()
+	if err != nil {
+		return
+	}
+	fmt.Sscanf(string(out), "%d %d", &width, &height)
+}
 
 func newScreen(vt int) error {
 	o.Do(func() {
@@ -39,7 +51,9 @@ func newScreen(vt int) error {
 		if serr != nil {
 			return
 		}
-		tty, serr = os.OpenFile(fmt.Sprintf("/dev/tty%d", vt), syscall.O_WRONLY|syscall.O_NOCTTY, 0644)
+		ttyPath := fmt.Sprintf("/dev/tty%d", vt)
+		getSize(ttyPath)
+		tty, serr = os.OpenFile(ttyPath, syscall.O_RDWR|syscall.O_NOCTTY, 0644)
 		if serr == nil {
 			go render()
 		}
@@ -56,7 +70,7 @@ func New(vt int) error {
 func render() {
 	fmt.Fprint(tty, wipeSequence)
 	//get size
-	space := make([]byte, Width)
+	space := make([]byte, width)
 	for i := range space {
 		space[i] = ' '
 	}
@@ -82,20 +96,16 @@ func render() {
 		var c int
 		for reader.Scan() {
 			txt := reader.Text()
-			if len(txt) > Width {
-				fmt.Fprint(tty, txt[:Width], "\n")
-			} else {
-				fmt.Fprintf(tty, lineFmt, txt)
-			}
+			fmt.Fprint(tty, txt, clearLineSequence, "\n")
 			c++
-			if c >= Height {
+			if c >= height {
 				break
 			}
 		}
 
 		m.RUnlock()
 		//write to end of screen
-		for ; c < Height-1; c++ {
+		for ; c < height-1; c++ {
 			fmt.Fprint(tty, string(space), "\n")
 		}
 		tty.Sync()

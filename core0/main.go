@@ -54,9 +54,11 @@ func main() {
 		log.Critical(err)
 	}
 
-	screen.Push(&screen.TextSection{
-		Attributes: screen.Attributes{screen.Bold},
-		Text:       string(assets.MustAsset("text/logo.txt")),
+	screen.Push(&screen.CenteredText{
+		TextSection: screen.TextSection{
+			Attributes: screen.Attributes{screen.Bold},
+			Text:       string(assets.MustAsset("text/logo.txt")),
+		},
 	})
 	screen.Push(&screen.TextSection{})
 	screen.Push(&screen.TextSection{

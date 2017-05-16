@@ -1,8 +1,10 @@
 package screen
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"strings"
 )
 
 type Section interface {
@@ -46,6 +48,12 @@ func (s *TextSection) write(f io.Writer) {
 		fmt.Fprint(f, "m")
 	}
 	fmt.Fprint(f, s.Text, "\033[0m")
+}
+
+func (s *TextSection) String() string {
+	var buf bytes.Buffer
+	s.write(&buf)
+	return buf.String()
 }
 
 type ProgressSection struct {
@@ -127,10 +135,15 @@ func (s *SplitterSection) pad(f io.Writer, padding []byte, c int) {
 }
 
 func (s *SplitterSection) write(f io.Writer) {
-	c := Width - (len(s.Title) + 2)
+	txt := TextSection{
+		Attributes: Attributes{Bold},
+		Text:       fmt.Sprintf(" %s ", s.Title),
+	}
+	str := txt.String()
+	c := width - StringWidth(str)
 	w := c / 2
 	s.pad(f, []byte{'='}, w)
-	fmt.Fprint(f, " ", s.Title, " ")
+	fmt.Fprint(f, str)
 	if 2*w < c {
 		w++
 	}
@@ -146,10 +159,36 @@ type RowSection struct {
 }
 
 func (r *RowSection) write(f io.Writer) {
-	width := Width / len(r.Cells)
+	width := width / len(r.Cells)
 	s := fmt.Sprintf("%%-%ds", width)
 	for _, cell := range r.Cells {
 		fmt.Fprintf(f, s, cell.Text)
+	}
+}
+
+type CenteredText struct {
+	TextSection
+}
+
+func (c *CenteredText) write(f io.Writer) {
+	str := c.String()
+	w := 0
+	lines := strings.Split(str, "\n")
+	for _, l := range lines {
+		lw := StringWidth(l)
+		if lw > w {
+			w = lw
+		}
+	}
+	prefix := (width - w) / 2
+	if prefix <= 0 {
+		fmt.Fprint(f, str)
+		return
+	}
+
+	for _, l := range lines {
+		fmt.Fprintf(f, fmt.Sprintf("%%-%ds", prefix), "") //spaces
+		fmt.Fprint(f, l, "\n")
 	}
 }
 
