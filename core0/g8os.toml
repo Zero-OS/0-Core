@@ -3,11 +3,9 @@
 [main]
 max_jobs = 200
 include = ["/root/conf"]
-# network = "./network.toml"
 
-[sink.main]
-url = "redis://127.0.0.1:6379"
-password = ""
+[containers]
+max_count = 1000
 
 [logging]
     [logging.db]

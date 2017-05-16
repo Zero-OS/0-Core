@@ -7,7 +7,7 @@ In the [g8os/initramfs](https://github.com/g8os/initramfs) repository that you'l
 `g8os.toml` has the following sections:
 
 - [\[main\]](#main)
-- [\[sink\]](#sink)
+- [\[containers\]](#containers)
 - [\[logging\]](#logging)
 - [\[stats\]](#stats)
 - [\[globals\]](#globals)
@@ -31,21 +31,13 @@ log_level = "debug"
 - **network**: Path to the network configuration file, discussed in [Network Configuration](network.md)
 
 
-<a id="sink"></a>
-## [sink]
-
-A sink is a source of commands to run jobs.
-
-Theoretically more than one sink type is supported. Currently only `redis` is supported as a sink type.
-
-Each sink is defined in its own section as `[sink.<name>]` where name can be anything.
+<a id="containers"></a>
+## [containers]
+Contains containers creation limits
 
 ```
-[sink.main]
-# `url` Redis source url as shown below
-url = "redis://127.0.0.1:6379"
-# `password` optional Redis password.
-password = ""
+[containers]
+max_count = 300 (max number of running containers, defaults to 1000 if not set)
 ```
 
 

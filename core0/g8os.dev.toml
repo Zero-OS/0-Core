@@ -6,17 +6,10 @@ include = ["/root/conf"]
 log_level = "debug"
 # network = "./network.toml"
 
-[sink.public]
-url = "redis://127.0.0.1:6379"
-[sink.private]
-url = "redis:///var/run/redis.socket"
+[containers]
+max_count = 10
 
 [logging]
-    [logging.db]
-    type = "DB"
-    address = "/var/log/g8os"
-    levels = [2, 4, 7, 8, 9, 11]  # (all error messages + debug) empty for all
-
     [logging.console]
     type = "console"
     levels = [1, 2, 4, 7, 8, 9]
