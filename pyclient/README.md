@@ -1,13 +1,15 @@
 # G8core
 
-G8Core is the python client used to talk to [G8OS core](https://github.com/g8os/core0)
+G8Core is the Python client used to talk to [G8OS Core0](https://github.com/g8os/core0)
 
-## install
+## Install
+
 ```bash
 pip install g8core
 ```
 
-## How to use:
+## How to use
+
 ```python
 import g8core
 

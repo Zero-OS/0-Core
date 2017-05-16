@@ -1360,7 +1360,7 @@ class KvmManager:
         'url': str,
         'iotune': typchk.Or(
             _iotune_dict,
-            typchk.Missing
+            typchk.Missing()
         )
     }
     _create_chk = typchk.Checker({

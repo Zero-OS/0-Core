@@ -1,11 +1,14 @@
 # G8OS
 
-G8OS is a stateless cloud OS.
+G8OS is a stateless and lightweight Linux operating system designed for clustered deployments to host virtual machines and containerized applications.
 
-G8OS is stateless by not needing locally stored data, not even G8OS system files.
+- G8OS is stateless by not needing any locally stored data, not even G8OS system files
+- G8OS is lightweight by only containing the components required to securely run and manage containers and virtual machines
 
-G8OS is an open-source operating system based on the Linux kernel and designed for building distributed, self-healing datacenters, optimized for running both containerized applications and virtual machines.
+The core of G8OS is Core0, which is the G8OS replacement for systemd.
 
-G8OS is lightweight, efficient and secure by only containing the components required to run containers and virtual machines, keeping the potential attack surface to the bare minimal, and administration easy.
+Interacting with Core0 is done by sending commands through Redis, allowing you to manage disks, set-up networks and create containers and run virtual machines.
 
-G8OS boots containers from flists. Flists are relatively small metadata files that allow G8OS to fetch files from a storage cluster through a thin UnionFS-based FUSE layer. This happens on demand, only when the files are actually needed.
+All documentation for Core0 is in the [`/docs`](./docs) directory, including a [table of contents](/docs/SUMMARY.md).
+
+In [Getting Started with Core0](/docs/gettingstarted/gettingstarted.md) you find the recommended path to quickly get up and running.
