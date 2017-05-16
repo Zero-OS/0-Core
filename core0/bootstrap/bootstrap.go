@@ -11,6 +11,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"net/http"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -202,6 +203,10 @@ func (b *Bootstrap) screen() {
 
 //Bootstrap registers extensions and startup system services.
 func (b *Bootstrap) Bootstrap() {
+	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &syscall.Rlimit{65536, 65536}); err != nil {
+		log.Errorf("failed to setup max open files limit: %s", err)
+	}
+
 	//register core extensions
 	b.registerExtensions(settings.Settings.Extension)
 

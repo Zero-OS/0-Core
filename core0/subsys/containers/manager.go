@@ -29,8 +29,9 @@ const (
 	coreXResponseQueue = "corex:results"
 	coreXBinaryName    = "coreX"
 
-	redisSocketSrc    = "/var/run/redis.socket"
-	DefaultBridgeName = "core0"
+	redisSocketSrc      = "/var/run/redis.socket"
+	DefaultBridgeName   = "core0"
+	ContainersHardLimit = 1000
 )
 
 var (
@@ -296,6 +297,14 @@ func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
 
 	if err := args.Validate(); err != nil {
 		return nil, err
+	}
+
+	m.conM.RLock()
+	count := len(m.containers)
+	m.conM.RUnlock()
+
+	if count >= ContainersHardLimit {
+		return nil, fmt.Errorf("reached the hard limit of 1000 containers")
 	}
 
 	id := m.getNextSequence()
