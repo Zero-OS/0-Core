@@ -30,10 +30,15 @@ const (
 	BaseIPAddr = "172.19.%d.%d"
 )
 
+type LibvirtConnection struct {
+	m    sync.Mutex
+	conn *libvirt.Connect
+}
+
 type kvmManager struct {
 	sequence uint16
 	m        sync.Mutex
-	conn     *libvirt.Connect
+	libvirt  LibvirtConnection
 	pool     *redis.Pool
 
 	conmgr containers.ContainerManager
@@ -106,7 +111,8 @@ func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) erro
 	if err != nil {
 		return err
 	}
-	mgr.conn = conn
+	mgr.libvirt.conn = conn
+
 	mgr.pool = utils.NewRedisPool("tcp", settings.Settings.Stats.Redis.Address, "")
 	// we don't close the connection here because it is supposed to be used outside
 	// so we expect the caller to close it
@@ -366,8 +372,32 @@ func IOTuneParamsToIOTune(inp IOTuneParams) IOTune {
 	return out
 }
 
+func (m *kvmManager) getConnection() (*libvirt.Connect, error) {
+	if alive, err := m.libvirt.conn.IsAlive(); err == nil && alive == true {
+		return m.libvirt.conn, nil
+	} else {
+		m.libvirt.m.Lock()
+		defer m.libvirt.m.Unlock()
+		if alive, err := m.libvirt.conn.IsAlive(); err == nil && alive == true {
+			return m.libvirt.conn, nil
+		} else {
+			m.libvirt.conn.Close()
+			conn, err := libvirt.NewConnect("qemu:///system")
+			if err != nil {
+				return nil, err
+			}
+			m.libvirt.conn = conn
+			return m.libvirt.conn, nil
+		}
+	}
+}
+
 func (m *kvmManager) getDomainStruct(uuid string) (*Domain, error) {
-	domain, err := m.conn.LookupDomainByUUIDString(uuid)
+	conn, err := m.getConnection()
+	if err != nil {
+		return nil, err
+	}
+	domain, err := conn.LookupDomainByUUIDString(uuid)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't find domain with the uuid %s", uuid)
 	}
@@ -662,7 +692,11 @@ func (m *kvmManager) setPortForwards(uuid string, seq uint16, port map[int]int) 
 }
 
 func (m *kvmManager) updateView() {
-	domains, err := m.conn.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE | libvirt.CONNECT_LIST_DOMAINS_INACTIVE)
+	conn, err := m.getConnection()
+	if err != nil {
+		return
+	}
+	domains, err := conn.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE | libvirt.CONNECT_LIST_DOMAINS_INACTIVE)
 	if err != nil {
 		return
 	}
@@ -698,8 +732,12 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, fmt.Errorf("failed to generate domain xml: %s", err)
 	}
 
+	conn, err := m.getConnection()
+	if err != nil {
+		return nil, err
+	}
 	//create domain
-	_, err = m.conn.DomainCreateXML(string(data), libvirt.DOMAIN_NONE)
+	_, err = conn.DomainCreateXML(string(data), libvirt.DOMAIN_NONE)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create machine: %s", err)
 	}
@@ -713,7 +751,11 @@ func (m *kvmManager) getDomain(cmd *core.Command) (*libvirt.Domain, string, erro
 		return nil, "", err
 	}
 
-	domain, err := m.conn.LookupDomainByUUIDString(params.UUID)
+	conn, err := m.getConnection()
+	if err != nil {
+		return nil, "", err
+	}
+	domain, err := conn.LookupDomainByUUIDString(params.UUID)
 	if err != nil {
 		return nil, params.UUID, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
 	}
@@ -801,7 +843,11 @@ func (m *kvmManager) info(cmd *core.Command) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	infos, err := m.conn.GetAllDomainStats([]*libvirt.Domain{domain}, libvirt.DOMAIN_STATS_STATE|libvirt.DOMAIN_STATS_VCPU|libvirt.DOMAIN_STATS_INTERFACE|libvirt.DOMAIN_STATS_BLOCK,
+	conn, err := m.getConnection()
+	if err != nil {
+		return nil, err
+	}
+	infos, err := conn.GetAllDomainStats([]*libvirt.Domain{domain}, libvirt.DOMAIN_STATS_STATE|libvirt.DOMAIN_STATS_VCPU|libvirt.DOMAIN_STATS_INTERFACE|libvirt.DOMAIN_STATS_BLOCK,
 		libvirt.CONNECT_GET_ALL_DOMAINS_STATS_ACTIVE|libvirt.CONNECT_GET_ALL_DOMAINS_STATS_INACTIVE)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get machine info: %s", err)
@@ -847,7 +893,11 @@ func (m *kvmManager) info(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) attachDevice(uuid, xml string) error {
-	domain, err := m.conn.LookupDomainByUUIDString(uuid)
+	conn, err := m.getConnection()
+	if err != nil {
+		return err
+	}
+	domain, err := conn.LookupDomainByUUIDString(uuid)
 	if err != nil {
 		return fmt.Errorf("couldn't find domain with the uuid %s", uuid)
 	}
@@ -859,7 +909,11 @@ func (m *kvmManager) attachDevice(uuid, xml string) error {
 }
 
 func (m *kvmManager) detachDevice(uuid, xml string) error {
-	domain, err := m.conn.LookupDomainByUUIDString(uuid)
+	conn, err := m.getConnection()
+	if err != nil {
+		return err
+	}
+	domain, err := conn.LookupDomainByUUIDString(uuid)
 	if err != nil {
 		return fmt.Errorf("couldn't find domain with the uuid %s", uuid)
 	}
@@ -1052,7 +1106,11 @@ func (m *kvmManager) limitDiskIO(cmd *core.Command) (interface{}, error) {
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
-	domain, err := m.conn.LookupDomainByUUIDString(params.UUID)
+	conn, err := m.getConnection()
+	if err != nil {
+		return nil, err
+	}
+	domain, err := conn.LookupDomainByUUIDString(params.UUID)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
 	}
@@ -1157,7 +1215,11 @@ type Machine struct {
 }
 
 func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
-	domains, err := m.conn.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE | libvirt.CONNECT_LIST_DOMAINS_INACTIVE)
+	conn, err := m.getConnection()
+	if err != nil {
+		return nil, err
+	}
+	domains, err := conn.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE | libvirt.CONNECT_LIST_DOMAINS_INACTIVE)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list machines: %s", err)
 	}
@@ -1205,7 +1267,11 @@ func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) monitor(cmd *core.Command) (interface{}, error) {
-	infos, err := m.conn.GetAllDomainStats(nil, libvirt.DOMAIN_STATS_STATE|libvirt.DOMAIN_STATS_VCPU|libvirt.DOMAIN_STATS_INTERFACE|libvirt.DOMAIN_STATS_BLOCK,
+	conn, err := m.getConnection()
+	if err != nil {
+		return nil, err
+	}
+	infos, err := conn.GetAllDomainStats(nil, libvirt.DOMAIN_STATS_STATE|libvirt.DOMAIN_STATS_VCPU|libvirt.DOMAIN_STATS_INTERFACE|libvirt.DOMAIN_STATS_BLOCK,
 		libvirt.CONNECT_GET_ALL_DOMAINS_STATS_ACTIVE)
 	if err != nil {
 		return nil, err

@@ -21,8 +21,12 @@ const (
 )
 
 func (m *kvmManager) setVirtNetwork(network Network) error {
-	//m.conn.NetworkCreateXML()
-	_, err := m.conn.LookupNetworkByName(network.Name)
+	conn, err := m.getConnection()
+	if err != nil {
+		return err
+	}
+	//conn.NetworkCreateXML()
+	_, err = conn.LookupNetworkByName(network.Name)
 	liberr, _ := err.(libvirt.Error)
 
 	if err != nil && liberr.Code == libvirt.ERR_NO_NETWORK {
@@ -30,7 +34,7 @@ func (m *kvmManager) setVirtNetwork(network Network) error {
 		if err != nil {
 			return err
 		}
-		if _, err := m.conn.NetworkCreateXML(string(data)); err != nil {
+		if _, err := conn.NetworkCreateXML(string(data)); err != nil {
 			return err
 		}
 	} else if err != nil {
