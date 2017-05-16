@@ -6,6 +6,7 @@ import (
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
+	"github.com/g8os/core0/base/settings"
 	"github.com/g8os/core0/base/utils"
 	"github.com/g8os/core0/core0/screen"
 	"github.com/g8os/core0/core0/subsys/cgroups"
@@ -302,9 +303,13 @@ func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
 	m.conM.RLock()
 	count := len(m.containers)
 	m.conM.RUnlock()
+	limit := settings.Settings.Containers.MaxCount
+	if limit == 0 {
+		limit = ContainersHardLimit
+	}
 
-	if count >= ContainersHardLimit {
-		return nil, fmt.Errorf("reached the hard limit of 1000 containers")
+	if count >= limit {
+		return nil, fmt.Errorf("reached the hard limit of %d containers", count)
 	}
 
 	id := m.getNextSequence()

@@ -80,6 +80,9 @@ type AppSettings struct {
 	Extension map[string]Extension `json:"extension"`
 	Logging   map[string]Logger    `json:"logger"`
 
+	Containers struct {
+		MaxCount int `json:"max_count"`
+	} `json:"containers"`
 	Stats struct {
 		//Interval is deprecated
 		Interval int `json:"interval"`
