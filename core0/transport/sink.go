@@ -5,6 +5,7 @@ import (
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/siddontang/ledisdb/config"
+	"github.com/siddontang/ledisdb/ledis"
 	"github.com/siddontang/ledisdb/server"
 	"time"
 )
@@ -12,27 +13,34 @@ import (
 const (
 	SinkRoute = core.Route("sink")
 	SinkQueue = "core:default"
+	DBIndex   = 0
 )
 
 type Sink struct {
 	mgr    *pm.PM
 	ch     *channel
 	server *server.App
+	db     *ledis.DB
 }
 
 type SinkConfig struct {
 	Port int
 }
 
+func (c *SinkConfig) Local() string {
+	return fmt.Sprintf("127.0.0.1:%d", c.Port)
+}
+
 func NewSink(mgr *pm.PM, c SinkConfig) (*Sink, error) {
 	cfg := config.NewConfigDefault()
+	cfg.DataDir = "/var/core0"
 	cfg.Addr = fmt.Sprintf(":%d", c.Port)
 	server, err := server.NewApp(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	db, err := server.Ledis().Select(0)
+	db, err := server.Ledis().Select(DBIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -40,10 +48,15 @@ func NewSink(mgr *pm.PM, c SinkConfig) (*Sink, error) {
 	sink := &Sink{
 		mgr:    mgr,
 		server: server,
+		db:     db,
 		ch:     newChannel(db),
 	}
 
 	return sink, nil
+}
+
+func (sink *Sink) DB() *ledis.DB {
+	return sink.db
 }
 
 func (sink *Sink) handlePublic(cmd *core.Command, result *core.JobResult) {

@@ -44,12 +44,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	if err := Redirect(LogPath); err != nil {
-		log.Errorf("failed to redirect output streams: %s", err)
-	}
-
-	HandleRotation()
-
 	if err := screen.New(2); err != nil {
 		log.Critical(err)
 	}
@@ -79,6 +73,12 @@ func main() {
 
 		log.Fatalf("\nConfig validation error, please fix and try again.")
 	}
+
+	if err := Redirect(LogPath); err != nil {
+		log.Errorf("failed to redirect output streams: %s", err)
+	}
+
+	HandleRotation()
 
 	var config = settings.Settings
 
@@ -110,20 +110,16 @@ func main() {
 
 	//configure logging handlers from configurations
 	log.Infof("Configure logging")
-	logger.InitLogging()
+	cfg := transport.SinkConfig{Port: 6379}
+	sink, err := transport.NewSink(mgr, cfg)
+	if err != nil {
+		log.Errorf("failed to start command sink: %s", err)
+	}
+
+	logger.ConfigureLogging(sink.DB())
 
 	bs := bootstrap.NewBootstrap()
 	bs.Bootstrap()
-
-	log.Infof("Setting up stats aggregator clients")
-	if config.Stats.Redis.Enabled {
-		aggregator, err := stats.NewRedisStatsAggregator(config.Stats.Redis.Address, "", 1000, time.Duration(config.Stats.Redis.FlushInterval)*time.Second)
-		if err != nil {
-			log.Errorf("failed to initialize redis stats aggregator: %s", err)
-		} else {
-			mgr.AddStatsHandler(aggregator.Aggregate)
-		}
-	}
 
 	screen.Push(&screen.SplitterSection{Title: "System Information"})
 
@@ -132,17 +128,12 @@ func main() {
 	}
 	screen.Push(row)
 
-	sink, err := transport.NewSink(mgr, transport.SinkConfig{Port: 6379})
-	if err != nil {
-		log.Errorf("failed to start command sink: %s", err)
-	}
-
 	contMgr, err := containers.ContainerSubsystem(sink, &row.Cells[0])
 	if err != nil {
 		log.Fatal("failed to intialize container subsystem", err)
 	}
 
-	if err := kvm.KVMSubsystem(contMgr, &row.Cells[1]); err != nil {
+	if err := kvm.KVMSubsystem(sink, contMgr, &row.Cells[1]); err != nil {
 		log.Errorf("failed to initialize kvm subsystem", err)
 	}
 
@@ -159,6 +150,15 @@ func main() {
 
 	sink.Start()
 	screen.Refresh()
+
+	if config.Stats.Enabled {
+		aggregator, err := stats.NewRedisStatsAggregator(cfg.Local(), "", 1000, time.Duration(config.Stats.FlushInterval)*time.Second)
+		if err != nil {
+			log.Errorf("failed to initialize redis stats aggregator: %s", err)
+		} else {
+			mgr.AddStatsHandler(aggregator.Aggregate)
+		}
+	}
 
 	//wait
 	select {}

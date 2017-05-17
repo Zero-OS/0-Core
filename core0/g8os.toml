@@ -1,26 +1,22 @@
-#leave /tmp and /opt/jumpscale8 in this file, gets replaced during installation
-
 [main]
-max_jobs = 200
-include = ["/root/conf"]
+max_jobs = 524288
+include = ["/etc/g8os/conf"]
+log_level = "info"
+network = "/etc/g8os/network.toml"
 
 [containers]
 max_count = 1000
 
-[logging]
-    [logging.db]
-    type = "DB"
-    address = "/var/log/g8os"
-    levels = [2, 4, 7, 8, 9, 11]  # (all error messages + debug) empty for all
+[logging.file]
+levels = [2, 4, 7, 8, 9]
 
-    [logging.console]
-    type = "console"
-    levels = [2, 4, 7, 8, 9]
+[logging.ledis]
+levels = [1, 2, 4, 7, 8, 9]
+size = 10000 # how many log lines to keep in ledis
 
 [stats]
-interval = 60000 # milliseconds (1 min)
-
-[stats.redis]
-enabled = false
+enabled = true
 flush_interval = 10 # seconds
-address = "172.17.0.1:6379"
+
+[globals]
+storage = ""

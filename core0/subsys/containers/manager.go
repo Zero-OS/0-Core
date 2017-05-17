@@ -11,7 +11,6 @@ import (
 	"github.com/g8os/core0/core0/screen"
 	"github.com/g8os/core0/core0/subsys/cgroups"
 	"github.com/g8os/core0/core0/transport"
-	"github.com/garyburd/redigo/redis"
 	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
 	"net/url"
@@ -146,8 +145,6 @@ type containerManager struct {
 	containers map[uint16]*container
 	conM       sync.RWMutex
 
-	pool *redis.Pool
-
 	cell   *screen.RowCell
 	cgroup cgroups.Group
 
@@ -181,7 +178,6 @@ func ContainerSubsystem(sink *transport.Sink, cell *screen.RowCell) (ContainerMa
 	}
 
 	containerMgr := &containerManager{
-		pool:       utils.NewRedisPool("unix", redisSocketSrc, ""),
 		containers: make(map[uint16]*container),
 		sink:       sink,
 		cell:       cell,

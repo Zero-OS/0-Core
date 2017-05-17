@@ -15,11 +15,9 @@ import (
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
-	"github.com/g8os/core0/base/settings"
-	"github.com/g8os/core0/base/utils"
 	"github.com/g8os/core0/core0/screen"
 	"github.com/g8os/core0/core0/subsys/containers"
-	"github.com/garyburd/redigo/redis"
+	"github.com/g8os/core0/core0/transport"
 	"github.com/libvirt/libvirt-go"
 	"github.com/pborman/uuid"
 )
@@ -39,8 +37,8 @@ type kvmManager struct {
 	sequence uint16
 	m        sync.Mutex
 	libvirt  LibvirtConnection
-	pool     *redis.Pool
 
+	sink   *transport.Sink
 	conmgr containers.ContainerManager
 
 	cell *screen.RowCell
@@ -79,9 +77,10 @@ const (
 	DefaultBridgeName = "kvm0"
 )
 
-func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) error {
+func KVMSubsystem(sink *transport.Sink, conmgr containers.ContainerManager, cell *screen.RowCell) error {
 	mgr := &kvmManager{
 		conmgr: conmgr,
+		sink:   sink,
 		cell:   cell,
 	}
 	cell.Text = "Virtual Machines: 0"
@@ -112,8 +111,6 @@ func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) erro
 		return err
 	}
 	mgr.libvirt.conn = conn
-
-	mgr.pool = utils.NewRedisPool("tcp", settings.Settings.Stats.Redis.Address, "")
 	// we don't close the connection here because it is supposed to be used outside
 	// so we expect the caller to close it
 	// so if anything is to be added in this method that can return an error
@@ -1351,17 +1348,22 @@ func (m *kvmManager) infops(cmd *core.Command) (interface{}, error) {
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
-	key := fmt.Sprintf("*@vm.%s", params.UUID)
-	conn := m.pool.Get()
-	defer conn.Close()
-	keys, err := redis.Strings(conn.Do("KEYS", key))
-	if err != nil {
-		return nil, err
-	}
+	//TODO: need to be refactored to work with
+	//TODO: ledis api
+
+	//key := fmt.Sprintf("*@vm.%s", params.UUID)
+	db := m.sink.DB()
+	//keys, err := redis.Strings(db.keys(key))
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	var keys []string
+
 	response := make(map[string]interface{})
 	for _, rediskey := range keys {
-		res, err := redis.Bytes(conn.Do("GET", rediskey))
 		key := strings.Split(strings.Split(rediskey, "@")[0], ":")[2]
+		res, err := db.Get([]byte(rediskey))
 		if err != nil {
 			return nil, err
 		}

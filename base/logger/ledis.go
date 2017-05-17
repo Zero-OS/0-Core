@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/stream"
-	"github.com/g8os/core0/base/utils"
-	"github.com/garyburd/redigo/redis"
-	"strings"
+	"github.com/siddontang/ledisdb/ledis"
 )
 
 const (
@@ -16,30 +14,26 @@ const (
 
 // redisLogger send log to redis queue
 type redisLogger struct {
-	coreID    uint16
-	pool      *redis.Pool
-	defaults  []int
-	queueSize int
+	coreID   uint16
+	db       *ledis.DB
+	defaults []int
+	size     int64
 
 	ch chan *LogRecord
 }
 
 // NewRedisLogger creates new redis logger handler
-func NewRedisLogger(coreID uint16, address string, password string, defaults []int, batchSize int) Logger {
-	if batchSize == 0 {
-		batchSize = MaxRedisQueueSize
-	}
-	network := "unix"
-	if strings.Index(address, ":") > 0 {
-		network = "tcp"
+func NewLedisLogger(coreID uint16, db *ledis.DB, defaults []int, size int64) Logger {
+	if size == 0 {
+		size = MaxRedisQueueSize
 	}
 
 	rl := &redisLogger{
-		coreID:    coreID,
-		pool:      utils.NewRedisPool(network, address, password),
-		defaults:  defaults,
-		queueSize: batchSize,
-		ch:        make(chan *LogRecord, MaxRedisQueueSize),
+		coreID:   coreID,
+		db:       db,
+		defaults: defaults,
+		size:     size,
+		ch:       make(chan *LogRecord, MaxRedisQueueSize),
 	}
 
 	go rl.pusher()
@@ -74,9 +68,6 @@ func (l *redisLogger) pusher() {
 }
 
 func (l *redisLogger) push() error {
-	db := l.pool.Get()
-	defer db.Close()
-
 	for {
 		record := <-l.ch
 
@@ -85,11 +76,11 @@ func (l *redisLogger) push() error {
 			continue
 		}
 
-		if _, err := db.Do("RPUSH", RedisLoggerQueue, bytes); err != nil {
+		if _, err := l.db.RPush([]byte(RedisLoggerQueue), bytes); err != nil {
 			return err
 		}
 
-		if _, err := db.Do("LTRIM", RedisLoggerQueue, -1*l.queueSize, -1); err != nil {
+		if err := l.db.LTrim([]byte(RedisLoggerQueue), -1*l.size, -1); err != nil {
 			return err
 		}
 	}

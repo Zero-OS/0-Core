@@ -1,18 +1,13 @@
 package logger
 
 import (
-	"os"
-	"path"
-	"strings"
-	"time"
-
-	"github.com/boltdb/bolt"
 	"github.com/g8os/core0/base/logger"
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/stream"
 	"github.com/g8os/core0/base/settings"
 	"github.com/op/go-logging"
+	"github.com/siddontang/ledisdb/ledis"
 )
 
 var (
@@ -37,45 +32,11 @@ func (l Loggers) LogRecord(record *logger.LogRecord) {
 }
 
 // ConfigureLogging attachs the correct message handler on top the process manager from the configurations
-func InitLogging() {
-	//apply logging handlers.
-	dbLoggerConfigured := false
-	for _, logcfg := range settings.Settings.Logging {
-		switch strings.ToLower(logcfg.Type) {
-		case "db":
-			if dbLoggerConfigured {
-				log.Fatalf("Only one db logger can be configured")
-			}
-			//sqlFactory := logger.NewSqliteFactory(logcfg.LogDir)
-			os.MkdirAll(logcfg.Address, 0755)
-			db, err := bolt.Open(path.Join(logcfg.Address, "logs.db"), 0644, nil)
-			if err != nil {
-				log.Errorf("Failed to configure db logger: %s", err)
-				continue
-			}
-			db.MaxBatchDelay = 100 * time.Millisecond
-			if err != nil {
-				log.Fatalf("Failed to open logs database: %s", err)
-			}
+func ConfigureLogging(db *ledis.DB) {
+	file := logger.NewConsoleLogger(0, settings.Settings.Logging.File.Levels)
+	ledis := logger.NewLedisLogger(0, db, settings.Settings.Logging.Ledis.Levels, settings.Settings.Logging.Ledis.Size)
 
-			handler, err := logger.NewDBLogger(0, db, logcfg.Levels)
-			if err != nil {
-				log.Fatalf("DB logger failed to initialize: %s", err)
-			}
-
-			Current = append(Current, handler)
-			registerGetMsgsFunction(db)
-			dbLoggerConfigured = true
-		case "redis":
-			handler := logger.NewRedisLogger(0, logcfg.Address, "", logcfg.Levels, logcfg.BatchSize)
-			Current = append(Current, handler)
-		case "console":
-			handler := logger.NewConsoleLogger(0, logcfg.Levels)
-			Current = append(Current, handler)
-		default:
-			log.Fatalf("Unsupported logger type: %s", logcfg.Type)
-		}
-	}
+	Current = append(Current, file, ledis)
 
 	pm.GetManager().AddMessageHandler(Current.Log)
 }

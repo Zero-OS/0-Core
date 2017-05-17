@@ -16,19 +16,7 @@ const (
 
 //Logger settings
 type Logger struct {
-	//logger type, now only 'db' and 'ac' are supported
-	Type string `json:"type"`
-	//list of controlles base URLs
-	Controllers []string `json:"controllers"`
-	//Process which levels
 	Levels []int `json:"levels"`
-
-	//Log address (for loggers that needs it)
-	Address string `json:"address"`
-	//Flush interval (for loggers that needs it)
-	FlushInt int `json:"flush_int"`
-	//Flush batch size (for loggers that needs it)
-	BatchSize int `json:"batch_size"`
 }
 
 //Extension cmd config
@@ -78,19 +66,20 @@ type AppSettings struct {
 
 	Globals   Globals              `json:"globals"`
 	Extension map[string]Extension `json:"extension"`
-	Logging   map[string]Logger    `json:"logger"`
+	Logging   struct {
+		File  Logger `json:"file"`
+		Ledis struct {
+			Logger `json:"ledis"`
+			Size   int64 `json:"size"`
+		}
+	} `json:"logger"`
 
 	Containers struct {
 		MaxCount int `json:"max_count"`
 	} `json:"containers"`
 	Stats struct {
-		//Interval is deprecated
-		Interval int `json:"interval"`
-		Redis    struct {
-			Enabled       bool   `json:"enabled"`
-			FlushInterval int    `json:"flush_interval"` //in seconds
-			Address       string `json:"address"`
-		} `json:"redis"`
+		Enabled       bool `json:"enabled"`
+		FlushInterval int  `json:"flush_interval"` //in seconds
 	} `json:"stats"`
 }
 
