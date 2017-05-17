@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/g8os/core0/base/pm/core"
-	"github.com/g8os/core0/base/utils"
 	"github.com/garyburd/redigo/redis"
-	"net/url"
-	"strings"
+	"github.com/siddontang/ledisdb/ledis"
+	"time"
 )
 
 const (
@@ -18,50 +17,27 @@ const (
 ControllerClient represents an active agent controller connection.
 */
 type channel struct {
-	url   string
-	redis *redis.Pool
+	db *ledis.DB
 }
 
 /*
 NewSinkClient gets a new sink connection with the given identity. Identity is used by the sink client to
 introduce itself to the sink terminal.
 */
-func newChannel(con string, password string) (*channel, error) {
-	u, err := url.Parse(con)
-	if err != nil {
-		return nil, err
-	}
-
-	if u.Scheme != "redis" {
-		return nil, fmt.Errorf("expected url of format redis://<host>:<port> or redis:///unix.socket")
-	}
-
-	network := "tcp"
-	address := u.Host
-	if address == "" {
-		network = "unix"
-		address = u.Path
-	}
-
-	pool := utils.NewRedisPool(network, address, password)
-
+func newChannel(db *ledis.DB) *channel {
 	ch := &channel{
-		url:   strings.TrimRight(con, "/"),
-		redis: pool,
+		db: db,
 	}
 
-	return ch, nil
+	return ch
 }
 
 func (client *channel) String() string {
-	return client.url
+	return "ledis"
 }
 
 func (cl *channel) GetNext(queue string, command *core.Command) error {
-	db := cl.redis.Get()
-	defer db.Close()
-
-	payload, err := redis.ByteSlices(db.Do("BLPOP", queue, 0))
+	payload, err := redis.ByteSlices(cl.db.BLPop([][]byte{[]byte(queue)}, 0))
 	if err != nil {
 		return err
 	}
@@ -80,10 +56,7 @@ func (cl *channel) Respond(result *core.JobResult) error {
 		return err
 	}
 
-	db := cl.redis.Get()
-	defer db.Close()
-
-	if _, err := db.Do("EXPIRE", queue, ReturnExpire); err != nil {
+	if _, err := cl.db.Expire([]byte(queue), ReturnExpire); err != nil {
 		return err
 	}
 
@@ -91,30 +64,41 @@ func (cl *channel) Respond(result *core.JobResult) error {
 }
 
 func (cl *channel) Push(queue string, payload interface{}) error {
-	db := cl.redis.Get()
-	defer db.Close()
-
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
 
-	if _, err := db.Do("RPUSH", queue, data); err != nil {
+	if _, err := cl.db.RPush([]byte(queue), data); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (cl *channel) GetResponse(id string, timeout int) (*core.JobResult, error) {
-	db := cl.redis.Get()
-	defer db.Close()
+func (cl *channel) cycle(queue string, timeout int) ([]byte, error) {
+	db := cl.db
+	payload, err := redis.ByteSlices(db.BRPop([][]byte{[]byte(queue)}, time.Duration(timeout)*time.Second))
+	if err != nil {
+		return nil, err
+	}
 
-	queue := fmt.Sprintf("result:%s", id)
-	payload, err := redis.Bytes(db.Do("BRPOPLPUSH", queue, queue, timeout))
-	if err == redis.ErrNil {
+	if payload == nil {
 		return nil, fmt.Errorf("timeout")
-	} else if err != nil {
+	}
+
+	data := payload[1]
+	if _, err := db.LPush([]byte(queue), data); err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+func (cl *channel) GetResponse(id string, timeout int) (*core.JobResult, error) {
+	queue := fmt.Sprintf("result:%s", id)
+	payload, err := cl.cycle(queue, timeout)
+	if err != nil {
 		return nil, err
 	}
 
@@ -127,28 +111,19 @@ func (cl *channel) GetResponse(id string, timeout int) (*core.JobResult, error) 
 }
 
 func (cl *channel) Flag(id string) error {
-	db := cl.redis.Get()
-	defer db.Close()
-
 	key := fmt.Sprintf("result:%s:flag", id)
-	_, err := db.Do("RPUSH", key, "")
+	_, err := cl.db.RPush([]byte(key), []byte(""))
 	return err
 }
 
 func (cl *channel) UnFlag(id string) error {
-	db := cl.redis.Get()
-	defer db.Close()
-
 	key := fmt.Sprintf("result:%s:flag", id)
-	_, err := db.Do("EXPIRE", key, ReturnExpire)
+	_, err := cl.db.Expire([]byte(key), ReturnExpire)
 	return err
 }
 
 func (cl *channel) Flagged(id string) bool {
-	db := cl.redis.Get()
-	defer db.Close()
-
 	key := fmt.Sprintf("result:%s:flag", id)
-	v, _ := redis.Int(db.Do("EXISTS", key))
+	v, _ := cl.db.LKeyExists([]byte(key))
 	return v == 1
 }

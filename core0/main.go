@@ -132,7 +132,7 @@ func main() {
 	}
 	screen.Push(row)
 
-	sink, err := transport.NewSink(mgr, transport.SinkConfig{URL: "redis://127.0.0.1:6379"})
+	sink, err := transport.NewSink(mgr, transport.SinkConfig{Port: 6379})
 	if err != nil {
 		log.Errorf("failed to start command sink: %s", err)
 	}
