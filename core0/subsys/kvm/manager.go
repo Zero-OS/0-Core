@@ -769,7 +769,7 @@ func (m *kvmManager) destroy(cmd *core.Command) (interface{}, error) {
 	m.unPortForward(uuid)
 	db := m.sink.DB()
 	key := fmt.Sprintf("vm.%s", uuid)
-	keys, err := db.SClear([]byte(key))
+	db.SClear([]byte(key))
 
 	return nil, nil
 }
