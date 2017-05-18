@@ -767,6 +767,9 @@ func (m *kvmManager) destroy(cmd *core.Command) (interface{}, error) {
 		return nil, fmt.Errorf("failed to destroy machine: %s", err)
 	}
 	m.unPortForward(uuid)
+	db := m.sink.DB()
+	key := fmt.Sprintf("vm.%s", uuid)
+	keys, err := db.SClear([]byte(key))
 
 	return nil, nil
 }
@@ -1271,6 +1274,7 @@ func (m *kvmManager) monitor(cmd *core.Command) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	db := m.sink.DB()
 
 	p := pm.GetManager()
 	for _, info := range infos {
@@ -1279,64 +1283,46 @@ func (m *kvmManager) monitor(cmd *core.Command) (interface{}, error) {
 			return nil, err
 		}
 		key := fmt.Sprintf("%%s@vm.%s", uuid)
+		domainkey := []byte(fmt.Sprintf("vm.%s", uuid))
+		var toadd string
 
 		for i, vcpu := range info.Vcpu {
-			p.Aggregate(pm.AggreagteAverage,
-				fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.state", i)),
-				float64(vcpu.State),
-				"",
-			)
-			p.Aggregate(pm.AggreagteDifference,
-				fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.time", i)),
-				float64(vcpu.Time)/1000000000,
-				"",
-			)
+			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.state", i))
+			db.SAdd(domainkey, []byte(toadd))
+			p.Aggregate(pm.AggreagteAverage, toadd, float64(vcpu.State), "")
+			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.time", i))
+			db.SAdd(domainkey, []byte(toadd))
+			p.Aggregate(pm.AggreagteDifference, toadd, float64(vcpu.Time)/1000000000, "")
 		}
 
 		for _, net := range info.Net {
-			p.Aggregate(pm.AggreagteDifference,
-				fmt.Sprintf(key, fmt.Sprintf("net.%s.rxbytes", net.Name)),
-				float64(net.RxBytes),
-				"",
-			)
-			p.Aggregate(pm.AggreagteDifference,
-				fmt.Sprintf(key, fmt.Sprintf("net.%s.rxpkts", net.Name)),
-				float64(net.RxPkts),
-				"",
-			)
-			p.Aggregate(pm.AggreagteDifference,
-				fmt.Sprintf(key, fmt.Sprintf("net.%s.txbytes", net.Name)),
-				float64(net.TxBytes),
-				"",
-			)
-			p.Aggregate(pm.AggreagteDifference,
-				fmt.Sprintf(key, fmt.Sprintf("net.%s.txpkts", net.Name)),
-				float64(net.TxPkts),
-				"",
-			)
+			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.rxbytes", net.Name))
+			db.SAdd(domainkey, []byte(toadd))
+			p.Aggregate(pm.AggreagteDifference, toadd, float64(net.RxBytes), "")
+			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.rxpkts", net.Name))
+			db.SAdd(domainkey, []byte(toadd))
+			p.Aggregate(pm.AggreagteDifference, toadd, float64(net.RxPkts), "")
+			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.txbytes", net.Name))
+			db.SAdd(domainkey, []byte(toadd))
+			p.Aggregate(pm.AggreagteDifference, toadd, float64(net.TxBytes), "")
+			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.txpkts", net.Name))
+			db.SAdd(domainkey, []byte(toadd))
+			p.Aggregate(pm.AggreagteDifference, toadd, float64(net.TxPkts), "")
 		}
 
 		for _, block := range info.Block {
-			p.Aggregate(pm.AggreagteDifference,
-				fmt.Sprintf(key, fmt.Sprintf("block.%s.rdbytes", block.Name)),
-				float64(block.RdBytes),
-				"",
-			)
-			p.Aggregate(pm.AggreagteDifference,
-				fmt.Sprintf(key, fmt.Sprintf("block.%s.rdtimes", block.Name)),
-				float64(block.RdTimes),
-				"",
-			)
-			p.Aggregate(pm.AggreagteDifference,
-				fmt.Sprintf(key, fmt.Sprintf("block.%s.wrbytes", block.Name)),
-				float64(block.WrBytes),
-				"",
-			)
-			p.Aggregate(pm.AggreagteDifference,
-				fmt.Sprintf(key, fmt.Sprintf("block.%s.wrtimes", block.Name)),
-				float64(block.WrTimes),
-				"",
-			)
+			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.rdbytes", block.Name))
+			db.SAdd(domainkey, []byte(toadd))
+			p.Aggregate(pm.AggreagteDifference, toadd, float64(block.RdBytes), "")
+			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.rdtimes", block.Name))
+			db.SAdd(domainkey, []byte(toadd))
+			p.Aggregate(pm.AggreagteDifference, toadd, float64(block.RdTimes), "")
+			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.wrbytes", block.Name))
+			db.SAdd(domainkey, []byte(toadd))
+			p.Aggregate(pm.AggreagteDifference, toadd, float64(block.WrBytes), "")
+			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.wrtimes", block.Name))
+			db.SAdd(domainkey, []byte(toadd))
+			p.Aggregate(pm.AggreagteDifference, toadd, float64(block.WrTimes), "")
 		}
 	}
 
@@ -1348,20 +1334,16 @@ func (m *kvmManager) infops(cmd *core.Command) (interface{}, error) {
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
-	//TODO: need to be refactored to work with
-	//TODO: ledis api
-
-	//key := fmt.Sprintf("*@vm.%s", params.UUID)
 	db := m.sink.DB()
-	//keys, err := redis.Strings(db.keys(key))
-	//if err != nil {
-	//	return nil, err
-	//}
-
-	var keys []string
+	key := fmt.Sprintf("vm.%s", params.UUID)
+	keys, err := db.SMembers([]byte(key))
+	if err != nil {
+		return nil, err
+	}
 
 	response := make(map[string]interface{})
-	for _, rediskey := range keys {
+	for _, bytekey := range keys {
+		rediskey := string(bytekey)
 		key := strings.Split(strings.Split(rediskey, "@")[0], ":")[2]
 		res, err := db.Get([]byte(rediskey))
 		if err != nil {
