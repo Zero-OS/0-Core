@@ -1296,31 +1296,31 @@ func (m *kvmManager) monitor(cmd *core.Command) (interface{}, error) {
 		}
 
 		for _, net := range info.Net {
-			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.rxbytes", net.Name))
+			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%s.rxbytes", net.Name))
 			db.SAdd(domainkey, []byte(toadd))
 			p.Aggregate(pm.AggreagteDifference, toadd, float64(net.RxBytes), "")
-			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.rxpkts", net.Name))
+			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%s.rxpkts", net.Name))
 			db.SAdd(domainkey, []byte(toadd))
 			p.Aggregate(pm.AggreagteDifference, toadd, float64(net.RxPkts), "")
-			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.txbytes", net.Name))
+			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%s.txbytes", net.Name))
 			db.SAdd(domainkey, []byte(toadd))
 			p.Aggregate(pm.AggreagteDifference, toadd, float64(net.TxBytes), "")
-			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.txpkts", net.Name))
+			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%s.txpkts", net.Name))
 			db.SAdd(domainkey, []byte(toadd))
 			p.Aggregate(pm.AggreagteDifference, toadd, float64(net.TxPkts), "")
 		}
 
 		for _, block := range info.Block {
-			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.rdbytes", block.Name))
+			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%s.rdbytes", block.Name))
 			db.SAdd(domainkey, []byte(toadd))
 			p.Aggregate(pm.AggreagteDifference, toadd, float64(block.RdBytes), "")
-			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.rdtimes", block.Name))
+			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%s.rdtimes", block.Name))
 			db.SAdd(domainkey, []byte(toadd))
 			p.Aggregate(pm.AggreagteDifference, toadd, float64(block.RdTimes), "")
-			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.wrbytes", block.Name))
+			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%s.wrbytes", block.Name))
 			db.SAdd(domainkey, []byte(toadd))
 			p.Aggregate(pm.AggreagteDifference, toadd, float64(block.WrBytes), "")
-			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.wrtimes", block.Name))
+			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%s.wrtimes", block.Name))
 			db.SAdd(domainkey, []byte(toadd))
 			p.Aggregate(pm.AggreagteDifference, toadd, float64(block.WrTimes), "")
 		}
@@ -1344,8 +1344,8 @@ func (m *kvmManager) infops(cmd *core.Command) (interface{}, error) {
 	response := make(map[string]interface{})
 	for _, bytekey := range keys {
 		rediskey := string(bytekey)
-		key := strings.Split(strings.Split(rediskey, "@")[0], ":")[2]
-		res, err := db.Get([]byte(rediskey))
+		key := strings.Split(rediskey, "@")[0]
+		res, err := db.Get([]byte("stats::" + rediskey))
 		if err != nil {
 			return nil, err
 		}
