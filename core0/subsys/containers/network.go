@@ -208,7 +208,7 @@ func (c *container) postBridge(dev string, index int, n *Nic) error {
 	}
 
 	if n.Config.Gateway != "" {
-		if err := c.setGateway(index, n.Config.Gateway); err != nil {
+		if err := c.setGateway(dev, n.Config.Gateway); err != nil {
 			return err
 		}
 	}
@@ -355,11 +355,10 @@ func (c *container) setPortForwards() error {
 	return nil
 }
 
-func (c *container) setGateway(idx int, gw string) error {
+func (c *container) setGateway(dev string, gw string) error {
 	////setting the ip address
-	eth := fmt.Sprintf("eth%d", idx)
 	_, err := c.sync("ip", "netns", "exec", fmt.Sprintf("%v", c.id),
-		"ip", "route", "add", "metric", "1000", "default", "via", gw, "dev", eth)
+		"ip", "route", "add", "metric", "1000", "default", "via", gw, "dev", dev)
 
 	if err != nil {
 		return fmt.Errorf("error settings interface ip: %v", err)
