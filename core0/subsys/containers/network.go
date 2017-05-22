@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"context"
@@ -30,6 +31,25 @@ func (c *container) preStartHostNetworking() error {
 	os.Remove(p)
 	ioutil.WriteFile(p, []byte{}, 0644) //touch the file.
 	return syscall.Mount("/etc/resolv.conf", p, "", syscall.MS_BIND, "")
+}
+
+func (c *container) ValidateNics() error {
+	var name string
+	set := make(map[string]byte)
+	for _, nic := range c.Args.Nics {
+		if nic.Name != nil {
+			name = *nic.Name
+			if _, ok := set[name]; ok {
+				return fmt.Errorf("Name %v is passed twice in the container", name)
+			} else {
+				set[name] = '1'
+			}
+			if strings.HasPrefix(name, "eth") {
+				return fmt.Errorf("Name %v cannot be used as it is started with eth", name)
+			}
+		}
+	}
+	return nil
 }
 
 func (c *container) zerotierHome() string {
@@ -105,7 +125,7 @@ type ztNetorkInfo struct {
 	NetID             string   `json:"nwid"`
 }
 
-func (c *container) postZerotierNetwork(idx int, netID string) error {
+func (c *container) postZerotierNetwork(name string, idx int, netID string) error {
 	if err := c.zerotierDaemon(); err != nil {
 		return err
 	}
@@ -115,7 +135,7 @@ func (c *container) postZerotierNetwork(idx int, netID string) error {
 	return err
 }
 
-func (c *container) postBridge(index int, n *Nic) error {
+func (c *container) postBridge(dev string, index int, n *Nic) error {
 	name := fmt.Sprintf(containerLinkNameFmt, c.id, index)
 	peerName := fmt.Sprintf(containerPeerNameFmt, name)
 
@@ -138,8 +158,6 @@ func (c *container) postBridge(index int, n *Nic) error {
 	//if err := netlink.LinkSetName(peer, fmt.Sprintf("eth%d", index)); err != nil {
 	//	return fmt.Errorf("set link name: %s", err)
 	//}
-
-	dev := fmt.Sprintf("eth%d", index)
 
 	_, err = c.sync("ip", "netns", "exec", fmt.Sprintf("%v", c.id), "ip", "link", "set", peerName, "name", dev)
 	if err != nil {
@@ -350,7 +368,7 @@ func (c *container) setGateway(idx int, gw string) error {
 	return nil
 }
 
-func (c *container) postDefaultNetwork(i int, net *Nic) error {
+func (c *container) postDefaultNetwork(name string, idx int, net *Nic) error {
 	//Add to the default bridge
 	defnet := &Nic{
 		Config: NetworkConfig{
@@ -360,7 +378,7 @@ func (c *container) postDefaultNetwork(i int, net *Nic) error {
 		},
 	}
 
-	if err := c.postBridge(i, defnet); err != nil {
+	if err := c.postBridge(name, idx, defnet); err != nil {
 		return err
 	}
 
@@ -427,9 +445,9 @@ func (c *container) preVxlanNetwork(idx int, net *Nic) error {
 	return c.preBridge(idx, bridge, net, ovs)
 }
 
-func (c *container) postVxlanNetwork(idx int, net *Nic) error {
+func (c *container) postVxlanNetwork(name string, idx int, net *Nic) error {
 	//we have the vxlan bridge name
-	return c.postBridge(idx, net)
+	return c.postBridge(name, idx, net)
 }
 
 func (c *container) preVlanNetwork(idx int, net *Nic) error {
@@ -474,8 +492,8 @@ func (c *container) preVlanNetwork(idx int, net *Nic) error {
 	return c.preBridge(idx, bridge, net, ovs)
 }
 
-func (c *container) postVlanNetwork(idx int, net *Nic) error {
-	return c.postBridge(idx, net)
+func (c *container) postVlanNetwork(name string, idx int, net *Nic) error {
+	return c.postBridge(name, idx, net)
 }
 
 func (c *container) postStartIsolatedNetworking() error {
@@ -485,17 +503,23 @@ func (c *container) postStartIsolatedNetworking() error {
 
 	for idx, network := range c.Args.Nics {
 		var err error
+		var name string
+		if network.Name != nil {
+			name = *network.Name
+		} else {
+			name = fmt.Sprintf("eth%d", idx)
+		}
 		switch network.Type {
 		case "vxlan":
-			err = c.postVxlanNetwork(idx, &network)
+			err = c.postVxlanNetwork(name, idx, &network)
 		case "vlan":
-			err = c.postVlanNetwork(idx, &network)
+			err = c.postVlanNetwork(name, idx, &network)
 		case "zerotier":
-			err = c.postZerotierNetwork(idx, network.ID)
+			err = c.postZerotierNetwork(name, idx, network.ID)
 		case "default":
-			err = c.postDefaultNetwork(idx, &network)
+			err = c.postDefaultNetwork(name, idx, &network)
 		case "bridge":
-			err = c.postBridge(idx, &network)
+			err = c.postBridge(name, idx, &network)
 		}
 
 		if err != nil {

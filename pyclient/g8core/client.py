@@ -657,6 +657,7 @@ class ContainerManager:
         'nics': [{
             'type': typchk.Enum('default', 'bridge', 'zerotier', 'vlan', 'vxlan'),
             'id': typchk.Or(str, typchk.Missing()),
+            'name': typchk.Or(str, typchk.Missing()),
             'hwaddr': typchk.Or(str, typchk.Missing()),
             'config': typchk.Or(
                 typchk.Missing,
@@ -706,6 +707,7 @@ class ContainerManager:
                      {
                         'type': nic_type # default, bridge, zerotier, vlan, or vxlan (note, vlan and vxlan only supported by ovs)
                         'id': id # depends on the type, bridge name, zerotier network id, the vlan tag or the vxlan id
+                        'name': name # ValidateNics name of the nic inside the container
                         'config': { # config is only honored for vlan, and vxlan types
                             'dhcp': bool,
                             'cidr': static_ip # ip/mask
