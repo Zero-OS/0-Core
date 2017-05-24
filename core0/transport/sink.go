@@ -33,6 +33,7 @@ func (c *SinkConfig) Local() string {
 
 func NewSink(mgr *pm.PM, c SinkConfig) (*Sink, error) {
 	cfg := config.NewConfigDefault()
+	cfg.DBName = "memory"
 	cfg.DataDir = "/var/core0"
 	cfg.Addr = fmt.Sprintf(":%d", c.Port)
 	server, err := server.NewApp(cfg)
