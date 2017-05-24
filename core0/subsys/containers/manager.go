@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strings"
 	"sync"
 )
 
@@ -55,7 +56,7 @@ type Nic struct {
 	Type      string        `json:"type"`
 	ID        string        `json:"id"`
 	HWAddress string        `json:"hwaddr"`
-	Name      *string       `json:"name,omitempty"`
+	Name      string        `json:"name,omitempty"`
 	Config    NetworkConfig `json:"config"`
 }
 
@@ -133,6 +134,28 @@ func (c *ContainerCreateArguments) Validate() error {
 		case "zerotier":
 		default:
 			return fmt.Errorf("unsupported network type '%s'", nic.Type)
+		}
+	}
+
+	nameset := make(map[string]byte)
+	for _, nic := range c.Nics {
+		if nic.Name != "" {
+			if _, ok := nameset[nic.Name]; ok {
+				return fmt.Errorf("name '%v' is passed twice in the container", nic.Name)
+			} else {
+				nameset[nic.Name] = 1
+			}
+			if len(nic.Name) > 15 { //linux limit on interface name
+				return fmt.Errorf("invalid name '%s' too long", nic.Name)
+			}
+			if nic.Name == "default" { //probably we need to expand this list with more reserved names
+				//`default` is not allowed by linux for some reason.
+				return fmt.Errorf("invalid name `%s`", nic.Name)
+			}
+			//avoid conflict with eth or zt
+			if strings.HasPrefix(nic.Name, "eth") || strings.HasPrefix(nic.Name, "zt") {
+				return fmt.Errorf("name '%v' cannot be used as it is started with eth or zt", nic.Name)
+			}
 		}
 	}
 

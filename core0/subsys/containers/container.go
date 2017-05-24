@@ -105,11 +105,6 @@ func (c *container) Start() (err error) {
 		}
 	}()
 
-	if err = c.ValidateNics(); err != nil {
-		log.Errorf("nics parameters invalid: %v", err)
-		return
-	}
-
 	if err = c.sandbox(); err != nil {
 		log.Errorf("error in container mount: %s", err)
 		return
