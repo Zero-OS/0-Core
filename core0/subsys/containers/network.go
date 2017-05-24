@@ -1,22 +1,20 @@
 package containers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net"
-	"os"
-	"path"
-	"strconv"
-	"strings"
-	"syscall"
-
-	"context"
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
 	"github.com/pborman/uuid"
 	"github.com/vishvananda/netlink"
+	"io/ioutil"
+	"net"
+	"os"
+	"path"
+	"strconv"
+	"syscall"
 	"time"
 )
 
@@ -31,25 +29,6 @@ func (c *container) preStartHostNetworking() error {
 	os.Remove(p)
 	ioutil.WriteFile(p, []byte{}, 0644) //touch the file.
 	return syscall.Mount("/etc/resolv.conf", p, "", syscall.MS_BIND, "")
-}
-
-func (c *container) ValidateNics() error {
-	var name string
-	set := make(map[string]byte)
-	for _, nic := range c.Args.Nics {
-		if nic.Name != nil {
-			name = *nic.Name
-			if _, ok := set[name]; ok {
-				return fmt.Errorf("Name %v is passed twice in the container", name)
-			} else {
-				set[name] = '1'
-			}
-			if strings.HasPrefix(name, "eth") {
-				return fmt.Errorf("Name %v cannot be used as it is started with eth", name)
-			}
-		}
-	}
-	return nil
 }
 
 func (c *container) zerotierHome() string {
@@ -125,7 +104,7 @@ type ztNetorkInfo struct {
 	NetID             string   `json:"nwid"`
 }
 
-func (c *container) postZerotierNetwork(name string, idx int, netID string) error {
+func (c *container) postZerotierNetwork(idx int, netID string) error {
 	if err := c.zerotierDaemon(); err != nil {
 		return err
 	}
@@ -503,18 +482,18 @@ func (c *container) postStartIsolatedNetworking() error {
 	for idx, network := range c.Args.Nics {
 		var err error
 		var name string
-		if network.Name != nil {
-			name = *network.Name
-		} else {
-			name = fmt.Sprintf("eth%d", idx)
+		name = fmt.Sprintf("eth%d", idx)
+		if network.Name != "" {
+			name = network.Name
 		}
+
 		switch network.Type {
 		case "vxlan":
 			err = c.postVxlanNetwork(name, idx, &network)
 		case "vlan":
 			err = c.postVlanNetwork(name, idx, &network)
 		case "zerotier":
-			err = c.postZerotierNetwork(name, idx, network.ID)
+			err = c.postZerotierNetwork(idx, network.ID)
 		case "default":
 			err = c.postDefaultNetwork(name, idx, &network)
 		case "bridge":
