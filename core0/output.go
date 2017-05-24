@@ -56,7 +56,7 @@ func HandleRotation() {
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGUSR1)
 	go func() {
-		for _ = range ch {
+		for range ch {
 			if err := Rotate(LogPath); err != nil {
 				log.Errorf("failed to rotate logs")
 			}
