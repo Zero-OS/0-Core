@@ -1,11 +1,13 @@
 [startup.libvirt]
 name = "core.system"
+protected = true
 
 [startup.libvirt.args]
 name = "libvirtd"
 
 [startup.virtlogd]
 name = "core.system"
+protected = true
 
 [startup.virtlogd.args]
 name = "virtlogd"

@@ -55,6 +55,7 @@ type Nic struct {
 	Type      string        `json:"type"`
 	ID        string        `json:"id"`
 	HWAddress string        `json:"hwaddr"`
+	Name      *string       `json:"name,omitempty"`
 	Config    NetworkConfig `json:"config"`
 }
 
