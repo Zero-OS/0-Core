@@ -14,6 +14,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strings"
 	"sync"
 	"syscall"
 )
@@ -33,6 +34,7 @@ func init() {
 
 var (
 	ruleHandlerP = regexp.MustCompile(`(?m:ip saddr ([\d\./]+) masquerade # handle (\d+))`)
+	HandlerP     = regexp.MustCompile(`handle (\d+)$`)
 )
 
 const (
@@ -461,11 +463,67 @@ func (b *bridgeMgr) create(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
+	if err := b.isolate(args.Name); err != nil {
+		return nil, err
+	}
+
 	if err = b.bridgeNetworking(bridge, &args.Network); err != nil {
 		return nil, err
 	}
 
 	return nil, nil
+}
+
+func (b *bridgeMgr) isolate(br string) error {
+	//make sure all packages coming from this interface is marked with (1)
+	if _, err := pm.GetManager().System("nft",
+		"add", "rule", "nat", "pre", "iifname", br, "meta", "mark", "set", "1"); err != nil {
+		return err
+	}
+
+	//any packages that is coming and exiting on the same bridge should be marked as 2
+	if _, err := pm.GetManager().System("nft",
+		"add", "rule", "filter", "forward", "iifname", br, "oifname", br, "meta", "mark", "set", "2"); err != nil {
+		return err
+	}
+
+	//drop any package that is forwarded to this bridge and still marked as 1
+	if _, err := pm.GetManager().System("nft",
+		"add", "rule", "filter", "forward", "oifname", br, "meta", "mark", "1", "drop"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (b *bridgeMgr) unIsolate(br string) {
+	job, err := pm.GetManager().System("nft", "list", "ruleset", "-a")
+	if err != nil {
+		log.Errorf("failed to list nft rules: %s", err)
+		return
+	}
+
+	var table, chain string
+	for _, line := range strings.Split(job.Streams.Stdout(), "\n") {
+		line = strings.TrimSpace(line)
+		fmt.Sscanf(line, "table ip %s {", &table)
+		fmt.Sscanf(line, "chain %s {", &chain)
+
+		if strings.Index(line, fmt.Sprintf(`"%s"`, br)) == -1 {
+			continue
+		}
+
+		//get handler.
+		m := HandlerP.FindStringSubmatch(line)
+		if len(m) != 2 {
+			continue
+		}
+		_, err := pm.GetManager().System("nft", "delete", "rule", table, chain, "handle", m[1])
+		if err != nil {
+			log.Errorf("failed to remove nft rule '%s/%s/%s'", table, chain, m[1])
+		}
+	}
+
 }
 
 func (b *bridgeMgr) list(cmd *core.Command) (interface{}, error) {
@@ -509,6 +567,8 @@ func (b *bridgeMgr) delete(cmd *core.Command) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	b.unIsolate(args.Name)
 
 	if err := b.unsetNAT(addresses); err != nil {
 		return nil, err
