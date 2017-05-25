@@ -35,15 +35,9 @@ func init() {
 	formatter := logging.MustStringFormatter("%{time}: %{color}%{module} %{level:.1s} > %{message} %{color:reset}")
 	logging.SetFormatter(formatter)
 
-	ch := make(chan os.Signal)
-	signal.Notify(ch, syscall.SIGABRT, syscall.SIGHUP, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGQUIT)
 	//we don't use signal.Ignore because there is a very weird bug that the Ignore is actually inherited by children
 	//even after execve which makes all child process not exit when u send them a sigterm or sighup
-	go func() {
-		for range ch {
-			//ignore.
-		}
-	}()
+	signal.Notify(make(chan os.Signal), syscall.SIGABRT, syscall.SIGHUP, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGQUIT)
 }
 
 func main() {
