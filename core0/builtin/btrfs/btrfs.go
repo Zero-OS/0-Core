@@ -194,7 +194,7 @@ func (m *btrfsManager) list(cmd *core.Command, args []string) ([]btrfsFS, error)
 		return nil, err
 	}
 
-	fss, err := m.parseList(result.Streams[0])
+	fss, err := m.parseList(result.Streams.Stdout())
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +229,7 @@ func (m *btrfsManager) Info(cmd *core.Command) (interface{}, error) {
 	fsinfo := btrfsFSInfo{
 		btrfsFS: fss[0],
 	}
-	err = m.parseFilesystemDF(result.Streams[0], &fsinfo)
+	err = m.parseFilesystemDF(result.Streams.Stdout(), &fsinfo)
 	return fsinfo, err
 
 }
@@ -343,7 +343,7 @@ func (m *btrfsManager) SubvolList(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	return m.parseSubvolList(result.Streams[0])
+	return m.parseSubvolList(result.Streams.Stdout())
 }
 
 func (m *btrfsManager) btrfs(args ...string) (*core.JobResult, error) {

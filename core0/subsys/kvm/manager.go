@@ -492,7 +492,7 @@ func getDiskType(path string) string {
 		return "raw"
 	}
 	var params QemuImgInfoResult
-	if err := json.Unmarshal([]byte(result.Streams[0]), &params); err != nil {
+	if err := json.Unmarshal([]byte(result.Streams.Stdout()), &params); err != nil {
 		return "raw"
 	}
 	return params.Format

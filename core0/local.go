@@ -76,27 +76,27 @@ func (l *Local) server(con net.Conn) {
 	var lcmd LocalCmd
 
 	if err := decoder.Decode(&lcmd); err != nil {
-		job.Streams = []string{"", fmt.Sprintf("Failed to decode message: %s", err)}
+		job.Streams = core.Streams{"", fmt.Sprintf("Failed to decode message: %s", err)}
 		return
 	}
 
 	cmd, err := core.LoadCmd(lcmd.Content)
 	if err != nil {
-		job.Streams = []string{"", fmt.Sprintf("Failed to extract command: %s", err)}
+		job.Streams = core.Streams{"", fmt.Sprintf("Failed to extract command: %s", err)}
 		return
 	}
 
 	container := l.container(lcmd.Container)
 
 	if lcmd.Container != "" && container == nil {
-		job.Streams = []string{"", fmt.Sprintf("couldn't match any containers with '%s'", lcmd.Container)}
+		job.Streams = core.Streams{"", fmt.Sprintf("couldn't match any containers with '%s'", lcmd.Container)}
 		return
 	}
 
 	if container == nil {
 		runner, err := pm.GetManager().RunCmd(cmd)
 		if err != nil {
-			job.Streams = []string{"", fmt.Sprintf("Failed to get job runner for command(%s): %s", cmd.Command, err)}
+			job.Streams = core.Streams{"", fmt.Sprintf("Failed to get job runner for command(%s): %s", cmd.Command, err)}
 			return
 		}
 
@@ -108,7 +108,7 @@ func (l *Local) server(con net.Conn) {
 	} else {
 		contjob, err := l.mgr.Dispatch(container.ID(), cmd)
 		if err != nil {
-			job.Streams = []string{"", fmt.Sprintf("Failed to dispatch command (%s): %s", cmd.Command, err)}
+			job.Streams = core.Streams{"", fmt.Sprintf("Failed to dispatch command (%s): %s", cmd.Command, err)}
 			return
 		}
 		job = contjob

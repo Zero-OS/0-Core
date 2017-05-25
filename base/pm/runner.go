@@ -225,7 +225,7 @@ loop:
 		jobresult.Data = result.Message
 	}
 
-	jobresult.Streams = []string{
+	jobresult.Streams = core.Streams{
 		stdoutBuffer.String(),
 		stderrBuffer.String(),
 	}

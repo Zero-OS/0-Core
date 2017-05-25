@@ -15,19 +15,35 @@ const (
 	StateDuplicateID = "DUPILICATE_ID"
 )
 
+type Streams []string
+
+func (s Streams) Stdout() string {
+	if len(s) >= 1 {
+		return s[0]
+	}
+	return ""
+}
+
+func (s Streams) Stderr() string {
+	if len(s) >= 2 {
+		return s[1]
+	}
+	return ""
+}
+
 //JobResult represents a result of a job
 type JobResult struct {
-	ID        string   `json:"id"`
-	Command   string   `json:"command"`
-	Data      string   `json:"data"`
-	Streams   []string `json:"streams,omitempty"`
-	Critical  string   `json:"critical,omitempty"`
-	Level     int      `json:"level"`
-	State     string   `json:"state"`
-	StartTime int64    `json:"starttime"`
-	Time      int64    `json:"time"`
-	Tags      string   `json:"tags"`
-	Container uint64   `json:"container"`
+	ID        string  `json:"id"`
+	Command   string  `json:"command"`
+	Data      string  `json:"data"`
+	Streams   Streams `json:"streams,omitempty"`
+	Critical  string  `json:"critical,omitempty"`
+	Level     int     `json:"level"`
+	State     string  `json:"state"`
+	StartTime int64   `json:"starttime"`
+	Time      int64   `json:"time"`
+	Tags      string  `json:"tags"`
+	Container uint64  `json:"container"`
 }
 
 //NewBasicJobResult creates a new job result from command

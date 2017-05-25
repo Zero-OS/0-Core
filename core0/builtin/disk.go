@@ -123,15 +123,10 @@ func (d *diskMgr) lsblk(dev string) (*lsblkResult, error) {
 		return nil, err
 	}
 
-	stdout := ""
-	if len(result.Streams) > 1 {
-		stdout = result.Streams[0]
-	}
-
 	cmdOutput := struct {
 		BlockDevices []lsblkResult `json:"blockdevices"`
 	}{}
-	if err := json.Unmarshal([]byte(stdout), &cmdOutput); err != nil {
+	if err := json.Unmarshal([]byte(result.Streams.Stdout()), &cmdOutput); err != nil {
 		return nil, err
 	}
 
@@ -155,19 +150,13 @@ func (d *diskMgr) getTableInfo(disk string) (string, []DiskFreeBlock, error) {
 		return "", blocks, err
 	}
 
-	stdout := ""
-
-	if len(result.Streams) > 1 {
-		stdout = result.Streams[0]
-	}
-
 	table := ""
-	tableMatch := partTableRegex.FindStringSubmatch(stdout)
+	tableMatch := partTableRegex.FindStringSubmatch(result.Streams.Stdout())
 	if len(tableMatch) == 2 {
 		table = tableMatch[1]
 	}
 
-	matches := freeSpaceRegex.FindAllStringSubmatch(stdout, -1)
+	matches := freeSpaceRegex.FindAllStringSubmatch(result.Streams.Stdout(), -1)
 	for _, match := range matches {
 		bstart, _ := strconv.ParseUint(match[1], 10, 64)
 		bend, _ := strconv.ParseUint(match[2], 10, 64)
@@ -270,13 +259,8 @@ func (d *diskMgr) list(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	stdout := ""
-
-	if len(result.Streams) > 1 {
-		stdout = result.Streams[0]
-	}
 	var disks lsblkListResult
-	if err := json.Unmarshal([]byte(stdout), &disks); err != nil {
+	if err := json.Unmarshal([]byte(result.Streams.Stdout()), &disks); err != nil {
 		return nil, err
 	}
 	ret := []lsblkResult{}

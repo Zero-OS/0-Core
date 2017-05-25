@@ -401,7 +401,7 @@ func (b *bridgeMgr) unsetNAT(addr []netlink.Addr) error {
 		ips = append(ips, n.String())
 	}
 
-	for _, line := range ruleHandlerP.FindAllStringSubmatch(job.Streams[0], -1) {
+	for _, line := range ruleHandlerP.FindAllStringSubmatch(job.Streams.Stdout(), -1) {
 		ip := line[1]
 		handle := line[2]
 		if utils.InString(ips, ip) {
@@ -409,10 +409,6 @@ func (b *bridgeMgr) unsetNAT(addr []netlink.Addr) error {
 		}
 	}
 
-	return nil
-}
-
-func (b *bridgeMgr) isolate(br string) error {
 	return nil
 }
 
