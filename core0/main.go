@@ -35,7 +35,7 @@ func init() {
 	formatter := logging.MustStringFormatter("%{time}: %{color}%{module} %{level:.1s} > %{message} %{color:reset}")
 	logging.SetFormatter(formatter)
 
-	//we don't use signal.Ignore because there is a very weird bug that the Ignore is actually inherited by children
+	//we don't use signal.Ignore because the Ignore is actually inherited by children
 	//even after execve which makes all child process not exit when u send them a sigterm or sighup
 	signal.Notify(make(chan os.Signal), syscall.SIGABRT, syscall.SIGHUP, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGQUIT)
 }
