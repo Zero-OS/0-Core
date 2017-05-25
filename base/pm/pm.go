@@ -525,7 +525,7 @@ func (pm *PM) System(bin string, args ...string) (*core.JobResult, error) {
 
 	job := runner.Wait()
 	if job.State != core.StateSuccess {
-		return nil, fmt.Errorf("exited with error (%s): %v", job.State, job.Streams)
+		return job, fmt.Errorf("exited with error (%s): %v", job.State, job.Streams)
 	}
 
 	return job, nil
