@@ -48,7 +48,7 @@ func (c *container) zerotierDaemon() error {
 				log.Info("checking for zt availability")
 				var err error
 				for i := 0; i < 10; i++ {
-					_, err = c.sync("ip", "netns", "exec", fmt.Sprint(c.ID()), "zerotier-cli", fmt.Sprintf("-D%s", home), "listnetworks")
+					_, err = pm.GetManager().System("ip", "netns", "exec", fmt.Sprint(c.ID()), "zerotier-cli", fmt.Sprintf("-D%s", home), "listnetworks")
 					if err == nil {
 						break
 					}
@@ -110,7 +110,7 @@ func (c *container) postZerotierNetwork(idx int, netID string) error {
 	}
 
 	home := c.zerotierHome()
-	_, err := c.sync("ip", "netns", "exec", fmt.Sprint(c.ID()), "zerotier-cli", fmt.Sprintf("-D%s", home), "join", netID)
+	_, err := pm.GetManager().System("ip", "netns", "exec", fmt.Sprint(c.ID()), "zerotier-cli", fmt.Sprintf("-D%s", home), "join", netID)
 	return err
 }
 
@@ -138,7 +138,7 @@ func (c *container) postBridge(dev string, index int, n *Nic) error {
 	//	return fmt.Errorf("set link name: %s", err)
 	//}
 
-	_, err = c.sync("ip", "netns", "exec", fmt.Sprintf("%v", c.id), "ip", "link", "set", peerName, "name", dev)
+	_, err = pm.GetManager().System("ip", "netns", "exec", fmt.Sprintf("%v", c.id), "ip", "link", "set", peerName, "name", dev)
 	if err != nil {
 		return fmt.Errorf("failed to rename device: %s", err)
 	}
@@ -170,7 +170,7 @@ func (c *container) postBridge(dev string, index int, n *Nic) error {
 		}
 
 		//putting the interface up
-		_, err := c.sync("ip", "netns",
+		_, err := pm.GetManager().System("ip", "netns",
 			"exec",
 			fmt.Sprintf("%v", c.id),
 			"ip", "link", "set", "dev", dev, "up")
@@ -180,7 +180,7 @@ func (c *container) postBridge(dev string, index int, n *Nic) error {
 		}
 
 		//setting the ip address
-		_, err = c.sync("ip", "netns", "exec", fmt.Sprintf("%v", c.id), "ip", "address", "add", n.Config.CIDR, "dev", dev)
+		_, err = pm.GetManager().System("ip", "netns", "exec", fmt.Sprintf("%v", c.id), "ip", "address", "add", n.Config.CIDR, "dev", dev)
 		if err != nil {
 			return fmt.Errorf("error settings interface ip: %v", err)
 		}
@@ -336,7 +336,7 @@ func (c *container) setPortForwards() error {
 
 func (c *container) setGateway(dev string, gw string) error {
 	////setting the ip address
-	_, err := c.sync("ip", "netns", "exec", fmt.Sprintf("%v", c.id),
+	_, err := pm.GetManager().System("ip", "netns", "exec", fmt.Sprintf("%v", c.id),
 		"ip", "route", "add", "metric", "1000", "default", "via", gw, "dev", dev)
 
 	if err != nil {

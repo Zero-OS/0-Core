@@ -324,8 +324,8 @@ func (c *container) sandbox() error {
 
 	if fstype == "btrfs" {
 		//make sure we delete it if sub volume exists
-		c.sync("btrfs", "subvolume", "delete", path.Join(BackendBaseDir, c.name()))
-		c.sync("btrfs", "subvolume", "create", path.Join(BackendBaseDir, c.name()))
+		pm.GetManager().System("btrfs", "subvolume", "delete", path.Join(BackendBaseDir, c.name()))
+		pm.GetManager().System("btrfs", "subvolume", "create", path.Join(BackendBaseDir, c.name()))
 	}
 
 	root := c.root()

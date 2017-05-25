@@ -381,53 +381,19 @@ func (b *bridgeMgr) bridgeNetworking(bridge *netlink.Bridge, network *BridgeNetw
 
 func (b *bridgeMgr) setNAT(addr *netlink.Addr) error {
 	//enable nat-ting
-	nat := &core.Command{
-		ID:      uuid.New(),
-		Command: process.CommandSystem,
-		Arguments: core.MustArguments(
-			process.SystemCommandArguments{
-				Name: "nft",
-				Args: []string{"add", "rule", "nat", "post", "ip",
-					"saddr", addr.IPNet.String(), "masquerade"},
-			},
-		),
-	}
+	_, err := pm.GetManager().System("nft", "add", "rule", "nat", "post", "ip",
+		"saddr", addr.IPNet.String(), "masquerade")
 
-	runner, err := pm.GetManager().RunCmd(nat)
-	if err != nil {
-		return err
-	}
-
-	job := runner.Wait()
-	if job.State != core.StateSuccess {
-		return fmt.Errorf("%v", job.Streams)
-	}
-
-	return nil
+	return err
 }
 
 func (b *bridgeMgr) unsetNAT(addr []netlink.Addr) error {
 	//enable nat-ting
-	nat := &core.Command{
-		ID:      uuid.New(),
-		Command: process.CommandSystem,
-		Arguments: core.MustArguments(
-			process.SystemCommandArguments{
-				Name: "nft",
-				Args: []string{"list", "ruleset", "-a"},
-			},
-		),
-	}
-
-	runner, err := pm.GetManager().RunCmd(nat)
+	job, err := pm.GetManager().System("nft", "list", "ruleset", "-a")
 	if err != nil {
 		return err
 	}
 
-	job := runner.Wait()
-	if job.State != core.StateSuccess {
-		return fmt.Errorf("%v", job.Streams)
-	}
 	var ips []string
 	for _, ip := range addr {
 		//this trick to get the corred network ID from netlink addresses
@@ -439,19 +405,14 @@ func (b *bridgeMgr) unsetNAT(addr []netlink.Addr) error {
 		ip := line[1]
 		handle := line[2]
 		if utils.InString(ips, ip) {
-			pm.GetManager().RunCmd(&core.Command{
-				ID:      uuid.New(),
-				Command: process.CommandSystem,
-				Arguments: core.MustArguments(
-					process.SystemCommandArguments{
-						Name: "nft",
-						Args: []string{"delete", "rule", "nat", "post", "handle", handle},
-					},
-				),
-			})
+			pm.GetManager().System("nft", "delete", "rule", "nat", "post", "handle", handle)
 		}
 	}
 
+	return nil
+}
+
+func (b *bridgeMgr) isolate(br string) error {
 	return nil
 }
 

@@ -17,6 +17,7 @@ import (
 	"github.com/g8os/core0/base/settings"
 	"github.com/g8os/core0/base/utils"
 	"github.com/op/go-logging"
+	"github.com/pborman/uuid"
 	psutil "github.com/shirou/gopsutil/process"
 )
 
@@ -503,4 +504,29 @@ func (pm *PM) resultCallback(cmd *core.Command, result *core.JobResult) {
 	for _, handler := range pm.routeResultHandlers[cmd.Route] {
 		handler(cmd, result)
 	}
+}
+
+//System is a wrapper around core.system
+func (pm *PM) System(bin string, args ...string) (*core.JobResult, error) {
+	runner, err := pm.RunCmd(&core.Command{
+		ID:      uuid.New(),
+		Command: process.CommandSystem,
+		Arguments: core.MustArguments(
+			process.SystemCommandArguments{
+				Name: bin,
+				Args: args,
+			},
+		),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	job := runner.Wait()
+	if job.State != core.StateSuccess {
+		return nil, fmt.Errorf("exited with error (%s): %v", job.State, job.Streams)
+	}
+
+	return job, nil
 }

@@ -3,15 +3,12 @@ package btrfs
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
-	"strconv"
-	"strings"
-
-	"github.com/pborman/uuid"
-
 	"github.com/g8os/core0/base/pm"
 	"github.com/g8os/core0/base/pm/core"
 	"github.com/g8os/core0/base/pm/process"
+	"regexp"
+	"strconv"
+	"strings"
 )
 
 var (
@@ -147,7 +144,7 @@ func (m *btrfsManager) Create(cmd *core.Command) (interface{}, error) {
 	}
 	opts = append(opts, args.Devices...)
 
-	_, err := m.exec("mkfs.btrfs", opts...)
+	_, err := pm.GetManager().System("mkfs.btrfs", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -349,34 +346,8 @@ func (m *btrfsManager) SubvolList(cmd *core.Command) (interface{}, error) {
 	return m.parseSubvolList(result.Streams[0])
 }
 
-func (m *btrfsManager) exec(cmd string, args ...string) (*core.JobResult, error) {
-	shellCmd := &core.Command{
-		ID:      uuid.New(),
-		Command: process.CommandSystem,
-		Arguments: core.MustArguments(
-			process.SystemCommandArguments{
-				Name: cmd,
-				Args: args,
-			},
-		),
-	}
-
-	runner, err := pm.GetManager().RunCmd(shellCmd)
-	if err != nil {
-		return nil, err
-	}
-
-	result := runner.Wait()
-
-	if result.State != core.StateSuccess {
-		return nil, fmt.Errorf("output: %v (%v)", result.Streams, result.Data)
-	}
-
-	return result, nil
-}
-
 func (m *btrfsManager) btrfs(args ...string) (*core.JobResult, error) {
-	return m.exec("btrfs", args...)
+	return pm.GetManager().System("btrfs", args...)
 }
 
 func (m *btrfsManager) parseSubvolList(out string) ([]btrfsSubvol, error) {
