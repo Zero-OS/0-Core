@@ -24,6 +24,8 @@ import (
 	_ "github.com/g8os/core0/core0/builtin/btrfs"
 	"github.com/g8os/core0/core0/transport"
 	"os/signal"
+	"path"
+	"strings"
 	"syscall"
 )
 
@@ -35,17 +37,40 @@ func init() {
 	formatter := logging.MustStringFormatter("%{time}: %{color}%{module} %{level:.1s} > %{message} %{color:reset}")
 	logging.SetFormatter(formatter)
 
+	normal := logging.NewLogBackend(os.Stderr, "", 0)
+
+	backends := []logging.Backend{normal}
+
+	if !options.Options.Kernel.Is("quiet") {
+		opts, ok := options.Options.Kernel.Get("console")
+		console := "tty1"
+		if ok {
+			console = strings.SplitN(opts[0], ",", 2)[0]
+		}
+		out, err := os.OpenFile(path.Join("/dev", console), syscall.O_WRONLY|syscall.O_NOCTTY, 0644)
+		if err != nil {
+			fmt.Println("failed to redirect logs to console")
+		}
+
+		backends = append(backends,
+			logging.NewLogBackend(out, "", 0),
+		)
+	}
+
+	logging.SetBackend(backends...)
+	level := logging.INFO
+	if options.Options.Kernel.Is("debug") {
+		level = logging.DEBUG
+	}
+
+	logging.SetLevel(level, "")
+
 	//we don't use signal.Ignore because the Ignore is actually inherited by children
 	//even after execve which makes all child process not exit when u send them a sigterm or sighup
 	signal.Notify(make(chan os.Signal), syscall.SIGABRT, syscall.SIGHUP, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGQUIT)
 }
 
-func main() {
-	var options = options.Options
-	fmt.Println(core.Version())
-	if options.Version() {
-		os.Exit(0)
-	}
+func Splash() {
 
 	if err := screen.New(2); err != nil {
 		log.Critical(err)
@@ -64,6 +89,16 @@ func main() {
 	})
 	screen.Push(&screen.TextSection{})
 	screen.Refresh()
+}
+
+func main() {
+	var options = options.Options
+	fmt.Println(core.Version())
+	if options.Version() {
+		os.Exit(0)
+	}
+
+	Splash()
 
 	if err := settings.LoadSettings(options.Config()); err != nil {
 		log.Fatal(err)
@@ -77,6 +112,8 @@ func main() {
 		log.Fatalf("\nConfig validation error, please fix and try again.")
 	}
 
+	//Redirect the stdout, and stderr so we make sure we don't lose crashes that terminates
+	//the process.
 	if err := Redirect(LogPath); err != nil {
 		log.Errorf("failed to redirect output streams: %s", err)
 	}
@@ -84,20 +121,6 @@ func main() {
 	HandleRotation()
 
 	var config = settings.Settings
-
-	var loglevel string
-	if options.Kernel.Is("verbose") {
-		loglevel = "DEBUG"
-	} else {
-		loglevel = config.Main.LogLevel
-	}
-
-	level, err := logging.LogLevel(loglevel)
-	if err != nil {
-		log.Fatal("invalid log level: %s", loglevel)
-	}
-
-	logging.SetLevel(level, "")
 
 	pm.InitProcessManager(config.Main.MaxJobs)
 

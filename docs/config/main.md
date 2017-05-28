@@ -22,12 +22,10 @@ In the [g8os/initramfs](https://github.com/g8os/initramfs) repository that you'l
 max_jobs = 200
 include = "/config/root"
 network = "/config/g8os/network.toml"
-log_level = "debug"
 ```
 
 - **max_jobs**: Max parallel jobs the core can execute concurrently (as its own direct children), once this limit is reached core0 will not pull for any new jobs from its dedicated Redis queue until it has at least one free job slot to fill
 - **include**: Path to the directory with TOML files to include, this directory can have configurations for startup services and extensions, when core0 boots it will try to load all `.toml` files from the given locations, each of these TOML file can define one or more extensions to the core0 commands, and/or start up services
-- **log_level** sets the logging level of core0 logs (what prints on console)
 - **network**: Path to the network configuration file, discussed in [Network Configuration](network.md)
 
 
