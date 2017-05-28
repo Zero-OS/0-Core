@@ -61,7 +61,7 @@ type AppSettings struct {
 		MaxJobs  int      `json:"max_jobs"`
 		Include  []string `json:"include"`
 		Network  string   `json:"network"`
-		LogLevel string   `json:"log_level"` //deprecated (not user)
+		LogLevel string   `json:"log_level"` //deprecated (not used)
 	} `json:"main"`
 
 	Globals   Globals              `json:"globals"`
