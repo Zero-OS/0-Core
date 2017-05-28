@@ -708,7 +708,7 @@ class ContainerManager:
                         'type': nic_type # default, bridge, zerotier, vlan, or vxlan (note, vlan and vxlan only supported by ovs)
                         'id': id # depends on the type, bridge name, zerotier network id, the vlan tag or the vxlan id
                         'name': name of the nic inside the container (ignored in zerotier type)
-                        'config': { # config is only honored for vlan, and vxlan types
+                        'config': { # config is only honored for bridge, vlan, and vxlan types
                             'dhcp': bool,
                             'cidr': static_ip # ip/mask
                             'gateway': gateway
