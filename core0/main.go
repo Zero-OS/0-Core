@@ -42,19 +42,20 @@ func init() {
 	backends := []logging.Backend{normal}
 
 	if !options.Options.Kernel.Is("quiet") {
-		opts, ok := options.Options.Kernel.Get("console")
-		console := "tty1"
-		if ok {
-			console = strings.SplitN(opts[0], ",", 2)[0]
-		}
-		out, err := os.OpenFile(path.Join("/dev", console), syscall.O_WRONLY|syscall.O_NOCTTY, 0644)
-		if err != nil {
-			fmt.Println("failed to redirect logs to console")
-		}
+		opts, _ := options.Options.Kernel.Get("console")
+		for _, opt := range opts {
+			console := strings.SplitN(opt, ",", 2)[0]
 
-		backends = append(backends,
-			logging.NewLogBackend(out, "", 0),
-		)
+			out, err := os.OpenFile(path.Join("/dev", console), syscall.O_WRONLY|syscall.O_NOCTTY, 0644)
+			if err != nil {
+				fmt.Println("failed to redirect logs to console")
+				continue
+			}
+
+			backends = append(backends,
+				logging.NewLogBackend(out, "", 0),
+			)
+		}
 	}
 
 	logging.SetBackend(backends...)
