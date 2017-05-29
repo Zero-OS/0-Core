@@ -4,7 +4,7 @@ VERSION = base/version.go
 branch = $(shell git rev-parse --abbrev-ref HEAD)
 revision = $(shell git rev-parse HEAD)
 dirty = $(shell test -n "`git diff --shortstat 2> /dev/null | tail -n1`" && echo "*")
-base = github.com/Zero-OS/0-Core/base
+base = github.com/zero-os/0-core/base
 ldflags0 = '-w -s -X $(base).Branch=$(branch) -X $(base).Revision=$(revision) -X $(base).Dirty=$(dirty)'
 ldflagsX = '-w -s -X $(base).Branch=$(branch) -X $(base).Revision=$(revision) -X $(base).Dirty=$(dirty) -extldflags "-static"'
 
