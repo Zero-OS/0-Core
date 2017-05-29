@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/g8os/core0",
+	"ImportPath": "github.com/zero-os/0-core",
 	"GoVersion": "go1.8",
 	"GodepVersion": "v79",
 	"Packages": [
@@ -330,6 +330,11 @@
 		{
 			"ImportPath": "golang.org/x/sys/unix",
 			"Rev": "f3918c30c5c2cb527c0b071a27c35120a6c0719a"
+		},
+		{
+			"ImportPath": "gopkg.in/bufio.v1",
+			"Comment": "v1",
+			"Rev": "567b2bfa514e796916c4747494d6ff5132a1dfce"
 		},
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
