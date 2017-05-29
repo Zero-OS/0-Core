@@ -152,6 +152,9 @@ class InfoManager:
     def os(self):
         return self._client.json('info.os', {})
 
+    def port(self):
+        return self._client.json('info.port', {})
+
 
 class JobManager:
     _job_chk = typchk.Checker({

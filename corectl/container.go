@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/codegangsta/cli"
-	"github.com/Zero-OS/0-Core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v2"
 	"os"

@@ -2,8 +2,8 @@ package transport
 
 import (
 	"fmt"
-	"github.com/Zero-OS/0-Core/base/pm"
-	"github.com/Zero-OS/0-Core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/siddontang/ledisdb/config"
 	"github.com/siddontang/ledisdb/ledis"
 	"github.com/siddontang/ledisdb/server"

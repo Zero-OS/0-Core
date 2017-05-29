@@ -2,11 +2,11 @@ package bootstrap
 
 import (
 	"fmt"
-	"github.com/Zero-OS/0-Core/base/pm"
-	"github.com/Zero-OS/0-Core/base/settings"
-	"github.com/Zero-OS/0-Core/base/utils"
-	"github.com/Zero-OS/0-Core/core0/bootstrap/network"
-	"github.com/Zero-OS/0-Core/core0/screen"
+	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/settings"
+	"github.com/zero-os/0-core/base/utils"
+	"github.com/zero-os/0-core/core0/bootstrap/network"
+	"github.com/zero-os/0-core/core0/screen"
 	"github.com/op/go-logging"
 	"github.com/vishvananda/netlink"
 	"net/http"

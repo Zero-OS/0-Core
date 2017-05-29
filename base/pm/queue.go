@@ -2,7 +2,7 @@ package pm
 
 import (
 	"container/list"
-	"github.com/Zero-OS/0-Core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm/core"
 	"sync"
 )
 

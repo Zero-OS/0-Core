@@ -12,12 +12,12 @@ import (
 
 	"sync"
 
-	"github.com/Zero-OS/0-Core/base/pm"
-	"github.com/Zero-OS/0-Core/base/pm/core"
-	"github.com/Zero-OS/0-Core/base/pm/process"
-	"github.com/Zero-OS/0-Core/core0/screen"
-	"github.com/Zero-OS/0-Core/core0/subsys/containers"
-	"github.com/Zero-OS/0-Core/core0/transport"
+	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm/process"
+	"github.com/zero-os/0-core/core0/screen"
+	"github.com/zero-os/0-core/core0/subsys/containers"
+	"github.com/zero-os/0-core/core0/transport"
 	"github.com/libvirt/libvirt-go"
 	"github.com/pborman/uuid"
 )

@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/boltdb/bolt"
-	"github.com/Zero-OS/0-Core/base/pm"
-	"github.com/Zero-OS/0-Core/base/pm/core"
-	"github.com/Zero-OS/0-Core/base/pm/process"
-	"github.com/Zero-OS/0-Core/base/utils"
+	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm/process"
+	"github.com/zero-os/0-core/base/utils"
 )
 
 type logQuery struct {

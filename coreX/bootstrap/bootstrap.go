@@ -2,10 +2,10 @@ package bootstrap
 
 import (
 	"fmt"
-	"github.com/Zero-OS/0-Core/base/pm"
-	"github.com/Zero-OS/0-Core/base/settings"
-	"github.com/Zero-OS/0-Core/base/utils"
-	"github.com/Zero-OS/0-Core/coreX/options"
+	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/settings"
+	"github.com/zero-os/0-core/base/utils"
+	"github.com/zero-os/0-core/coreX/options"
 	"github.com/op/go-logging"
 	"github.com/shirou/gopsutil/process"
 	"github.com/vishvananda/netlink"

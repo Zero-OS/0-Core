@@ -1,7 +1,7 @@
 package settings
 
 import (
-	"github.com/Zero-OS/0-Core/base/utils"
+	"github.com/zero-os/0-core/base/utils"
 	"github.com/op/go-logging"
 )
 

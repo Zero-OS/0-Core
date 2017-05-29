@@ -2,7 +2,7 @@ package stream
 
 import (
 	"fmt"
-	"github.com/Zero-OS/0-Core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm/core"
 )
 
 const (

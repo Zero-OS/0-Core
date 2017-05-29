@@ -3,8 +3,8 @@ package pm
 //implement internal processes
 
 import (
-	"github.com/Zero-OS/0-Core/base/pm/core"
-	"github.com/Zero-OS/0-Core/base/pm/process"
+	"github.com/zero-os/0-core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm/process"
 )
 
 /*

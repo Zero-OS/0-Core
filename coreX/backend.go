@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/Zero-OS/0-Core/base/pm/core"
-	"github.com/Zero-OS/0-Core/base/pm/stream"
+	"github.com/zero-os/0-core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm/stream"
 	"os"
 	"sync"
 )

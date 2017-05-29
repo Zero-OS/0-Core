@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/codegangsta/cli"
-	"github.com/Zero-OS/0-Core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm/core"
 )
 
 func ping(t Transport, c *cli.Context) {

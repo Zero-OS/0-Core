@@ -1,11 +1,11 @@
 package logger
 
 import (
-	"github.com/Zero-OS/0-Core/base/logger"
-	"github.com/Zero-OS/0-Core/base/pm"
-	"github.com/Zero-OS/0-Core/base/pm/core"
-	"github.com/Zero-OS/0-Core/base/pm/stream"
-	"github.com/Zero-OS/0-Core/base/settings"
+	"github.com/zero-os/0-core/base/logger"
+	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm/stream"
+	"github.com/zero-os/0-core/base/settings"
 	"github.com/op/go-logging"
 	"github.com/siddontang/ledisdb/ledis"
 )

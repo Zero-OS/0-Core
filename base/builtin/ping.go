@@ -2,10 +2,10 @@ package builtin
 
 import (
 	"fmt"
-	base "github.com/Zero-OS/0-Core/base"
-	"github.com/Zero-OS/0-Core/base/pm"
-	"github.com/Zero-OS/0-Core/base/pm/core"
-	"github.com/Zero-OS/0-Core/base/pm/process"
+	base "github.com/zero-os/0-core/base"
+	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm/process"
 )
 
 const (

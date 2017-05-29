@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"github.com/codegangsta/cli"
-	"github.com/Zero-OS/0-Core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/pborman/uuid"
 	"net"
 	"sync"

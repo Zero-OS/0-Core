@@ -2,7 +2,7 @@ package settings
 
 import (
 	"fmt"
-	"github.com/Zero-OS/0-Core/base/utils"
+	"github.com/zero-os/0-core/base/utils"
 	"io/ioutil"
 	"path"
 	"sync"

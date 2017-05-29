@@ -4,19 +4,19 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Zero-OS/0-Core/base"
-	"github.com/Zero-OS/0-Core/base/pm"
-	pmcore "github.com/Zero-OS/0-Core/base/pm/core"
-	"github.com/Zero-OS/0-Core/coreX/bootstrap"
-	"github.com/Zero-OS/0-Core/coreX/options"
+	"github.com/zero-os/0-core/base"
+	"github.com/zero-os/0-core/base/pm"
+	pmcore "github.com/zero-os/0-core/base/pm/core"
+	"github.com/zero-os/0-core/coreX/bootstrap"
+	"github.com/zero-os/0-core/coreX/options"
 	"github.com/op/go-logging"
 
 	"os/signal"
 	"syscall"
 
 	"encoding/json"
-	_ "github.com/Zero-OS/0-Core/base/builtin"
-	_ "github.com/Zero-OS/0-Core/coreX/builtin"
+	_ "github.com/zero-os/0-core/base/builtin"
+	_ "github.com/zero-os/0-core/coreX/builtin"
 )
 
 var (
