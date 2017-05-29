@@ -8,7 +8,7 @@ import signal
 import socket
 import logging
 import time
-from g8core import typchk
+from . import typchk
 
 
 DefaultTimeout = 10  # seconds

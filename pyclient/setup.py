@@ -10,14 +10,15 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup (
-    name='g8core',
-    version='1.1.0-alpha-2',
-    description='G8OS cores client',
+    name='0-core-client',
+    version='1.1.0-alpha-3',
+    description='Zero-OS 0-core client',
     long_description=long_description,
-    url='https://github.com/g8os/core0',
+    url='https://github.com/zero-os/0-core',
     author='Muhamad Azmy',
     author_email='muhamada@greenitglobe.com',
     license='Apache 2.0',
+    namespaces=['zeroos'],
     packages=find_packages(),
     install_requires=['redis>=2.10.5'],
 )
