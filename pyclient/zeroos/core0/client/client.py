@@ -477,6 +477,8 @@ class BaseClient:
     def __init__(self, timeout=None):
         if timeout is None:
             self.timeout = DefaultTimeout
+        else:
+            self.timeout = timeout
         self._info = InfoManager(self)
         self._job = JobManager(self)
         self._process = ProcessManager(self)
