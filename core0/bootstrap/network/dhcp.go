@@ -23,7 +23,7 @@ func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
 		Arguments: core.MustArguments(
 			process.SystemCommandArguments{
 				Name: "udhcpc",
-				Args: []string{"-f", "-i", inf, "-s", "/usr/share/udhcp/simple.script"},
+				Args: []string{"-f", "-i", inf, "-A", "3", "-s", "/usr/share/udhcp/simple.script"},
 			},
 		),
 	}
