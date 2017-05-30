@@ -2,13 +2,13 @@ package bootstrap
 
 import (
 	"fmt"
+	"github.com/op/go-logging"
+	"github.com/vishvananda/netlink"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/settings"
 	"github.com/zero-os/0-core/base/utils"
 	"github.com/zero-os/0-core/core0/bootstrap/network"
 	"github.com/zero-os/0-core/core0/screen"
-	"github.com/op/go-logging"
-	"github.com/vishvananda/netlink"
 	"net/http"
 	"strings"
 	"syscall"
@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	InternetTestAddress = "https://bootstrap.gig.tech/"
+	InternetTestAddress = "http://bootstrap.gig.tech/"
 
-	screenStateLine = "->%15s: %s %s"
+	screenStateLine = "->%25s: %s %s"
 )
 
 var (
@@ -72,10 +72,8 @@ func (b *Bootstrap) startupServices(s, e settings.After) {
 }
 
 func (b *Bootstrap) canReachInternet() bool {
-	log.Debugf("Testing internet reachability to %s", InternetTestAddress)
 	resp, err := http.Get(InternetTestAddress)
 	if err != nil {
-		log.Warningf("HTTP: %v", err)
 		return false
 	}
 	resp.Body.Close()
@@ -121,40 +119,7 @@ func (b *Bootstrap) setupNetworking() error {
 		}
 	}
 
-	if ok := b.canReachInternet(); ok {
-		return nil
-	}
-
-	//force dhcp on all interfaces, and try again.
-	log.Infof("Trying dhcp on all interfaces one by one")
-	dhcp, _ := network.GetProtocol(network.ProtocolDHCP)
-	for _, inf := range interfaces {
-		//try interfaces one by one
-		if inf.Protocol() == network.NoneProtocol || inf.Protocol() == network.ProtocolDHCP || inf.Name() == "lo" {
-			//we don't use none interface, they only must be brought up
-			//also dhcp interface, we skip because we already tried dhcp method on them.
-			//lo device must stay in static.
-			continue
-		}
-
-		inf.Clear()
-		if err := dhcp.Configure(netMgr, inf.Name()); err != nil {
-			log.Errorf("Force dhcp %s", err)
-		}
-
-		if ok := b.canReachInternet(); ok {
-			return nil
-		}
-
-		//clear interface
-		inf.Clear()
-		//reset interface to original setup.
-		if err := inf.Configure(); err != nil {
-			log.Errorf("%s", err)
-		}
-	}
-
-	return fmt.Errorf("couldn't reach internet")
+	return nil
 }
 
 func (b *Bootstrap) screen() {
@@ -187,12 +152,12 @@ func (b *Bootstrap) screen() {
 		section.Sections = append(section.Sections, progress)
 		screen.Refresh()
 		progress.Stop(false)
-		progress.Text = fmt.Sprintf(screenStateLine, "Connectivity", "", "")
+		progress.Text = fmt.Sprintf(screenStateLine, "Internet Connectivity", "", "")
 
 		if b.canReachInternet() {
-			progress.Text = fmt.Sprintf(screenStateLine, "Connectivity", "OK", "")
+			progress.Text = fmt.Sprintf(screenStateLine, "Internet Connectivity", "OK", "")
 		} else {
-			progress.Text = fmt.Sprintf(screenStateLine, "Connectivity", "NOT OK", "")
+			progress.Text = fmt.Sprintf(screenStateLine, "Internet Connectivity", "NOT OK", "")
 		}
 
 		progress.Stop(true)
