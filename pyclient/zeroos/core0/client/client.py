@@ -1134,7 +1134,7 @@ class BtrfsManager:
         """
         Create a btrfs filesystem with the given label, devices, and profiles
         :param label: name/label
-        :param devices : array of devices (under /dev)
+        :param devices : array of devices (/dev/sda1, etc...)
         :metadata_profile: raid0, raid1, raid5, raid6, raid10, dup or single
         :data_profile: same as metadata profile
         :overwrite: force creation of the filesystem. Overwrite any existing filesystem

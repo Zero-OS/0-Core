@@ -38,4 +38,4 @@ legacy
 bin/
 core0/core0
 coreX/coreX
-pyclient/g8core.egg-info
+*.egg-info
