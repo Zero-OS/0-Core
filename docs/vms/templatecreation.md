@@ -2,7 +2,7 @@
 
 To host a master template we first need to setup an [ARDB server](https://github.com/yinqiwen/ardb).
 
-After we have our ARDB server running we need to have the [NBD server](https://github.com/g8os/blockstor/blob/master/nbdserver/readme.md).
+After we have our ARDB server running we need to have the [NBD server](https://github.com/zero-os/0-disk/blob/master/nbdserver/readme.md).
 
 From here one we just have to copy our standard qcow2/img/vdi template file into ARDB.
 

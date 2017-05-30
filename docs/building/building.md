@@ -1,6 +1,6 @@
-# Building your G8OS Boot Image
+# Building your Zero-OS Boot Image
 
-Building is done using the `initramfs.sh` script available from https://github.com/g8os/initramfs
+Building is done using the `initramfs.sh` script available from https://github.com/zero-os/0-initramfs
 
 Below we discuss:
 
@@ -36,10 +36,10 @@ Some parts need to chown/setuid/chmod files as root.
 <a id="docker"></a>
 ## Building using a Docker container
 
-First clone the [g8os/initramfs](https://github.com/g8os/initramfs) repository:
+First clone the [zero-os/0-initramfs](https://github.com/zero-os/0-initramfs) repository:
 
 ```
-git clone git@github.com:g8os/initramfs.git
+git clone git@github.com:zero-os/0-initramfs.git
 ```
 
 From the root of this repository, create a Docker container:
@@ -114,7 +114,7 @@ The `initramfs.sh` script accepts multiple options:
 
 The option `--kernel` is useful if you change something on the root directory and you want to rebuild the kernel (with the initramfs).
 
-If you are modifying core0/coreX, you can simply use the `--cores --kernel` options and first the cores will be rebuilt and then `initramfs`. This will produce a new G8OS boot image (kernel) with the latest changes.
+If you are modifying core0/coreX, you can simply use the `--cores --kernel` options and first the cores will be rebuilt and then `initramfs`. This will produce a new Zero-OS boot image (kernel) with the latest changes.
 
 
 <a id="custom"></a>
@@ -142,7 +142,7 @@ For all customization options see [Configuration](../config/config.md).
 <a id="whatnext"></a>
 ## I have the kernel, what can I do with it?
 
-Just boot it. The G8OS boot image (kernel) is EFI bootable.
+Just boot it. The Zero-OS boot image (kernel) is EFI bootable.
 
 If you have an EFI shell, just run the kernel like any EFI executable.
 
@@ -159,4 +159,4 @@ cp staging/vmlinuz.efi /mnt/EFI/BOOT/BOOTX64.EFI
 umount /mnt
 ```
 
-See [Booting G8OS](../booting/booting.md) for other options.
+See [Booting Zero-OS](../booting/booting.md) for other options.

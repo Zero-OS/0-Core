@@ -1,10 +1,10 @@
 # Booting from USB
 
-On a EFI enabled machine, it's really easy to boot the G8OS kernel. No bootloader needed.
+On a EFI enabled machine, it's really easy to boot the Zero-OS kernel. No boot loader needed.
 
-All you need is to copy the G8OS boot image (kernel) on the `FAT32` partition of the boot device, for instance a USB device.
+All you need is to copy the Zero-OS boot image (kernel) on the `FAT32` partition of the boot device, for instance a USB device.
 
-## Creating an USB device with the G8OS boot image on Linux
+## Creating an USB device with the Zero-OS boot image on Linux
 
 We assume that your USB device is `/dev/sdc`, you can make boot the kernel as following:
 

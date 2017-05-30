@@ -1,4 +1,4 @@
-# Interacting with G8OS
+# Interacting with Zero-OS
 
 * [Available Commands](commands.md)
 * [Python Client](python.md)

@@ -1,6 +1,6 @@
-# G8OS Bootstrap Service
+# Zero-OS Bootstrap Service
 
-The G8OS Bootstrap Service is available on [bootstrap.gig.tech](https://bootstrap.gig.tech).
+The Zero-OS Bootstrap Service is available on [bootstrap.gig.tech](https://bootstrap.gig.tech).
 
 The bootstrap service provides you with the following tools to quickly and easily get you started with **always-up-to-date** builds:
 
@@ -11,7 +11,7 @@ The bootstrap service provides you with the following tools to quickly and easil
 <a id="kernel-builds"></a>
 ## Kernel builds
 
-On the G8OS Bootstrap Service home page all available kernel builds (commits) are listed.
+On the Zero-OS Bootstrap Service home page all available kernel builds (commits) are listed.
 
 You'll find them in two sections:
 - First, under **/latest-release/**, all most recent builds per branch are listed
@@ -26,7 +26,7 @@ E.g. in case of `g8os-1.1.0-alpha-sandbox-cleanup-core0-a2564152.efi`:
 <a id="boot-files"></a>
 ## Boot files
 
-Next to the most recent kernel builds, the G8OS bootstrap service also provides you with all other files to get the kernel booted:
+Next to the most recent kernel builds, the Zero-OS bootstrap service also provides you with all other files to get the kernel booted:
 
 - [ISO file](#iso)
 - [USB image](#usb)
@@ -62,17 +62,17 @@ This is useful when you want to boot a remote machine using an iPXE script, i.e.
 
 Automatic kernel builds are triggered when commits happen in the following GitHub repositories:
 
-- [g8os/core0](https://github.com/g8os/core0)
-- [g8os/g8ufs](https://github.com/g8os/g8ufs)
-- [g8os/initramfs](https://github.com/g8os/initramfs)
+- [zero-os/0-core](https://github.com/zero-os/0-core)
+- [zero-os/0-fs](https://github.com/zero-os/0-fs)
+- [zero-os/0-initramfs](https://github.com/zero-os/0-initramfs)
 
 The build process can be monitored here: [build.gig.tech/monitor/](https://build.gig.tech/monitor/).
 
-The result is shown on the home page of the G8OS bootstrap service, discussed above.
+The result is shown on the home page of the Zero-OS bootstrap service, discussed above.
 
 Each time a commit is pushed to GitHub, a build request is called:
-- If you push to `g8os/initramfs`, a complete kernel image will be rebuilt, which can take up to **1 hour**
-- If you push to `g8os/core0` or `g8os/g8ufs`, a pre-compiled `initramfs` image (called `baseimage`) will be used, the actual build of `core0` or `g8ufs` only takes **about 3 minutes**
+- If you push to `zero-os/0-initramfs`, a complete kernel image will be rebuilt, which can take up to **1 hour**
+- If you push to `zero-os/0-core` or `zero-os/0-fs`, a pre-compiled `initramfs` image (called `baseimage`) will be used, the actual build of `core0` or `g8ufs` only takes **about 3 minutes**
 
 In order to have a **3 minutes** compilation time for cores, the build process uses a pre-compiled `initramfs` image (called `baseimage`). If no base image is found, the build will be ignored.
 

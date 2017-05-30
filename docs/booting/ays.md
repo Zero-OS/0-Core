@@ -1,21 +1,21 @@
-# Booting G8OS on Packet.net
+# Booting Zero-OS on Packet.net
 
-The AYS templates for installing a G8OS on a Packet.net server are available at https://github.com/g8os/ays_template_g8os.
+The AYS templates for installing a Zero-OS on a Packet.net server are available at https://github.com/g8os/ays_template_Zero-OS.
 
-In what follows we discuss the steps to install G8OS using a local AYS installation:
+In what follows we discuss the steps to install Zero-OS using a local AYS installation:
 
 - [Install AYS 8.2](#install-ays)
 - [Install the AYS templates](#install-templates)
 - [Install the Python client for Packet.net](#packet-client)
 - [Deploy the Packet.net server](#deploy-server)
 - [Get the IP address of your Packet.net server](#get-ip)
-- [Install the G8OS on your Packet.net server](#install-g8os)
+- [Install the Zero-OS on your Packet.net server](#install-zero-os)
 
 
 <a id="install-ays"></a>
 ## Install the AYS templates
 
-The AYS templates for installing a G8OS require AYS v8.2.
+The AYS templates for installing a Zero-OS require AYS v8.2.
 
 See the installation instructions here: [Installation of JumpScale](https://gig.gitbooks.io/jumpscale-core8/content/Installation/Installation.html)
 
@@ -33,7 +33,7 @@ bash install.sh
 <a id="packet-client"></a>
 ## Install the Python client for Packet.net
 
-The AYS templates will install a G8OS on a Packet.net server.
+The AYS templates will install a Zero-OS on a Packet.net server.
 
 This requires the Packet.net Python client, in order to install it execute:
 
@@ -106,7 +106,7 @@ Event filters: None
 ```
 
 <a id="connect"></a>
-## Connect to the G8OS
+## Connect to the Zero-OS
 ```python
 import g8core
 
