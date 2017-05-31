@@ -23,6 +23,9 @@ See the installation instructions here: [Installation of JumpScale](https://gig.
 <a id="install-templates"></a>
 ## Install the AYS templates
 
+See: https://github.com/Jumpscale/ays_jumpscale8/tree/master/templates/nodes/node.packet.net
+
+@todo Needs update based on the templates that got moved from [g8os/ays_template_g8os](https://github.com/g8os/ays_template_g8os) to [Jumpscale/ays_jumpscale8](https://github.com/Jumpscale/ays_jumpscale8):
 ```
 cd $TMPDIR
 rm -f install.sh
