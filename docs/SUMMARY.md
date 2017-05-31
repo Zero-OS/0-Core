@@ -34,7 +34,6 @@
 * [Monitoring](monitoring/monitoring.md)
   * [Logging](monitoring/logging.md)
   * [Statistics](monitoring/stats.md)
-* [G8ufs](g8ufs/g8ufs.md)
 * [Networking](networking/networking.md)
   * [Open vSwitch](networking/ovs.md)
   * [ZeroTier](networking/zerotier.md)

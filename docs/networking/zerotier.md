@@ -10,9 +10,10 @@ For this example we assume you have a Zero-OS node running and you can connect t
 The following code joins your Zero-OS node to the public network provided by ZeroTier:
 
 ```python
-import g8core
+from zeroos.core0.client import Client
 
-cl = g8core.Client(host='{ip of the Zero-OS}')
+cl = Client("IP OF Zero-OS")
+
 cl.zerotier.join('8056c2e21c000001')
 ```
 

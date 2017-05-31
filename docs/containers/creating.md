@@ -16,8 +16,8 @@ We use the [ubuntu1604.flist](https://hub.gig.tech/gig-official-apps/ubuntu1604.
 Here's the Python script using the Zero-OS client:
 
 ```python
-import g8core
-cl = g8core.Client("{IP OF Zero-OS}")
+from zeroos.core0.client import Client
+cl = Client("IP OF Zero-OS")
 
 flist = 'https://hub.gig.tech/gig-official-apps/ubuntu1604.flist'
 

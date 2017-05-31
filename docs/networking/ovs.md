@@ -37,7 +37,7 @@ ovs = int(resp.get().data)
 ```
 
 Note the following:
-- We're using the `ovs.flist` flist here, for more information on how to build it see the [Zero-OS/ovs-plugin](https://github.com/zero-os/ovs-plugin) repository on Github
+- We're using the `ovs.flist` flist here, for more information on how to build it see the [zero-os/openvswitch-plugin](https://github.com/zero-os/openvswitch-plugin) repository on Github
 - `tags` must be `ovs` and only one container with OVS tag must exist. The system won't prevent you from creating as many containers with that tag but it will cause setup issues later
 - `host_network` must be set to `True`
 
@@ -50,7 +50,7 @@ ovscl.json('ovs.vlan-ensure', {'master': 'backplane', 'vlan': 2313, 'name':'vxba
 # the vlan tag can be any reserved value for vxbackend
 ```
 
-> The above calls will make sure we have `backplane` vswitch, and `vxbackend` vswitch but it doesn't connect the backplane to the internet, make sure to check [ovs-plugin](https://github.com/zero-os/ovs-plugin) for more info on how to create bonds or add links to the backplane
+> The above calls will make sure we have `backplane` vswitch, and `vxbackend` vswitch but it doesn't connect the backplane to the internet, make sure to check [zero-os/openvswitch-plugin](https://github.com/zero-os/openvswitch-plugin) for more info on how to create bonds or add links to the backplane
 
 Once your infrastructure for OVS is bootstrapped you can simple use the VLAN and VXLAN types as explained next.
 

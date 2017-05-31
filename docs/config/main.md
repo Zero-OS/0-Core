@@ -104,10 +104,10 @@ Example:
 
 ```
 [globals]
-fuse_storage = "ardb://hub.gig.tech:16379"
+storage = "ardb://hub.gig.tech:16379"
 ```
 
-With `fuse_storage` you set the default key-value store that will be mounted by [G8ufs](../g8ufs/g8ufs.md) when creating containers using the [container.create()](../interacting/commands/corex.md#create) command. The default, as shown above, is the ARDB storage cluster implemented in [0-Hub](../g8ufs/hub/hub.md). When creating a new container you can override this default by specifying any other ARDB storage cluster, as documented in [Creating Containers](../containers/creating.md).
+With `storage` you set the default key-value store that will be mounted by the [Zero-OS File System](https://github.com/zero-os/0-fs) when creating containers using the [container.create()](../interacting/commands/corex.md#create) command. The default, as shown above, is the ARDB storage cluster implemented in [0-Hub](https://github.com/zero-os/-hub?). When creating a new container you can override this default by specifying any other ARDB storage cluster, as documented in [Creating Containers](../containers/creating.md).
 
 
 <a id="extension"></a>
