@@ -2,9 +2,9 @@ package network
 
 import (
 	"fmt"
-	"github.com/zero-os/0-core/base/utils"
 	"github.com/op/go-logging"
 	"github.com/vishvananda/netlink"
+	"github.com/zero-os/0-core/base/utils"
 )
 
 var (
@@ -41,6 +41,7 @@ type Interface interface {
 	Configure() error
 	Clear() error
 	IPs() ([]netlink.Addr, error)
+	SetUP(bool) error
 }
 
 type NetworkManager interface {
@@ -61,6 +62,18 @@ func (i *networkInterface) Name() string {
 
 func (i *networkInterface) Protocol() string {
 	return i.settings.Protocol
+}
+
+func (i *networkInterface) SetUP(up bool) error {
+	link, err := netlink.LinkByName(i.Name())
+	if err != nil {
+		return err
+	}
+	if up {
+		return netlink.LinkSetUp(link)
+	}
+
+	return netlink.LinkSetDown(link)
 }
 
 func (i *networkInterface) Configure() error {
