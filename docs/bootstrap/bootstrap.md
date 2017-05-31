@@ -1,5 +1,7 @@
 # Zero-OS Bootstrap Service
 
+@todo: move this documentation out to zero-os/0-bootstrap
+
 The Zero-OS Bootstrap Service is available on [bootstrap.gig.tech](https://bootstrap.gig.tech).
 
 The bootstrap service provides you with the following tools to quickly and easily get you started with **always-up-to-date** builds:
