@@ -114,6 +114,7 @@ func (b *Bootstrap) setupNetworking() error {
 		log.Infof("Setting up interface '%s'", inf.Name())
 
 		inf.Clear()
+		inf.SetUP(true)
 		if err := inf.Configure(); err != nil {
 			log.Errorf("%s", err)
 		}
