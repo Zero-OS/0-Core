@@ -74,6 +74,10 @@
 			"Rev": "d9eb7a3d35ec988b8585d4a0068e462c27d28380"
 		},
 		{
+			"ImportPath": "github.com/google/shlex",
+			"Rev": "6f45313302b9c56850fc17f99e40caebce98c716"
+		},
+		{
 			"ImportPath": "github.com/libvirt/libvirt-go",
 			"Comment": "v3.2.0-13-gd1dd72b",
 			"Rev": "d1dd72b576736b3726d7f754bedcdd287c377e15"
