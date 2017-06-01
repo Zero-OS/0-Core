@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/pborman/uuid"
+	"github.com/vishvananda/netlink"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/process"
-	"github.com/pborman/uuid"
-	"github.com/vishvananda/netlink"
 	"io/ioutil"
 	"net"
 	"os"
@@ -123,10 +123,6 @@ func (c *container) postBridge(dev string, index int, n *Nic) error {
 		return fmt.Errorf("get peer: %s", err)
 	}
 
-	if err := netlink.LinkSetUp(peer); err != nil {
-		return fmt.Errorf("set peer up: %s", err)
-	}
-
 	if err := netlink.LinkSetNsPid(peer, c.PID); err != nil {
 		return fmt.Errorf("set ns pid: %s", err)
 	}
@@ -176,7 +172,7 @@ func (c *container) postBridge(dev string, index int, n *Nic) error {
 			"ip", "link", "set", "dev", dev, "up")
 
 		if err != nil {
-			return fmt.Errorf("error brinding interface up: %v", err)
+			return fmt.Errorf("error bringing interface up: %v", err)
 		}
 
 		//setting the ip address
