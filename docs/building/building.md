@@ -1,6 +1,4 @@
-# Building your Zero-OS Boot Image
-
-@todo: add reference to 0-autobuilder repo
+# Building your own Zero-OS Boot Image
 
 Building is done using the `initramfs.sh` script available from https://github.com/zero-os/0-initramfs
 
@@ -12,7 +10,9 @@ Below we discuss:
 - [What initramfs.sh does?](#whatitdoes)
 - [How to use it?](#howtouse)
 - [Custom build](#custom)
+- [Autobuild](#autobuild)
 - [I have the kernel, what can I do with it?](#whatnext)
+
 
 
 <a id="dependencies"></a>
@@ -39,13 +39,11 @@ Some parts need to chown/setuid/chmod files as root.
 ## Building using a Docker container
 
 First clone the [zero-os/0-initramfs](https://github.com/zero-os/0-initramfs) repository:
-
-```
+```shell
 git clone git@github.com:zero-os/0-initramfs.git
 ```
 
 From the root of this repository, create a Docker container:
-
 ```shell
 docker run -v $(pwd):/initramfs -ti ubuntu:16.04 /bin/bash
 ```
@@ -59,8 +57,7 @@ apt-get install -y xz-utils pkg-config lbzip2 make curl libtool gettext m4 autoc
 ```
 
 Then install Go:
-
-```
+```shell
 curl https://storage.googleapis.com/golang/go1.8.linux-amd64.tar.gz > go1.8.linux-amd64.tar.gz
 tar -C /usr/local -xzf go1.8.linux-amd64.tar.gz
 export PATH=$PATH:/usr/local/go/bin
@@ -92,11 +89,10 @@ export GOPATH=/gopath
 
 
 <a id="howtouse"></a>
-## How to use it ?
+## How to use it?
 
 Easy, just type:
-
-```
+```shell
 cd /initramfs
 bash initramfs.sh
 ```
@@ -140,6 +136,13 @@ See [Startup Services](../config/startup.md) in order to understand how to confi
 
 For all customization options see [Configuration](../config/config.md).
 
+
+<a id="autobuild"></a>
+## Autobuild
+
+Every time a change is pushed to [zero-os/0-core](https://github.com/zero-os/0-core), or [zero-os/0-fs](https://github.com/zero-os/0-fs), a pre-compiled initramfs image (called baseimage) will be used. Building of core0 or 0-fs only takes about 3 minutes. If you push to [zero-os/0-initramfs](https://github.com/zero-os/0-initramfs), a complete kernel image will be rebuilt, which can take up to 1 hour.
+
+See [zero-os/0-autobuilder](https://github.com/zero-os/0-autobuilder) for more details.
 
 <a id="whatnext"></a>
 ## I have the kernel, what can I do with it?

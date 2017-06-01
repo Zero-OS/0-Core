@@ -2,7 +2,7 @@
 
 * [Introduction](README.md)
 * [Getting Started](gettingstarted/gettingstarted.md)
-* [Building your Zero-OS Boot Image](building/building.md)
+* [Building your own Zero-OS Boot Image](building/building.md)
 * [Configuration](config/config.md)
   * [Main Configuration](config/main.md)
   * [Network Configuration](config/network.md)

@@ -2,14 +2,14 @@
 
 Two options:
 - [Boot without a boot loader](#no-bootloader)
-- [Use a boot loader (iPXE)](#ipxe)
+- [Boot with a boot loader (iPXE)](#ipxe)
 
 <a id="no-bootloader"></a>
 ## Booting with a boot loader
 
-On a EFI enabled machine, it's really easy to boot the Zero-OS kernel.
+On an EFI enabled machine, it's really easy to boot the Zero-OS kernel.
 
-All you need to do is to copy a Zero-OS boot image (kernel) on the `FAT32` partition of the boot device, for instance an USB device.
+All you need to do is copy a Zero-OS boot image (kernel) on the `FAT32` partition of the boot device, for instance an USB device.
 
 So you first step will be to get the kernel, options are:
 - Create your own image, as documented in [Building your Zero-OS Boot Image](building/building.md)
