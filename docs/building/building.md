@@ -1,6 +1,6 @@
-# Building your G8OS Boot Image
+# Building your own Zero-OS Boot Image
 
-Building is done using the `initramfs.sh` script available from https://github.com/g8os/initramfs
+Building is done using the `initramfs.sh` script available from https://github.com/zero-os/0-initramfs
 
 Below we discuss:
 
@@ -10,7 +10,9 @@ Below we discuss:
 - [What initramfs.sh does?](#whatitdoes)
 - [How to use it?](#howtouse)
 - [Custom build](#custom)
+- [Autobuild](#autobuild)
 - [I have the kernel, what can I do with it?](#whatnext)
+
 
 
 <a id="dependencies"></a>
@@ -36,14 +38,12 @@ Some parts need to chown/setuid/chmod files as root.
 <a id="docker"></a>
 ## Building using a Docker container
 
-First clone the [g8os/initramfs](https://github.com/g8os/initramfs) repository:
-
-```
-git clone git@github.com:g8os/initramfs.git
+First clone the [zero-os/0-initramfs](https://github.com/zero-os/0-initramfs) repository:
+```shell
+git clone git@github.com:zero-os/0-initramfs.git
 ```
 
 From the root of this repository, create a Docker container:
-
 ```shell
 docker run -v $(pwd):/initramfs -ti ubuntu:16.04 /bin/bash
 ```
@@ -57,8 +57,7 @@ apt-get install -y xz-utils pkg-config lbzip2 make curl libtool gettext m4 autoc
 ```
 
 Then install Go:
-
-```
+```shell
 curl https://storage.googleapis.com/golang/go1.8.linux-amd64.tar.gz > go1.8.linux-amd64.tar.gz
 tar -C /usr/local -xzf go1.8.linux-amd64.tar.gz
 export PATH=$PATH:/usr/local/go/bin
@@ -90,11 +89,10 @@ export GOPATH=/gopath
 
 
 <a id="howtouse"></a>
-## How to use it ?
+## How to use it?
 
 Easy, just type:
-
-```
+```shell
 cd /initramfs
 bash initramfs.sh
 ```
@@ -114,7 +112,7 @@ The `initramfs.sh` script accepts multiple options:
 
 The option `--kernel` is useful if you change something on the root directory and you want to rebuild the kernel (with the initramfs).
 
-If you are modifying core0/coreX, you can simply use the `--cores --kernel` options and first the cores will be rebuilt and then `initramfs`. This will produce a new G8OS boot image (kernel) with the latest changes.
+If you are modifying core0/coreX, you can simply use the `--cores --kernel` options and first the cores will be rebuilt and then `initramfs`. This will produce a new Zero-OS boot image (kernel) with the latest changes.
 
 
 <a id="custom"></a>
@@ -139,10 +137,17 @@ See [Startup Services](../config/startup.md) in order to understand how to confi
 For all customization options see [Configuration](../config/config.md).
 
 
+<a id="autobuild"></a>
+## Autobuild
+
+Every time a change is pushed to [zero-os/0-core](https://github.com/zero-os/0-core), or [zero-os/0-fs](https://github.com/zero-os/0-fs), a pre-compiled initramfs image (called baseimage) will be used. Building of core0 or 0-fs only takes about 3 minutes. If you push to [zero-os/0-initramfs](https://github.com/zero-os/0-initramfs), a complete kernel image will be rebuilt, which can take up to 1 hour.
+
+See [zero-os/0-autobuilder](https://github.com/zero-os/0-autobuilder) for more details.
+
 <a id="whatnext"></a>
 ## I have the kernel, what can I do with it?
 
-Just boot it. The G8OS boot image (kernel) is EFI bootable.
+Just boot it. The Zero-OS boot image (kernel) is EFI bootable.
 
 If you have an EFI shell, just run the kernel like any EFI executable.
 
@@ -159,4 +164,4 @@ cp staging/vmlinuz.efi /mnt/EFI/BOOT/BOOTX64.EFI
 umount /mnt
 ```
 
-See [Booting G8OS](../booting/booting.md) for other options.
+See [Booting Zero-OS](../booting/booting.md) for other options.

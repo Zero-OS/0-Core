@@ -1,8 +1,8 @@
-# Getting Started with Core0
+# Getting Started with 0-Core
 
-To get acquainted with Core0 you will want to go through the following process:
+To get acquainted with 0-Core you will want to go through the following process:
 
-- [Building your G8OS Boot Image](../building/building.md)
-- [Configuration of your G8OS Boot Image](../config/config.md)
-- [Booting G8OS](../booting/booting.md)
-- [Interacting with G8OS](../interacting/interacting.md)
+- [Building your Zero-OS Boot Image](../building/building.md)
+- [Configuration of your Zero-OS Boot Image](../config/config.md)
+- [Booting Zero-OS](../booting/booting.md)
+- [Interacting with Zero-OS](../interacting/interacting.md)

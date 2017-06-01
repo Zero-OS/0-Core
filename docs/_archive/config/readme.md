@@ -4,21 +4,21 @@
 - Adding extensions
 - Starting up services on boot
   - Start up dependencies
-  
+
 ## Main core0 configuration
 defaults to `/etc/g8os/g8os.toml`
 
 ```toml
 # Main configuration section to manage the process manager behaviour
 [main]
-# max_jobs sets max number of concurrent jobs. Once this limit is reached 
+# max_jobs sets max number of concurrent jobs. Once this limit is reached
 # core0 will not pull for any new jobs from his dedicated redis
 # queue until it has at least one free job slot to fill.
 max_jobs = 200
 
-# `include` more configuration from the specific locations. core0 on boot will try to load 
+# `include` more configuration from the specific locations. core0 on boot will try to load
 # all `.toml` files from the given locations, where each toml can define one or more extension
-# to core0 commands, and/or start up services 
+# to core0 commands, and/or start up services
 include = ["/root/conf"]
 
 # `log_level` sets the logging level of core0 logs (what prints on console)
@@ -36,15 +36,15 @@ url = "redis://127.0.0.1:6379"
 # `password` optional redis password.
 password = ""
 
-#Logging section defines how core0 process logs from running jobs. 
+#Logging section defines how core0 process logs from running jobs.
 [logging]
-#each logger is defined in its own section, 
+#each logger is defined in its own section,
     [logging.console]
     # define the logger type, we have support for `console` (prints on stdout of core0)
     type = "console"
     # define which log levers are logged to this logger
     levels = [1, 2, 4, 7, 8, 9]
-	
+
 	[logging.redis]
 	type = "redis"
 	levels = [1, 2, 4, 7, 8, 9]
@@ -61,15 +61,15 @@ interval = 60000 # milliseconds (1 min)
 
 # redis stats aggregator, use the redis lua script to aggregate statistcs outed by jobs.
 [stats.redis]
-# `enabled` 
+# `enabled`
 enabled = true
 flush_interval = 10 # seconds
 address = "127.0.0.1:6379"
 
 # global config available for built in modules.
 [globals]
-# `fuse_storage` default g8ufs storage to use when not passed by the container.create command.
-fuse_storage = ""
+# `storage` default Zero-OS file system to use when not passed by the container.create command.
+storage = ""
 ```
 
 ## Extensions
@@ -98,21 +98,21 @@ args = ["-c", "echo '{username}:{password}' | chpasswd"]
 
 Writing the above into a toml file under one of the included paths defined by `include` in the main
  core0 toml will add the following commands to core0
- 
+
 - user.add
   - Args: `{"username": "user name to add"}`
 - user.delete
   - Args: `{"username": "user name to remove"}`
 - user.chpasswd
   - Args: `{"username": "user", "password": "password to set"}`
-  
+
 Then u can simply call the extension from the python client as follows
 ```python
 client.raw("user.add", {"username": "testuser"})
 client.raw("user.chpasswd", {"username": "testuser", "password": "new-password"})
 ```
 
-> Core0 take care of substituting the `{key}` notation in the extension arguments with 
+> Core0 take care of substituting the `{key}` notation in the extension arguments with
 the ones passed from the client.
 
 Extension also supports the following attributes
@@ -160,12 +160,12 @@ Define what core0 command to execute like `core.system` or others (can be an ext
 
 #### `after` attribute
 After defines a list of services that must be considered running, before core0 attempt to start
-this service. The dependencies names can be one of the defined services ids defined in other toml 
+this service. The dependencies names can be one of the defined services ids defined in other toml
 files, or one of the phony services names built in core0 `init, net, and boot`
 - `init` means that this service must be started as fast as possible even before core0 attempt to
   setup the networking. Services like that are needed for the hardware operation (ex: loading modules or starting udev)
   When the init run is complete core0 will attempt to setup networking.
-- `net` phony service means this service must run as fast as possible once networking is up. This can 
+- `net` phony service means this service must run as fast as possible once networking is up. This can
 include joining `zerotear` network, or registering itself with an ays service. Once those services
 are up, core0 will move on starting the next slice of services which has after = ['boot']
 - `boot` that's the default dependencies of any service that doesn't define an `after`
@@ -183,7 +183,7 @@ This has higher presence than the `running_delay` attribute, so if both are defi
 ignored. `running_match` is a regural expression that will flags the service as `running` if the service
 output a line that matches this expression. So simply u assume the service is running if it prints something
 like `service is up` or whatever.
- 
+
 ### `recurring_period` attribute
 Run this job every this defined number of seconds
 

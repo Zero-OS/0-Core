@@ -16,7 +16,7 @@ Core0 is a `systemd` replacement for G8OS.
 
 ## Releases
 
-See the release schedule in the [G8OS home repository](https://github.com/g8os/home).
+See the release schedule in the [Zero-OS home repository](https://github.com/zero-os/home).
 
 ## Development setup
 
@@ -74,15 +74,15 @@ print(
   - via redis
 
 ### v0.10
-- change datastore for fuse filesystem from ipfs to [G8OS Store](https://github.com/g8os/stor).
+- change datastore for fuse filesystem from ipfs to [Zero-OS Store](https://github.com/g8os/stor).
 
 ### v0.11
 - include of the monitoring of all processes running on the g8os.
-  It produces aggregated statistics on the processes that can be dump into a time series database and displayed used something like grafana.
+  It produces aggregated statistics on the processes that can be dump into a time series database and displayed used something like Grafana.
 
 ### v1.0.0
-- New Flist format, the Flist used in the G8OSFS is now a distributed as a rocksdb database.
-- Creation of the [G8OS Hub](https://github.com/g8os/core0/tree/1.0.0), see https://github.com/g8os/hub
+- New Flist format, the Flist used in the 0-FS is now a distributed as a RocksDB database.
+- Creation of the [0-Hub](https://github.com/zero-os/core0/tree/1.0.0), see https://github.com/zero-os/0-hub
 - Improvement of the builtin commands of core0 and coreX
 
 ### v1.1.0-alpha2
@@ -91,13 +91,13 @@ print(
 - Unprivileged containers (still in beta)
 - Libvirt bindings
 - Processes API
-- Support multiple zerotier in container networking
-- Support OpenVSwitch networking for both containers and kvm domains
+- Support multiple ZeroTier in container networking
+- Support OpenVSwitch networking for both containers and KVM domains
 - `corectl` command line tool to manage core0 from within the node
 
 ### Next
 
-See the milestones in the [G8OS home repository](https://github.com/g8os/home): [G8OS Milestones](https://github.com/g8os/home/tree/master/milestones)
+See the milestones in the [Zero-OS home repository](https://github.com/zero-os/home): [Zero-OS Milestones](https://github.com/zero-os/home/tree/master/milestones)
 
 ## Schema
 ![Schema Plan](specs/schema.png)

@@ -1,20 +1,20 @@
-# Booting G8OS on VirtualBox
+# Booting Zero-OS on VirtualBox
 
-The easiest and recommended approach is to boot from an ISO image you get from the [G8OS Bootstrap Service](https://bootstrap.gig.tech/). You get an ISO boot image using `https://bootstrap.gig.tech/iso/{BRANCH}/{ZEROTIER-NETWORK}` where:
+The easiest and recommended approach is to boot from an ISO image you get from the [Zero-OS Bootstrap Service](https://bootstrap.gig.tech/). You get an ISO boot image using `https://bootstrap.gig.tech/iso/{BRANCH}/{ZEROTIER-NETWORK}` where:
 
 - **{BRANCH}** is the branch of the CoreOS, e.g. `1.1.0-alpha`
 - **{ZEROTIER-NETWORK}** is the ZeroTier network ID, create one on https://my.zerotier.com/network
 
-See the [ISO section in the G8OS Bootstrap Service documentation](../bootstrap/bootstrap.md#iso) for more details on this.
+See the [ISO section in the Zero-OS Bootstrap Service documentation](../bootstrap/bootstrap.md#iso) for more details on this.
 
-Alternatively you can build your own boot image and create your own boot disk as documented in [Building your G8OS Boot Image](../building/building.md).
+Alternatively you can build your own boot image and create your own boot disk as documented in [Building your Zero-OS Boot Image](../building/building.md).
 
 Once you got your boot image, continue following the next steps:
 
 - [Create a new virtual machine on VirtualBox](#create-vm)
-- [Create a port forward for the virtual machine in order to expose the Redis of the G8OS](#create-portforward)
+- [Create a port forward for the virtual machine in order to expose the Redis of the Zero-OS](#create-portforward)
 - [Start the virtual machine](#start-vm)
-- [Ping the G8OS](#ping-core0)
+- [Ping the Zero-OS](#ping-core0)
 
 
 <a id="create-vm"></a>
@@ -39,7 +39,7 @@ Also accept the default settings for creating a virtual disk:
 ![file location](images/file_location.png)
 
 <a id="create-portforward"></a>
-## Create a port forward for the virtual machine in order to expose the Redis of the G8OS
+## Create a port forward for the virtual machine in order to expose the Redis of the Zero-OS
 
 In the **Settings** of the virtual machine expand the **Advanced** section on the **Network** tab:
 
@@ -57,12 +57,12 @@ Forward port 6379:
 <a id="start-vm"></a>
 ## Start the VM
 
-When starting the virtual machine you will be asked to select the boot disk. Select the ISO boot disk you got from the [G8OS Bootstrap Service](https://bootstrap.gig.tech/) or the one you created yourself:
+When starting the virtual machine you will be asked to select the boot disk. Select the ISO boot disk you got from the [Zero-OS Bootstrap Service](https://bootstrap.gig.tech/) or the one you created yourself:
 
 ![select iso](images/select_iso.png)
 
 <a id="ping-core0"></a>
-## Ping the G8OS
+## Ping the Zero-OS
 
 Using the Python client:
 

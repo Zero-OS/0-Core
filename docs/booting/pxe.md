@@ -2,7 +2,7 @@
 
 We assume you already have a working PXE Boot Environment (DHCP and TFTP server).
 
-In order to boot the G8OS kernel via PXE, you can use the popular `PXELINUX` tools.
+In order to boot the Zero-OS kernel via PXE, you can use the popular `PXELINUX` tools.
 
 ## Configuration
 
@@ -18,7 +18,7 @@ In order to boot the G8OS kernel via PXE, you can use the popular `PXELINUX` too
     kernel g8os/vmlinuz.efi
   ```
 
-- Save that config under `pxelinux.cfg/default` to run all your devices under G8OS
+- Save that config under `pxelinux.cfg/default` to run all your devices under Zero-OS
 
 ## Per device PXE boot
 

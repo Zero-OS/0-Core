@@ -4,7 +4,7 @@ The [Python client](python.md) (`g8core`) is available under `j.clients.g8os`.
 
 The below script expects that you know the IP address of the Core0 and that you can access it from the machine running the script. A custom [ZeroTier](https://www.zerotier.com/) network is used for that.
 
-See the [Getting Started](../gettingstarted/gettingstarted.md) section for the G8OS installation options.
+See the [Getting Started](../gettingstarted/gettingstarted.md) section for the Zero-OS installation options.
 
 The following script creates a container, installs OpenSSH, authorizes a SSH key inside the container and start the OpenSSH server.
 

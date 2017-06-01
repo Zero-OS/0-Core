@@ -2,7 +2,7 @@
 
 The main configuration is auto-loaded from the `g8os.toml` file.
 
-In the [g8os/initramfs](https://github.com/g8os/initramfs) repository that you'll use for creating the G8OS boot image, `g8os.toml` can be found in the `/config/g8os` directory.
+In the [zero-os/0-initramfs](https://github.com/zero-os/0-initramfs) repository that you'll use for creating the Zero-OS boot image, `g8os.toml` can be found in the `/config/g8os` directory.
 
 `g8os.toml` has the following sections:
 
@@ -104,10 +104,10 @@ Example:
 
 ```
 [globals]
-fuse_storage = "ardb://hub.gig.tech:16379"
+storage = "ardb://hub.gig.tech:16379"
 ```
 
-With `fuse_storage` you set the default key-value store that will be mounted by [G8ufs](../g8ufs/g8ufs.md) when creating containers using the [container.create()](../interacting/commands/corex.md#create) command. The default, as shown above, is the ARDB storage cluster implemented in [G8OS Hub](../g8ufs/hub/hub.md). When creating a new container you can override this default by specifying any other ARDB storage cluster, as documented in [Creating Containers](../containers/creating.md).
+With `storage` you set the default key-value store that will be mounted by the [Zero-OS File System](https://github.com/zero-os/0-fs) when creating containers using the [container.create()](../interacting/commands/corex.md#create) command. The default, as shown above, is the ARDB storage cluster implemented in [0-Hub](https://github.com/zero-os/-hub?). When creating a new container you can override this default by specifying any other ARDB storage cluster, as documented in [Creating Containers](../containers/creating.md).
 
 
 <a id="extension"></a>

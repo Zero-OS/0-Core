@@ -5,14 +5,15 @@ More info about ZeroTier: https://zerotier.com/manual.shtml
 
 ## How to connect to a ZeroTier network
 
-For this example we assume you have a G8OS node running and you can connect to it.
+For this example we assume you have a Zero-OS node running and you can connect to it.
 
-The following code joins your G8OS node to the public network provided by ZeroTier:
+The following code joins your Zero-OS node to the public network provided by ZeroTier:
 
 ```python
-import g8core
+from zeroos.core0.client import Client
 
-cl = g8core.Client(host='{ip of the g8os}')
+cl = Client("IP OF Zero-OS")
+
 cl.zerotier.join('8056c2e21c000001')
 ```
 
@@ -21,7 +22,7 @@ To check all the joined networks:
 ```python
 import g8core
 
-cl = g8core.Client(host='{ip of the g8os}')
+cl = g8core.Client(host='{ip of the Zero-OS}')
 cl.zerotier.list()
 ```
 
@@ -30,7 +31,7 @@ And to leave a joined network:
 ```python
 import g8core
 
-cl = g8core.Client(host='{ip of the g8os}')
+cl = g8core.Client(host='{ip of the Zero-OS}')
 cl.zerotier.leave('8056c2e21c000001')
 ```
 
@@ -44,6 +45,6 @@ Just pass the network ID you want to join to the container create command of the
 ```python
 import g8core
 
-cl = g8core.Client(host='ip of the g8os')
+cl = g8core.Client(host='ip of the Zero-OS')
 cl.container.create("flist url", zerotier="8056c2e21c000001")
 ```
