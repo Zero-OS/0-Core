@@ -131,7 +131,7 @@ func (o *Bootstrap) setupFS() error {
 
 	os.MkdirAll("/proc", 0755)
 	if err := syscall.Mount("none", "/proc", "proc",
-		syscall.MS_NOSUID|syscall.MS_RELATIME|syscall.MS_NODEV|syscall.MS_NOEXEC,
+		syscall.MS_RDONLY|syscall.MS_NOSUID|syscall.MS_RELATIME|syscall.MS_NODEV|syscall.MS_NOEXEC,
 		""); err != nil {
 		return err
 	}
