@@ -38,6 +38,7 @@ Also accept the default settings for creating a virtual disk:
 
 ![file location](images/file_location.png)
 
+
 <a id="create-portforward"></a>
 ## Create a port forward for the virtual machine in order to expose the Redis of the Zero-OS
 
@@ -57,9 +58,14 @@ Forward port 6379:
 <a id="start-vm"></a>
 ## Start the VM
 
-When starting the virtual machine you will be asked to select the boot disk. Select the ISO boot disk you got from the [Zero-OS Bootstrap Service](https://bootstrap.gig.tech/) or the one you created yourself:
+When starting the virtual machine you will be asked to select the ISO boot disk.
+
+Here you have two options:
+- Create one yourself, as documented in [Create a Bootable Zero-OS ISO File](iso.md)
+- Or get one from the [Zero-OS Bootstrap Service](https://bootstrap.gig.tech/)
 
 ![select iso](images/select_iso.png)
+
 
 <a id="ping-core0"></a>
 ## Ping the Zero-OS

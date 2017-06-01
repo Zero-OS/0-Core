@@ -36,3 +36,9 @@ The `Core0` core understands a very specific set of commands:
 - [Job Commands](job.md)
 - [Process Commands](process.md)
 - [Filesystem Commands](filesystem.md)
+
+## Send a message over Redis
+
+```
+@todo example of sending and receiving a command via Redis
+```
