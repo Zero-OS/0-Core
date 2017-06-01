@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/op/go-logging"
 	"github.com/zero-os/0-core/base"
 	"github.com/zero-os/0-core/base/pm"
 	pmcore "github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/coreX/bootstrap"
 	"github.com/zero-os/0-core/coreX/options"
-	"github.com/op/go-logging"
 
 	"os/signal"
 	"syscall"
@@ -26,7 +26,7 @@ var (
 func init() {
 	formatter := logging.MustStringFormatter("%{color}%{module} %{level:.1s} > %{message} %{color:reset}")
 	logging.SetFormatter(formatter)
-	logging.SetLevel(logging.DEBUG, "")
+	logging.SetLevel(logging.INFO, "")
 }
 
 func handleSignal(bs *bootstrap.Bootstrap) {

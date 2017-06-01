@@ -2,20 +2,43 @@ package bootstrap
 
 import (
 	"fmt"
+	"github.com/op/go-logging"
+	"github.com/shirou/gopsutil/process"
+	"github.com/vishvananda/netlink"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/settings"
 	"github.com/zero-os/0-core/base/utils"
 	"github.com/zero-os/0-core/coreX/options"
-	"github.com/op/go-logging"
-	"github.com/shirou/gopsutil/process"
-	"github.com/vishvananda/netlink"
 	"os"
+	"path"
 	"syscall"
 )
 
 var (
 	log = logging.MustGetLogger("bootstrap")
 )
+
+type DeviceType uint32
+
+const (
+	CharDevice  DeviceType = syscall.S_IFCHR
+	BlockDevice DeviceType = syscall.S_IFBLK
+)
+
+type Device struct {
+	Name  string
+	Type  DeviceType
+	Mode  os.FileMode
+	Major int
+	Minor int
+}
+
+func (d *Device) mk(in string) error {
+	return syscall.Mknod(path.Join(in, d.Name),
+		uint32(d.Type)|uint32(d.Mode),
+		d.Major<<8|d.Minor,
+	)
+}
 
 type Bootstrap struct {
 }
@@ -50,25 +73,83 @@ func (b *Bootstrap) setupLO() {
 	}
 }
 
+func (o *Bootstrap) populateMinimumDev() error {
+	devices := []Device{
+		{"console", CharDevice, 0600, 136, 2},
+		{"full", CharDevice, 0666, 1, 7},
+		{"null", CharDevice, 0666, 1, 3},
+		{"random", CharDevice, 0666, 1, 8},
+		{"tty", CharDevice, 0666, 5, 0},
+		{"urandom", CharDevice, 0666, 1, 9},
+		{"zero", CharDevice, 0666, 1, 5},
+	}
+
+	for _, dev := range devices {
+		if err := dev.mk("/dev"); err != nil {
+			return fmt.Errorf("failed to create device %v: %s", dev, err)
+		}
+	}
+
+	for oldname, newname := range map[string]string{
+		"/proc/self/fd/0": "/dev/stdin",
+		"/proc/self/fd/1": "/dev/stdout",
+		"/proc/self/fd/2": "/dev/stderr",
+		"/proc/self/fd":   "/dev/fd",
+		"/dev/pts/ptmx":   "/dev/ptmx",
+		"/proc/kcore":     "/dev/core",
+	} {
+		if err := os.Symlink(oldname, newname); err != nil {
+			return fmt.Errorf("failed to create symlink %s->%s: %s", newname, oldname, err)
+		}
+	}
+
+	os.MkdirAll("/dev/mqueue", 0777)
+	if err := syscall.Mount("mqueue", "/dev/mqueue", "mqueue", 0, ""); err != nil {
+		return fmt.Errorf("failed to mount mqueue: %s", err)
+	}
+
+	os.MkdirAll("/dev/shm", 0777)
+	if err := syscall.Mount("shm", "/dev/shm", "tmpfs",
+		syscall.MS_NOSUID|syscall.MS_NODEV|syscall.MS_NOEXEC|syscall.MS_RELATIME,
+		"size=65536k"); err != nil {
+		return fmt.Errorf("failed to mount shm: %s", err)
+	}
+
+	return nil
+}
+
 func (o *Bootstrap) setupFS() error {
 	os.MkdirAll("/etc", 0755)
 	os.MkdirAll("/var/run", 0755)
 
 	os.MkdirAll("/sys", 0755)
-	if err := syscall.Mount("none", "/sys", "sysfs", 0, ""); err != nil {
+	if err := syscall.Mount("none", "/sys", "sysfs",
+		syscall.MS_NOSUID|syscall.MS_RELATIME|syscall.MS_NODEV|syscall.MS_NOEXEC|syscall.MS_RDONLY,
+		""); err != nil {
 		return err
 	}
 
 	os.MkdirAll("/proc", 0755)
-	if err := syscall.Mount("none", "/proc", "proc", 0, ""); err != nil {
+	if err := syscall.Mount("none", "/proc", "proc",
+		syscall.MS_NOSUID|syscall.MS_RELATIME|syscall.MS_NODEV|syscall.MS_NOEXEC,
+		""); err != nil {
 		return err
+	}
+
+	if options.Options.Unprivileged() {
+		if err := syscall.Mount("none", "/dev", "tmpfs", syscall.MS_NOSUID, "mode=755"); err != nil {
+			return fmt.Errorf("failed to mount dev in unprivileged: %s", err)
+		}
+		if err := o.populateMinimumDev(); err != nil {
+			return err
+		}
+	} else {
+		if err := syscall.Mount("none", "/dev", "devtmpfs", syscall.MS_NOSUID|syscall.MS_RELATIME, "mode=755"); err != nil {
+			return err
+		}
 	}
 
 	os.MkdirAll("/dev/pts", 0755)
-	if err := syscall.Mount("none", "/dev", "devtmpfs", 0, ""); err != nil {
-		return err
-	}
-
 	if err := syscall.Mount("none", "/dev/pts", "devpts", 0, ""); err != nil {
 		return err
 	}
