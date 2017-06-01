@@ -483,6 +483,7 @@ class BaseClient:
         self._job = JobManager(self)
         self._process = ProcessManager(self)
         self._filesystem = FilesystemManager(self)
+        self._ip = IPManager(self)
 
     @property
     def info(self):
@@ -499,6 +500,10 @@ class BaseClient:
     @property
     def filesystem(self):
         return self._filesystem
+
+    @property
+    def ip(self):
+        return self._ip
 
     def raw(self, command, arguments, queue=None, max_time=None):
         """
@@ -796,6 +801,72 @@ class ContainerManager:
         :return: Client object bound to the specified container id
         """
         return ContainerClient(self._client, container)
+
+
+class IPManager:
+    class IPBridgeManager:
+        def __init__(self, client):
+            self._client = client
+
+        def create(self, name, hwaddr=None):
+            args = {
+                'name': name,
+                'hwaddr': hwaddr,
+            }
+
+            return self._client.json("ip.bridge.create", args)
+
+        def delete(self, name):
+            args = {
+                'name': name,
+            }
+
+            return self._client.json("ip.bridge.delete", args)
+
+        def addif(self, name, inf):
+            args = {
+                'name': name,
+                'inf': inf,
+            }
+
+            return self._client.json('ip.bridge.addif', args)
+
+        def delif(self, name, inf):
+            args = {
+                'name': name,
+                'inf': inf,
+            }
+
+            return self._client.json('ip.bridge.delif', args)
+
+    class IPLinkManager:
+        def __init__(self, client):
+            self._client = client
+
+        def up(self, link):
+            args = {
+                'name': link,
+            }
+            return self._client.json('ip.link.up', args)
+
+        def down(self, link):
+            args = {
+                'name': link,
+            }
+            return self._client.json('ip.link.down', args)
+
+    def __init__(self, client):
+        self._client = client
+        self._bridge = IPManager.IPBridgeManager(client)
+        self._link = IPManager.IPLinkManager(client)
+
+    @property
+    def bridge(self):
+        return self._bridge
+
+    @property
+    def link(self):
+        return self._link
 
 
 class BridgeManager:
