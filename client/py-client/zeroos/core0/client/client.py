@@ -808,20 +808,20 @@ class IPManager:
         def __init__(self, client):
             self._client = client
 
-        def create(self, name, hwaddr=None):
+        def add(self, name, hwaddr=None):
             args = {
                 'name': name,
                 'hwaddr': hwaddr,
             }
 
-            return self._client.json("ip.bridge.create", args)
+            return self._client.json("ip.bridge.add", args)
 
         def delete(self, name):
             args = {
                 'name': name,
             }
 
-            return self._client.json("ip.bridge.delete", args)
+            return self._client.json("ip.bridge.del", args)
 
         def addif(self, name, inf):
             args = {
@@ -855,10 +855,45 @@ class IPManager:
             }
             return self._client.json('ip.link.down', args)
 
+        def name(self, link, name):
+            args = {
+                'name': link,
+                'new': name,
+            }
+            return self._client.json('ip.link.name', args)
+
+        def list(self):
+            return self._client.json('ip.link.list', {})
+
+    class IPAddrManager:
+        def __init__(self, client):
+            self._client = client
+
+        def add(self, link, ip):
+            args = {
+                'name': link,
+                'ip': ip,
+            }
+            return self._client.json('ip.addr.add', args)
+
+        def delete(self, link, ip):
+            args = {
+                'name': link,
+                'ip': ip,
+            }
+            return self._client.json('ip.addr.del', args)
+
+        def list(self, link):
+            args = {
+                'name': link,
+            }
+            return self._client.json('ip.addr.list', args)
+
     def __init__(self, client):
         self._client = client
         self._bridge = IPManager.IPBridgeManager(client)
         self._link = IPManager.IPLinkManager(client)
+        self._addr = IPManager.IPAddrManager(client)
 
     @property
     def bridge(self):
@@ -867,6 +902,10 @@ class IPManager:
     @property
     def link(self):
         return self._link
+
+    @property
+    def addr(self):
+        return self._addr
 
 
 class BridgeManager:
