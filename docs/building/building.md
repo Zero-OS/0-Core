@@ -1,5 +1,7 @@
 # Building your Zero-OS Boot Image
 
+@todo: add reference to 0-autobuilder repo
+
 Building is done using the `initramfs.sh` script available from https://github.com/zero-os/0-initramfs
 
 Below we discuss:

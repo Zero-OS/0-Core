@@ -1,9 +1,9 @@
 # Auto discovery
 
-In a G8OS Grid Architecture, the G8OS node need to register themself against the AYS server that managed the node.
+In a Zero-OS Grid Architecture, the Zero-OS node need to register themself against the AYS server that managed the node.
 In order to do that, core0 need to send an event to the AYS server.
 
-You can find the script which enabled this service here: [initamfs/discover.toml](https://github.com/g8os/initramfs/blob/0.12.0/config/g8os-conf/discover.toml)
+You can find the script which enabled this service here: [initamfs/discover.toml](https://github.com/zero-os/0-initramfs/blob/0.12.0/config/zero-os-conf/discover.toml)
 
 Notice the `{ays}`. This string will be replace by the kernel parameters passed during boot.
 
