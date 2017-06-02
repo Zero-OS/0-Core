@@ -37,8 +37,11 @@ The `Core0` core understands a very specific set of commands:
 - [Process Commands](process.md)
 - [Filesystem Commands](filesystem.md)
 
-## Send a message over Redis
+## Check wether Redis is listening
 
+A basic test to check if your Zero-OS is ready to receive commands, is using the `redis-cli` Redis command line tool:
 ```
-@todo example of sending and receiving a command via Redis
+ZEROTIER_NETWORK="..."
+REDIS_PORT="6379"
+redis-cli -h $ZEROTIER_NETWORK -p $REDIS_PORT ping
 ```

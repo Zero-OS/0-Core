@@ -40,7 +40,9 @@ Also accept the default settings for creating a virtual disk:
 
 
 <a id="create-portforward"></a>
-## Create a port forward for the virtual machine in order to expose the Redis of the Zero-OS
+## Create a port forward for the virtual machine in order to expose the Redis of the Zero-OS (optioanl)
+
+This step is optional since you are probably using an Zero-OS connected to Zero-Tier network.
 
 In the **Settings** of the virtual machine expand the **Advanced** section on the **Network** tab:
 
@@ -70,7 +72,14 @@ Here you have two options:
 <a id="ping-core0"></a>
 ## Ping the Zero-OS
 
-Using the Python client:
+A basic test to check if your Zero-OS instance is functional, is using the `redis-cli` Redis command line tool:
+```
+ZEROTIER_NETWORK="..."
+REDIS_PORT="6379"
+redis-cli -h $ZEROTIER_NETWORK -p $REDIS_PORT ping
+```
+
+The same can be tested using the Python client:
 
 ```python
 import g8core
