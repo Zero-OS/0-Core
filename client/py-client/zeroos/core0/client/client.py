@@ -606,6 +606,17 @@ class BaseClient:
 
 
 class ContainerClient(BaseClient):
+    class ContainerZerotierManager:
+        def __init__(self, client, container):
+            self._container = container
+            self._client = client
+
+        def info(self):
+            return self._client.json('corex.zerotier.info', {'container': self._container})
+
+        def list(self):
+            return self._client.json('corex.zerotier.list', {'container': self._container})
+
     _raw_chk = typchk.Checker({
         'container': int,
         'command': {
@@ -621,10 +632,15 @@ class ContainerClient(BaseClient):
 
         self._client = client
         self._container = container
+        self._zerotier = ContainerClient.ContainerZerotierManager(client, container)  # not (self) we use core0 client
 
     @property
     def container(self):
         return self._container
+
+    @property
+    def zerotier(self):
+        return self._zerotier
 
     def raw(self, command, arguments, queue=None, max_time=None):
         """
