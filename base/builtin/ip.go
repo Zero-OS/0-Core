@@ -28,8 +28,9 @@ func init() {
 	pm.CmdMap["ip.addr.del"] = process.NewInternalProcessFactory(mgr.addrDel)
 	pm.CmdMap["ip.addr.list"] = process.NewInternalProcessFactory(mgr.addrList)
 
-	//pm.CmdMap["ip.route.add"] = process.NewInternalProcessFactory(mgr.routeAdd)
-	//pm.CmdMap["ip.route.del"] = process.NewInternalProcessFactory(mgr.routeDel)
+	pm.CmdMap["ip.route.add"] = process.NewInternalProcessFactory(mgr.routeAdd)
+	pm.CmdMap["ip.route.del"] = process.NewInternalProcessFactory(mgr.routeDel)
+	pm.CmdMap["ip.route.list"] = process.NewInternalProcessFactory(mgr.routeList)
 }
 
 type LinkArguments struct {
@@ -305,55 +306,112 @@ func (_ *ipmgr) addrList(cmd *core.Command) (interface{}, error) {
 	return ips, err
 }
 
-type RouteArguments struct {
+type Route struct {
 	Dev string `json:"dev"`
-	Net string `json:"net"`
+	Dst string `json:"dst"`
+	Gw  string `json:"gw"`
 }
 
-func (_ *ipmgr) routeAdd(cmd *core.Command) (interface{}, error) {
-	var args RouteArguments
-	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
-		return nil, err
+func (r *Route) Validate() error {
+	if (r.Dst == "") != (r.Gw == "") {
+		return fmt.Errorf("only one `dst` or `gw` must be provided")
 	}
+	return nil
+}
 
-	link, err := netlink.LinkByName(args.Dev)
-	if err != nil {
-		return nil, err
-	}
-
-	dst, err := netlink.ParseIPNet(args.Net)
+func (r *Route) route() (*netlink.Route, error) {
+	link, err := netlink.LinkByName(r.Dev)
 	if err != nil {
 		return nil, err
 	}
 
 	route := &netlink.Route{
 		LinkIndex: link.Attrs().Index,
-		Dst:       dst,
+	}
+
+	if r.Dst != "" {
+		dst, err := netlink.ParseIPNet(r.Dst)
+		if err != nil {
+			return nil, err
+		}
+		route.Dst = dst
+	}
+
+	if r.Gw != "" {
+		gw := net.ParseIP(r.Gw)
+		if gw == nil {
+			return nil, fmt.Errorf("invalid gw ip '%s'", r.Gw)
+		}
+		route.Gw = gw
+	}
+
+	return route, nil
+}
+
+func (_ *ipmgr) routeAdd(cmd *core.Command) (interface{}, error) {
+	var args Route
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, err
+	}
+
+	route, err := args.route()
+	if err != nil {
+		return nil, err
 	}
 
 	return nil, netlink.RouteAdd(route)
 }
 
 func (_ *ipmgr) routeDel(cmd *core.Command) (interface{}, error) {
-	var args RouteArguments
+	var args Route
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
 	}
 
-	link, err := netlink.LinkByName(args.Dev)
+	route, err := args.route()
 	if err != nil {
 		return nil, err
-	}
-
-	dst, err := netlink.ParseIPNet(args.Net)
-	if err != nil {
-		return nil, err
-	}
-
-	route := &netlink.Route{
-		LinkIndex: link.Attrs().Index,
-		Dst:       dst,
 	}
 
 	return nil, netlink.RouteDel(route)
+}
+
+func (_ *ipmgr) routeList(cmd *core.Command) (interface{}, error) {
+	routes, err := netlink.RouteList(nil, netlink.FAMILY_ALL)
+	if err != nil {
+		return nil, err
+	}
+
+	links, err := netlink.LinkList()
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]Route, 0)
+	for _, r := range routes {
+		var dst, gw, dev string
+		for _, l := range links {
+			if r.LinkIndex == l.Attrs().Index {
+				dev = l.Attrs().Name
+				break
+			}
+		}
+
+		if r.Dst != nil {
+			dst = r.Dst.String()
+		}
+		if r.Gw != nil {
+			gw = r.Gw.String()
+		}
+
+		results = append(results,
+			Route{
+				Dst: dst,
+				Gw:  gw,
+				Dev: dev,
+			},
+		)
+	}
+
+	return results, nil
 }
