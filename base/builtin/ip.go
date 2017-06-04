@@ -354,6 +354,10 @@ func (_ *ipmgr) routeAdd(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
+	if err := args.Validate(); err != nil {
+		return nil, err
+	}
+
 	route, err := args.route()
 	if err != nil {
 		return nil, err
@@ -365,6 +369,10 @@ func (_ *ipmgr) routeAdd(cmd *core.Command) (interface{}, error) {
 func (_ *ipmgr) routeDel(cmd *core.Command) (interface{}, error) {
 	var args Route
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, err
+	}
+
+	if err := args.Validate(); err != nil {
 		return nil, err
 	}
 
