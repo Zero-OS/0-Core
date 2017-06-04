@@ -312,13 +312,6 @@ type Route struct {
 	Gw  string `json:"gw"`
 }
 
-func (r *Route) Validate() error {
-	if (r.Dst == "") != (r.Gw == "") {
-		return fmt.Errorf("only one `dst` or `gw` must be provided")
-	}
-	return nil
-}
-
 func (r *Route) route() (*netlink.Route, error) {
 	link, err := netlink.LinkByName(r.Dev)
 	if err != nil {
@@ -354,10 +347,6 @@ func (_ *ipmgr) routeAdd(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	if err := args.Validate(); err != nil {
-		return nil, err
-	}
-
 	route, err := args.route()
 	if err != nil {
 		return nil, err
@@ -369,10 +358,6 @@ func (_ *ipmgr) routeAdd(cmd *core.Command) (interface{}, error) {
 func (_ *ipmgr) routeDel(cmd *core.Command) (interface{}, error) {
 	var args Route
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
-		return nil, err
-	}
-
-	if err := args.Validate(); err != nil {
 		return nil, err
 	}
 
