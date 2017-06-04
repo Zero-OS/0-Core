@@ -136,6 +136,7 @@ func (o *Bootstrap) setupFS() error {
 		return err
 	}
 
+	os.MkdirAll("/dev", 0755)
 	if options.Options.Unprivileged() {
 		if err := syscall.Mount("none", "/dev", "tmpfs", syscall.MS_NOSUID, "mode=755"); err != nil {
 			return fmt.Errorf("failed to mount dev in unprivileged: %s", err)

@@ -26,7 +26,7 @@ var (
 func init() {
 	formatter := logging.MustStringFormatter("%{color}%{module} %{level:.1s} > %{message} %{color:reset}")
 	logging.SetFormatter(formatter)
-	logging.SetLevel(logging.INFO, "")
+	logging.SetLevel(logging.DEBUG, "")
 }
 
 func handleSignal(bs *bootstrap.Bootstrap) {
