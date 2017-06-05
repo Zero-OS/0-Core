@@ -6,7 +6,7 @@ matrix:
         - sudo apt-get -qq update
         - sudo apt-get install -y python-pip
         - pip install -r tests/requirements.txt
-        - pip install pyclient/.
+        - pip install client/py-client/.
         - pip3 install git+https://github.com/gigforks/packet-python.git
       script:
         - cd tests; python3 packet_script.py $TRAVIS_BRANCH $PACKET_TOKEN 
