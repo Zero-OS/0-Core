@@ -36,10 +36,10 @@ def delete_device(manager, hostname, device_id):
 
 def mount_disks(config):
     target_ip = config['main']['target_ip']
-    client = client.Client(target_ip)
-    client.timeout = 100
-    client.btrfs.create('storage', ['/dev/sda'])
-    client.disk.mount('/dev/sda', '/var/cache', options=[""])
+    cl = client.Client(target_ip)
+    cl.timeout = 100
+    cl.btrfs.create('storage', ['/dev/sda'])
+    cl.disk.mount('/dev/sda', '/var/cache', options=[""])
 
 
 def check_status(found):
