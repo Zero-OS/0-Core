@@ -3,7 +3,6 @@ matrix:
     - language: python
       python: 3.5
       before_script:
-        - sudo apt-get -qq update
         - pip3 install -r tests/requirements.txt
         - pip3 install client/py-client/.
         - pip3 install git+https://github.com/gigforks/packet-python.git
