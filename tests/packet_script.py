@@ -3,7 +3,7 @@ from random import randint
 import packet
 import time
 import os
-import g8core
+from zeroos.core0 import client
 import configparser
 import sys
 import requests
@@ -36,7 +36,7 @@ def delete_device(manager, hostname, device_id):
 
 def mount_disks(config):
     target_ip = config['main']['target_ip']
-    client = g8core.Client(target_ip)
+    client = client.Client(target_ip)
     client.timeout = 100
     client.btrfs.create('storage', ['/dev/sda'])
     client.disk.mount('/dev/sda', '/var/cache', options=[""])
