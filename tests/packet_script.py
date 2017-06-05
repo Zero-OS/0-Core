@@ -61,7 +61,6 @@ def run_tests(branch):
     token = sys.argv[2]
     manager = packet.Manager(auth_token=token)
     hostname = 'g8os{}'.format(randint(100, 300))
-    print('branch: {}'.format(branch))
     try:
         device = create_new_device(manager, hostname, branch=branch)
     except:
@@ -92,6 +91,7 @@ def run_tests(branch):
 
 if __name__ == '__main__':
     branch = sys.argv[1]
+    print('branch: {}'.format(branch))
     url = 'https://build.gig.tech/build/status'
     url2 = 'https://build.gig.tech/build/history'
     session = requests.Session()
