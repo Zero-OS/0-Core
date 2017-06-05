@@ -9,7 +9,7 @@ matrix:
         - pip install client/py-client/.
         - pip3 install git+https://github.com/gigforks/packet-python.git
       script:
-        - cd tests; python3 packet_script.py $TRAVIS_BRANCH $PACKET_TOKEN 
+        - cd tests; python3 packet_script.py $TRAVIS_BRANCH $PACKET_TOKEN $TRAVIS_PULL_REQUEST_BRANCH 
     
     - language: go
       sudo: true
