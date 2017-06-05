@@ -10,7 +10,7 @@ pip install 0-core-client
 ```python
 from zeroos.core0 import client
 
-cl = g8core.Client(host='0-core-host-address')
+cl = client.Client(host='0-core-host-address')
 
 #validate that core0 is reachable
 print(cl.ping())
