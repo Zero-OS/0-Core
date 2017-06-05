@@ -91,7 +91,7 @@ def run_tests(branch):
 
 if __name__ == '__main__':
     branch = sys.argv[1]
-    if len(sys.argv) == 3:
+    if len(sys.argv) == 4:
         branch = sys.argv[3]
     print('branch: {}'.format(branch))
     url = 'https://build.gig.tech/build/status'
