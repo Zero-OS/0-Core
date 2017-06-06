@@ -1,10 +1,10 @@
 # Python Client
 
-**g8core** is the Python client used to talk to [Zero-OS 0-core](./)
+**g8core** is the Python client used to talk to [Zero-OS 0-core](../..)
 
 ## Install
 
-@todo: update [client/py-client](client/py-client)
+@todo: update [client/py-client](../../client/py-client)
 
 @todo: check if code needs update, i.e. in JS:
 ```
