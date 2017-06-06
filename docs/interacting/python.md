@@ -1,6 +1,6 @@
 # Python Client
 
-**g8core** is the Python client used to talk to [Zero-OS 0-core](/zero-os/0-core)
+**g8core** is the Python client used to talk to [Zero-OS 0-core](../../README.md)
 
 ## Install
 
