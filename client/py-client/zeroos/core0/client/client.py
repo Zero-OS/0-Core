@@ -976,7 +976,7 @@ class BridgeManager:
     def create(self, name, hwaddr=None, network=None, nat=False, settings={}):
         """
         Create a bridge with the given name, hwaddr and networking setup
-        :param name: name of the bridge (must be unique)
+        :param name: name of the bridge (must be unique), 15 characters or less, and not equal to "default".
         :param hwaddr: MAC address of the bridge. If none, a one will be created for u
         :param network: Networking mode, options are none, static, and dnsmasq
         :param nat: If true, SNAT will be enabled on this bridge. (IF and ONLY IF an IP is set on the bridge

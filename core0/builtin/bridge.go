@@ -3,12 +3,12 @@ package builtin
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pborman/uuid"
+	"github.com/vishvananda/netlink"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/zero-os/0-core/base/utils"
-	"github.com/pborman/uuid"
-	"github.com/vishvananda/netlink"
 	"io/ioutil"
 	"net"
 	"os"
@@ -110,6 +110,19 @@ type BridgeCreateArguments struct {
 	Name      string        `json:"name"`
 	HwAddress string        `json:"hwaddr"`
 	Network   BridgeNetwork `json:"network"`
+}
+
+func (br *BridgeCreateArguments) Validate() error {
+	name := len(br.Name)
+	if 1 > name || name > 15 {
+		return fmt.Errorf("Bridge name must be between 1 and 15 characters")
+	}
+
+	if br.Name == "default" {
+		return fmt.Errorf("Bridge name can't be 'default'")
+	}
+
+	return nil
 }
 
 type BridgeDeleteArguments struct {
@@ -423,6 +436,11 @@ func (b *bridgeMgr) create(cmd *core.Command) (interface{}, error) {
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
 	}
+
+	if err := args.Validate(); err != nil {
+		return nil, err
+	}
+
 	var hw net.HardwareAddr
 
 	if args.HwAddress != "" {
@@ -475,21 +493,22 @@ func (b *bridgeMgr) create(cmd *core.Command) (interface{}, error) {
 }
 
 func (b *bridgeMgr) isolate(br string) error {
+	name := fmt.Sprintf("\"%v\"", br)
 	//make sure all packages coming from this interface is marked with (1)
 	if _, err := pm.GetManager().System("nft",
-		"add", "rule", "nat", "pre", "iifname", br, "meta", "mark", "set", "1"); err != nil {
+		"add", "rule", "nat", "pre", "iifname", name, "meta", "mark", "set", "1"); err != nil {
 		return err
 	}
 
 	//any packages that is coming and exiting on the same bridge should be marked as 2
 	if _, err := pm.GetManager().System("nft",
-		"add", "rule", "filter", "forward", "iifname", br, "oifname", br, "meta", "mark", "set", "2"); err != nil {
+		"add", "rule", "filter", "forward", "iifname", name, "oifname", name, "meta", "mark", "set", "2"); err != nil {
 		return err
 	}
 
 	//drop any package that is forwarded to this bridge and still marked as 1
 	if _, err := pm.GetManager().System("nft",
-		"add", "rule", "filter", "forward", "oifname", br, "meta", "mark", "1", "drop"); err != nil {
+		"add", "rule", "filter", "forward", "oifname", name, "meta", "mark", "1", "drop"); err != nil {
 		return err
 	}
 
