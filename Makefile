@@ -1,7 +1,7 @@
 OUTPUT = bin
 VERSION = base/version.go
 
-branch = $(shell git rev-parse --abbrev-ref HEAD)
+branch = $(shell git symbolic-ref -q --short HEAD || git describe --tags --exact-match)
 revision = $(shell git rev-parse HEAD)
 dirty = $(shell test -n "`git diff --shortstat 2> /dev/null | tail -n1`" && echo "*")
 base = github.com/zero-os/0-core/base
