@@ -10,7 +10,7 @@ matrix:
       script:
         - nosetests -v -s  testsuite/a_basic/tests_01_system.py:SystemTests.test001_execute_commands
       after_script:
-        - python3 packet_script.py delete 
+        - python3 packet_script.py delete $PACKET_TOKEN
     
     - language: go
       sudo: true
