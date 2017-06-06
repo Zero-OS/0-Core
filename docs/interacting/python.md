@@ -1,15 +1,38 @@
 # Python Client
 
-**g8core** is the Python client used to talk to [G8OS core](https://github.com/g8os/core0)
+**g8core** is the Python client used to talk to [Zero-OS 0-core](https://github.com/zero-os/0-core)
 
 ## Install
+
+@todo: update https://github.com/zero-os/0-core/tree/master/client/py-client
+
+@todo: check if code needs update, i.e. in JS:
+```
+from zeroos.core0.client import Client
+
+cl = Client("IP OF Zero-OS")
+```
+
 
 ```bash
 pip install g8core
 ```
 
+Or:
+
+```bash
+git clone git@github.com:zero-os/0-core.git
+cd 0-core/client/py-client
+``
+
 ## How to use
+
+
+
 ```python
+
+
+
 import g8core
 
 cl = g8core.Client(host='ip of docker container running core0')
