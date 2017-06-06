@@ -119,7 +119,8 @@ type DiskTarget struct {
 }
 
 type DiskDriver struct {
-	Type DiskDriverType `xml:"type,attr,omitempty"`
+	Type  DiskDriverType `xml:"type,attr,omitempty"`
+	Cache string         `xml:"cache,attr,omitempty"`
 }
 
 type DiskDevice struct {

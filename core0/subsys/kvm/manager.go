@@ -12,14 +12,14 @@ import (
 
 	"sync"
 
+	"github.com/libvirt/libvirt-go"
+	"github.com/pborman/uuid"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/zero-os/0-core/core0/screen"
 	"github.com/zero-os/0-core/core0/subsys/containers"
 	"github.com/zero-os/0-core/core0/transport"
-	"github.com/libvirt/libvirt-go"
-	"github.com/pborman/uuid"
 )
 
 const (
@@ -457,6 +457,9 @@ func (m *kvmManager) mkNBDDisk(idx int, u *url.URL) DiskDevice {
 			Target: DiskTarget{
 				Dev: target,
 			},
+			Driver: DiskDriver{
+				Cache: "none",
+			},
 			Source: DiskSource{
 				Protocol: "nbd",
 				Name:     name,
@@ -471,6 +474,9 @@ func (m *kvmManager) mkNBDDisk(idx int, u *url.URL) DiskDevice {
 			Type: DiskTypeNetwork,
 			Target: DiskTarget{
 				Dev: target,
+			},
+			Driver: DiskDriver{
+				Cache: "none",
 			},
 			Source: DiskSource{
 				Protocol: "nbd",
