@@ -140,7 +140,7 @@ For all customization options see [Configuration](../config/config.md).
 <a id="autobuild"></a>
 ## Autobuild
 
-Every time a change is pushed to [zero-os/0-core](../../), or [zero-os/0-fs](https://github.com/zero-os/0-fs), a pre-compiled initramfs image (called baseimage) will be used.
+Every time a change is pushed to [zero-os/0-core](../../README.md), or [zero-os/0-fs](https://github.com/zero-os/0-fs), a pre-compiled initramfs image (called baseimage) will be used.
 Building of core0 or 0-fs only takes about 3 minutes.
 If you push to [zero-os/0-initramfs](https://github.com/zero-os/0-initramfs), a complete kernel image will be rebuilt, which can take from 20 min and up to 1 hour.
 
