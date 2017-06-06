@@ -51,6 +51,7 @@ def mount_disks(config):
 
 def check_status(found):
     session = requests.Session()
+    url = 'https://build.gig.tech/build/status'
     while True:
         try:
             res_st = session.get(url)
@@ -100,7 +101,6 @@ if __name__ == '__main__':
         if len(sys.argv) == 5:
             branch = sys.argv[4]
         print('branch: {}'.format(branch))
-        url = 'https://build.gig.tech/build/status'
         url2 = 'https://build.gig.tech/build/history'
         session = requests.Session()
         t = check_status(True)
