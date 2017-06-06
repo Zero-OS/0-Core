@@ -155,6 +155,9 @@ class InfoManager:
     def port(self):
         return self._client.json('info.port', {})
 
+    def version(self):
+        return self._client.json('info.version', {})
+
 
 class JobManager:
     _job_chk = typchk.Checker({
@@ -483,6 +486,7 @@ class BaseClient:
         self._job = JobManager(self)
         self._process = ProcessManager(self)
         self._filesystem = FilesystemManager(self)
+        self._ip = IPManager(self)
 
     @property
     def info(self):
@@ -499,6 +503,10 @@ class BaseClient:
     @property
     def filesystem(self):
         return self._filesystem
+
+    @property
+    def ip(self):
+        return self._ip
 
     def raw(self, command, arguments, queue=None, max_time=None):
         """
@@ -598,6 +606,17 @@ class BaseClient:
 
 
 class ContainerClient(BaseClient):
+    class ContainerZerotierManager:
+        def __init__(self, client, container):
+            self._container = container
+            self._client = client
+
+        def info(self):
+            return self._client.json('corex.zerotier.info', {'container': self._container})
+
+        def list(self):
+            return self._client.json('corex.zerotier.list', {'container': self._container})
+
     _raw_chk = typchk.Checker({
         'container': int,
         'command': {
@@ -613,10 +632,15 @@ class ContainerClient(BaseClient):
 
         self._client = client
         self._container = container
+        self._zerotier = ContainerClient.ContainerZerotierManager(client, container)  # not (self) we use core0 client
 
     @property
     def container(self):
         return self._container
+
+    @property
+    def zerotier(self):
+        return self._zerotier
 
     def raw(self, command, arguments, queue=None, max_time=None):
         """
@@ -796,6 +820,139 @@ class ContainerManager:
         :return: Client object bound to the specified container id
         """
         return ContainerClient(self._client, container)
+
+
+class IPManager:
+    class IPBridgeManager:
+        def __init__(self, client):
+            self._client = client
+
+        def add(self, name, hwaddr=None):
+            args = {
+                'name': name,
+                'hwaddr': hwaddr,
+            }
+
+            return self._client.json("ip.bridge.add", args)
+
+        def delete(self, name):
+            args = {
+                'name': name,
+            }
+
+            return self._client.json("ip.bridge.del", args)
+
+        def addif(self, name, inf):
+            args = {
+                'name': name,
+                'inf': inf,
+            }
+
+            return self._client.json('ip.bridge.addif', args)
+
+        def delif(self, name, inf):
+            args = {
+                'name': name,
+                'inf': inf,
+            }
+
+            return self._client.json('ip.bridge.delif', args)
+
+    class IPLinkManager:
+        def __init__(self, client):
+            self._client = client
+
+        def up(self, link):
+            args = {
+                'name': link,
+            }
+            return self._client.json('ip.link.up', args)
+
+        def down(self, link):
+            args = {
+                'name': link,
+            }
+            return self._client.json('ip.link.down', args)
+
+        def name(self, link, name):
+            args = {
+                'name': link,
+                'new': name,
+            }
+            return self._client.json('ip.link.name', args)
+
+        def list(self):
+            return self._client.json('ip.link.list', {})
+
+    class IPAddrManager:
+        def __init__(self, client):
+            self._client = client
+
+        def add(self, link, ip):
+            args = {
+                'name': link,
+                'ip': ip,
+            }
+            return self._client.json('ip.addr.add', args)
+
+        def delete(self, link, ip):
+            args = {
+                'name': link,
+                'ip': ip,
+            }
+            return self._client.json('ip.addr.del', args)
+
+        def list(self, link):
+            args = {
+                'name': link,
+            }
+            return self._client.json('ip.addr.list', args)
+
+    class IPRouteManager:
+        def __init__(self, client):
+            self._client = client
+
+        def add(self, dev, dst, gw=None):
+            args = {
+                'dev': dev,
+                'dst': dst,
+                'gw': gw,
+            }
+            return self._client.json('ip.route.add', args)
+
+        def delete(self, dev, dst, gw=None):
+            args = {
+                'dev': dev,
+                'dst': dst,
+                'gw': gw,
+            }
+            return self._client.json('ip.route.del', args)
+
+        def list(self):
+            return self._client.json('ip.route.list', {})
+
+    def __init__(self, client):
+        self._client = client
+        self._bridge = IPManager.IPBridgeManager(client)
+        self._link = IPManager.IPLinkManager(client)
+        self._addr = IPManager.IPAddrManager(client)
+        self._route = IPManager.IPRouteManager(client)
+
+    @property
+    def bridge(self):
+        return self._bridge
+
+    @property
+    def link(self):
+        return self._link
+
+    @property
+    def addr(self):
+        return self._addr
+
+    @property
+    def route(self):
+        return self._route
 
 
 class BridgeManager:

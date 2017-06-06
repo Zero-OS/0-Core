@@ -2,14 +2,15 @@ package builtin
 
 import (
 	"fmt"
-	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/shirou/gopsutil/net"
+	base "github.com/zero-os/0-core/base"
+	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm/process"
 	"gopkg.in/bufio.v1"
 	"io/ioutil"
 	gonet "net"
@@ -21,12 +22,13 @@ import (
 )
 
 const (
-	cmdGetCPUInfo  = "info.cpu"
-	cmdGetDiskInfo = "info.disk"
-	cmdGetMemInfo  = "info.mem"
-	cmdGetNicInfo  = "info.nic"
-	cmdGetOsInfo   = "info.os"
-	cmdGetPortInfo = "info.port"
+	cmdGetCPUInfo     = "info.cpu"
+	cmdGetDiskInfo    = "info.disk"
+	cmdGetMemInfo     = "info.mem"
+	cmdGetNicInfo     = "info.nic"
+	cmdGetOsInfo      = "info.os"
+	cmdGetPortInfo    = "info.port"
+	cmdGetVersionInfo = "info.version"
 )
 
 func init() {
@@ -36,6 +38,18 @@ func init() {
 	pm.CmdMap[cmdGetNicInfo] = process.NewInternalProcessFactory(getNicInfo)
 	pm.CmdMap[cmdGetOsInfo] = process.NewInternalProcessFactory(getOsInfo)
 	pm.CmdMap[cmdGetPortInfo] = process.NewInternalProcessFactory(getPortInfo)
+	pm.CmdMap[cmdGetVersionInfo] = process.NewInternalProcessFactory(getVersionInfo)
+
+}
+
+type Version struct {
+	Branch   string `json:"branch"`
+	Revision string `json:"revision"`
+	Dirty    bool   `json:"dirty"`
+}
+
+func getVersionInfo(cmd *core.Command) (interface{}, error) {
+	return Version{Branch: base.Branch, Revision: base.Revision, Dirty: base.Dirty != ""}, nil
 }
 
 func getCPUInfo(cmd *core.Command) (interface{}, error) {
