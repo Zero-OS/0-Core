@@ -8,7 +8,7 @@ matrix:
         - pip3 install git+https://github.com/gigforks/packet-python.git
         - cd tests; python3 packet_script.py create $PACKET_TOKEN $TRAVIS_BRANCH $TRAVIS_PULL_REQUEST_BRANCH
       script:
-        - nosetests -v -s  testsuite/a_basic/tests_01_system.py:SystemTests.test001_execute_commands
+        - nosetests -v -s testsuite
       after_script:
         - python3 packet_script.py delete $PACKET_TOKEN
     

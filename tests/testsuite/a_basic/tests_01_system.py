@@ -115,7 +115,7 @@ class SystemTests(BaseTest):
 
         self.lg('Check if you can ping the remote host, should succeed')
         rs = self.client.ping()
-        self.assertEqua(rs[:4], 'PONG')
+        self.assertEqual(rs[:4], 'PONG')
 
         self.lg('Create folder using system')
         folder = self.rand_str()
