@@ -9,7 +9,7 @@ import sys
 import requests
 
 
-def create_new_device(manager, hostname, branch='master'):
+def create_new_device(manager, hostname='zero2s', branch='master'):
     project = manager.list_projects()[0]
     ipxe_script_url = 'https://bootstrap.gig.tech/ipxe/{}/abcdef/console=ttyS1,115200n8%20debug'.format(branch)
     print('creating new machine  .. ')
@@ -22,7 +22,12 @@ def create_new_device(manager, hostname, branch='master'):
     return device
 
 
-def delete_device(manager, hostname, device_id):
+def delete_device(manager, hostname='zero2s'):
+    project = manager.list_projects()[0]
+    devices = manager.list_devices(project.id)
+    for dev in devices:
+        if dev.hostname == hostname:
+            device_id = dev.id
     params = {
              "hostname": hostname,
              "description": "string",
@@ -31,7 +36,8 @@ def delete_device(manager, hostname, device_id):
              "locked": False,
              "tags": []
              }
-    manager.call_api('devices/%s' % device_id, type='DELETE', params=params)
+    if device_id:
+        manager.call_api('devices/%s' % device_id, type='DELETE', params=params)
 
 
 def mount_disks(config):
@@ -57,12 +63,10 @@ def check_status(found):
     time.sleep(1)
 
 
-def run_tests(branch):
-    token = sys.argv[2]
-    manager = packet.Manager(auth_token=token)
-    hostname = 'g8os{}'.format(randint(100, 300))
+def create_pkt_machine(manager, branch):
+    #hostname = 'g8os{}'.format(randint(100, 300))
     try:
-        device = create_new_device(manager, hostname, branch=branch)
+        device = create_new_device(manager, branch=branch)
     except:
         print('device hasn\'t been created')
         raise
@@ -82,31 +86,33 @@ def run_tests(branch):
         config.write(configfile)
     mount_disks(config)
 
-    print('start running g8os tests .. ')
-    os.system('nosetests -v -s testsuite')
-
-    print('deleting the g8os machine ..')
-    delete_device(manager, hostname, device.id)
-
 
 if __name__ == '__main__':
-    branch = sys.argv[1]
-    if len(sys.argv) == 4:
-        branch = sys.argv[3]
-    print('branch: {}'.format(branch))
-    url = 'https://build.gig.tech/build/status'
-    url2 = 'https://build.gig.tech/build/history'
-    session = requests.Session()
-    t = check_status(True)
-    print('build has been started at {}'.format(t))
-    print('waiting for g8os build to pass ..')
-    check_status(False)
-    time.sleep(2)
-    res_hs = session.get(url2)
-    if res_hs.json()[0]['started'] == t:
-        if res_hs.json()[0]['status'] == 'success':
-            run_tests(branch)
-        else:
-            print('build has failed')
+    action = sys.argv[1]
+    token = sys.argv[2]
+    manager = packet.Manager(auth_token=token)
+    if action == 'delete':
+        print('deleting the g8os machine ..')
+        delete_device(manager)
     else:
-        print('build wasn\'t found in the history page')
+        branch = sys.argv[3]
+        if len(sys.argv) == 5:
+            branch = sys.argv[4]
+        print('branch: {}'.format(branch))
+        url = 'https://build.gig.tech/build/status'
+        url2 = 'https://build.gig.tech/build/history'
+        session = requests.Session()
+        t = check_status(True)
+        print('build has been started at {}'.format(t))
+        print('waiting for g8os build to pass ..')
+        check_status(False)
+        time.sleep(2)
+        res_hs = session.get(url2)
+        if res_hs.json()[0]['started'] == t:
+            if res_hs.json()[0]['status'] == 'success':
+                create_pkt_machine(manager, branch)
+            else:
+                print('build has failed')
+        else:
+            print('build wasn\'t found in the history page')
+
