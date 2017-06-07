@@ -27,4 +27,3 @@ matrix:
         - go install ./core0
         - go install ./coreX
         - bash <(curl -s https://codecov.io/bash)
-
