@@ -40,7 +40,7 @@ Also accept the default settings for creating a virtual disk:
 
 
 <a id="create-portforward"></a>
-## Create a port forward for the virtual machine in order to expose the Redis of the Zero-OS (optioanl)
+## Create a port forward for the virtual machine in order to expose the Redis of the Zero-OS (optional)
 
 This step is optional since you are probably using an Zero-OS connected to Zero-Tier network.
 
@@ -67,7 +67,6 @@ Here you have two options:
 - Or get one from the [Zero-OS Bootstrap Service](https://bootstrap.gig.tech/)
 
 ![select iso](images/select_iso.png)
-
 
 <a id="ping-core0"></a>
 ## Ping the Zero-OS

@@ -1,5 +1,5 @@
 
-[![Build Status](https://travis-ci.org/g8os/core0.svg?branch=master)](https://travis-ci.org/g8os/core0)
+[![Build Status](https://travis-ci.org/g8os/core0.svg?branch=master)](https://travis-ci.org/zero-os/0-core/)
 [![codecov](https://codecov.io/gh/g8os/core0/branch/master/graph/badge.svg)](https://codecov.io/gh/g8os/core0)
 
 # Core0

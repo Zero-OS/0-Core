@@ -5,6 +5,7 @@
 ## Install
 
 Install `zeroos` package:
+
 ```bash
 pip3 install zerroos
 ```
@@ -14,6 +15,13 @@ Or, if the above doesn't work (yet):
 BRANCH="master"
 sudo -H pip3 install git+https://github.com/zero-os/0-core.git@${BRANCH}#subdirectory=client/py-client
 ```
+
+Or:
+
+```bash
+git clone git@github.com:zero-os/0-core.git
+cd 0-core/client/py-client
+``
 
 ## How to use
 

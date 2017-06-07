@@ -131,11 +131,12 @@ func (o *Bootstrap) setupFS() error {
 
 	os.MkdirAll("/proc", 0755)
 	if err := syscall.Mount("none", "/proc", "proc",
-		syscall.MS_NOSUID|syscall.MS_RELATIME|syscall.MS_NODEV|syscall.MS_NOEXEC,
+		syscall.MS_RDONLY|syscall.MS_NOSUID|syscall.MS_RELATIME|syscall.MS_NODEV|syscall.MS_NOEXEC,
 		""); err != nil {
 		return err
 	}
 
+	os.MkdirAll("/dev", 0755)
 	if options.Options.Unprivileged() {
 		if err := syscall.Mount("none", "/dev", "tmpfs", syscall.MS_NOSUID, "mode=755"); err != nil {
 			return fmt.Errorf("failed to mount dev in unprivileged: %s", err)

@@ -32,7 +32,7 @@ func (c *container) preStartHostNetworking() error {
 }
 
 func (c *container) zerotierHome() string {
-	return fmt.Sprintf("/tmp/zerotier/container-%d", c.id)
+	return path.Join(BackendBaseDir, c.name(), "zerotier")
 }
 
 func (c *container) zerotierDaemon() error {

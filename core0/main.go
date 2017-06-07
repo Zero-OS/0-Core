@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/op/go-logging"
 	"github.com/zero-os/0-core/base"
 	"github.com/zero-os/0-core/base/pm"
 	pmcore "github.com/zero-os/0-core/base/pm/core"
@@ -17,7 +18,6 @@ import (
 	"github.com/zero-os/0-core/core0/stats"
 	"github.com/zero-os/0-core/core0/subsys/containers"
 	"github.com/zero-os/0-core/core0/subsys/kvm"
-	"github.com/op/go-logging"
 
 	_ "github.com/zero-os/0-core/base/builtin"
 	_ "github.com/zero-os/0-core/core0/builtin"
@@ -178,7 +178,8 @@ func main() {
 	sink.Start()
 	screen.Refresh()
 
-	if config.Stats.Enabled {
+	if false && config.Stats.Enabled {
+		//Disabled by default.
 		aggregator, err := stats.NewRedisStatsAggregator(cfg.Local(), "", 1000, time.Duration(config.Stats.FlushInterval)*time.Second)
 		if err != nil {
 			log.Errorf("failed to initialize redis stats aggregator: %s", err)

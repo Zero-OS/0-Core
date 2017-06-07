@@ -3,6 +3,8 @@ package containers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/op/go-logging"
+	"github.com/pborman/uuid"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/process"
@@ -11,8 +13,6 @@ import (
 	"github.com/zero-os/0-core/core0/screen"
 	"github.com/zero-os/0-core/core0/subsys/cgroups"
 	"github.com/zero-os/0-core/core0/transport"
-	"github.com/op/go-logging"
-	"github.com/pborman/uuid"
 	"net/url"
 	"os"
 	"path"
@@ -21,11 +21,13 @@ import (
 )
 
 const (
-	cmdContainerCreate    = "corex.create"
-	cmdContainerList      = "corex.list"
-	cmdContainerDispatch  = "corex.dispatch"
-	cmdContainerTerminate = "corex.terminate"
-	cmdContainerFind      = "corex.find"
+	cmdContainerCreate       = "corex.create"
+	cmdContainerList         = "corex.list"
+	cmdContainerDispatch     = "corex.dispatch"
+	cmdContainerTerminate    = "corex.terminate"
+	cmdContainerFind         = "corex.find"
+	cmdContainerZerotierInfo = "corex.zerotier.info"
+	cmdContainerZerotierList = "corex.zerotier.list"
 
 	coreXResponseQueue = "corex:results"
 	coreXBinaryName    = "coreX"
@@ -221,6 +223,10 @@ func ContainerSubsystem(sink *transport.Sink, cell *screen.RowCell) (ContainerMa
 	pm.CmdMap[cmdContainerDispatch] = process.NewInternalProcessFactory(containerMgr.dispatch)
 	pm.CmdMap[cmdContainerTerminate] = process.NewInternalProcessFactory(containerMgr.terminate)
 	pm.CmdMap[cmdContainerFind] = process.NewInternalProcessFactory(containerMgr.find)
+
+	//container specific info
+	pm.CmdMap[cmdContainerZerotierInfo] = process.NewInternalProcessFactory(containerMgr.ztInfo)
+	pm.CmdMap[cmdContainerZerotierList] = process.NewInternalProcessFactory(containerMgr.ztList)
 
 	return containerMgr, nil
 }
@@ -430,12 +436,12 @@ func (m *containerManager) Dispatch(id uint16, cmd *core.Command) (*core.JobResu
 	return m.sink.Result(cmd.ID, transport.ReturnExpire)
 }
 
-type ContainerTerminateArguments struct {
+type ContainerArguments struct {
 	Container uint16 `json:"container"`
 }
 
 func (m *containerManager) terminate(cmd *core.Command) (interface{}, error) {
-	var args ContainerTerminateArguments
+	var args ContainerArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
 	}
