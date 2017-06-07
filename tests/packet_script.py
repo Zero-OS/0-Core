@@ -55,8 +55,13 @@ def mount_disks(config):
 def check_status(found, branch):
     session = requests.Session()
     url = 'https://build.gig.tech/build/status'
+    t1 = time.time()
     while True:
         try:
+            if found:
+                t2 = time.time()
+                if t1+10 > t2:
+                    return 'No_build_triggered'
             res_st = session.get(url)
             t = res_st.json()['zero-os/0-core/{}'.format(branch)]['started']
             if found:
@@ -107,17 +112,20 @@ if __name__ == '__main__':
             branch = sys.argv[4]
         print('branch: {}'.format(branch))
         t = check_status(True, branch)
-        print('build has been started at {}'.format(t))
-        print('waiting for g8os build to pass ..')
-        check_status(False, branch)
-        time.sleep(2)
-        url2 = 'https://build.gig.tech/build/history'
-        session = requests.Session()
-        res_hs = session.get(url2)
-        if res_hs.json()[0]['started'] == t:
-            if res_hs.json()[0]['status'] == 'success':
-                create_pkt_machine(manager, branch)
+        if t != 'No_build_triggered':
+            print('build has been started at {}'.format(t))
+            print('waiting for g8os build to pass ..')
+            check_status(False, branch)
+            time.sleep(2)
+            url2 = 'https://build.gig.tech/build/history'
+            session = requests.Session()
+            res_hs = session.get(url2)
+            if res_hs.json()[0]['started'] == t:
+                if res_hs.json()[0]['status'] == 'success':
+                    create_pkt_machine(manager, branch)
+                else:
+                    print('build has failed')
             else:
-                print('build has failed')
+                print('build wasn\'t found in the history page')
         else:
-            print('build wasn\'t found in the history page')
+            create_pkt_machine(manager, branch)
