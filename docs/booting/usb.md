@@ -70,12 +70,12 @@ Using a boot loader has several advantages, including:
 - You can pass kernel argument at at boot time, e.g. passing the ZeroTier network ID.
 
 
-As documented in [Zero-OS Bootstrap Service](bootstrap/bootstrap.md) downloading the bootable USB image is simple:
+As documented in [Zero-OS Bootstrap Service](../bootstrap/bootstrap.md) downloading the bootable USB image is simple:
 
 ```
-BRANCH=""
-ZEROTIER_NETWORK="17d709436c7e8f71"
-curl -O https://bootstrap.gig.tech/usb/$BRANCH/$ZEROTIER_NETWORK
+BRANCH="zero-os-master"
+ZEROTIER_NETWORK="<your_zerotier_network>"
+curl -o zero-os.iso https://bootstrap.gig.tech/usb/$BRANCH/$ZEROTIER_NETWORK
 ```
 
 This image includes iPXE and following iPXE script:
