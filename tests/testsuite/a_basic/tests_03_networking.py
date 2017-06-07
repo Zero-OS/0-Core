@@ -51,7 +51,6 @@ class BasicNetworking(BaseTest):
 
         self.lg('{} ENDED'.format(self._testID))
 
-    @unittest.skip('bug: https://github.com/zero-os/0-core/issues/291')
     def test002_create_delete_list_bridges(self):
         """ g8os-013
         *Test case for testing creating, listing, deleting bridges*
