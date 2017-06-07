@@ -12,7 +12,7 @@ On an EFI enabled machine, it's really easy to boot the Zero-OS kernel.
 All you need to do is to copy a Zero-OS kernel on the `FAT32` partition of the boot device, for instance an USB device.
 
 So you first step will be to get the kernel, options are:
-- Create your own image, as documented in [Building your own Zero-OS Boot Image](building/building.md)
+- Create your own image, as documented in [Building your own Zero-OS Boot Image](../building/building.md)
 - Get a kernel build from the [Zero-OS Bootstrap Service](https://bootstrap.gig.tech)
 
 The second option is your quickest option:

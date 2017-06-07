@@ -11,8 +11,8 @@ Below we discuss:
 - [How to use it?](#howtouse)
 - [Custom build](#custom)
 - [Autobuild](#autobuild)
+- [Bootstrap Service](#bootstrap)
 - [I have the kernel, what can I do with it?](#whatnext)
-
 
 
 <a id="dependencies"></a>
@@ -140,9 +140,26 @@ For all customization options see [Configuration](../config/config.md).
 <a id="autobuild"></a>
 ## Autobuild
 
-Every time a change is pushed to [zero-os/0-core](https://github.com/zero-os/0-core), or [zero-os/0-fs](https://github.com/zero-os/0-fs), a pre-compiled initramfs image (called baseimage) will be used. Building of core0 or 0-fs only takes about 3 minutes. If you push to [zero-os/0-initramfs](https://github.com/zero-os/0-initramfs), a complete kernel image will be rebuilt, which can take up to 1 hour.
+Every time a change is pushed to [zero-os/0-core](../../README.md), or [zero-os/0-fs](https://github.com/zero-os/0-fs), a pre-compiled initramfs image (called baseimage) will be used.
+Building of core0 or 0-fs only takes about 3 minutes.
+If you push to [zero-os/0-initramfs](https://github.com/zero-os/0-initramfs), a complete kernel image will be rebuilt, which can take from 20 min and up to 1 hour.
 
-See [zero-os/0-autobuilder](https://github.com/zero-os/0-autobuilder) for more details.
+The build process can be monitored here: https://build.gig.tech/monitor/.
+
+![](build-monitoring.png)
+
+See [zero-os/0-autobuilder](https://github.com/zero-os/0-autobuilder) repository for more details.
+
+
+<a id="bootstrap"></a>
+## Bootstrap Service
+
+All automated builds are made available on the Zero-OS Bootstrap Service: https://bootstrap.gig.tech
+
+![](bootstrap-service.png)
+
+See the [zero-os/0-bootstrap](https://github.com/zero-os/0-bootstrap) repository for more details.
+
 
 <a id="whatnext"></a>
 ## I have the kernel, what can I do with it?
@@ -153,15 +170,4 @@ If you have an EFI shell, just run the kernel like any EFI executable.
 
 If you don't have the shell or want to boot it automatically, save the kernel in `/EFI/BOOT/BOOTX64.EFI` in a FAT partition.
 
-Example on how to create a boot disk:
-
-```shell
-dd if=/dev/zero of=g8os.iso bs=1M count=90
-mkfs.vfat g8os.iso
-mount g8os.iso /mnt
-mkdir -p /mnt/EFI/BOOT
-cp staging/vmlinuz.efi /mnt/EFI/BOOT/BOOTX64.EFI
-umount /mnt
-```
-
-See [Booting Zero-OS](../booting/booting.md) for other options.
+See [Create a Bootable Zero-OS ISO File](booting/iso.md) and [Booting Zero-OS](../booting/booting.md) for all other options.

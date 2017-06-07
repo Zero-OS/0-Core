@@ -1,21 +1,16 @@
 language: go
 sudo: true
 dist: trusty
-
-go:
-  - 1.8
-
+go: 1.8
 before_install:
   - sudo apt-get -qq update
   - sudo apt-get install -y libvirt-dev libcap-dev
-
 install:
   - go get github.com/stretchr/testify
-
 script:
   - bash test.sh
-
 after_success:
   - go install ./core0
   - go install ./coreX
   - bash <(curl -s https://codecov.io/bash)
+

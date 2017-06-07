@@ -908,11 +908,35 @@ class IPManager:
             }
             return self._client.json('ip.addr.list', args)
 
+    class IPRouteManager:
+        def __init__(self, client):
+            self._client = client
+
+        def add(self, dev, dst, gw=None):
+            args = {
+                'dev': dev,
+                'dst': dst,
+                'gw': gw,
+            }
+            return self._client.json('ip.route.add', args)
+
+        def delete(self, dev, dst, gw=None):
+            args = {
+                'dev': dev,
+                'dst': dst,
+                'gw': gw,
+            }
+            return self._client.json('ip.route.del', args)
+
+        def list(self):
+            return self._client.json('ip.route.list', {})
+
     def __init__(self, client):
         self._client = client
         self._bridge = IPManager.IPBridgeManager(client)
         self._link = IPManager.IPLinkManager(client)
         self._addr = IPManager.IPAddrManager(client)
+        self._route = IPManager.IPRouteManager(client)
 
     @property
     def bridge(self):
@@ -925,6 +949,10 @@ class IPManager:
     @property
     def addr(self):
         return self._addr
+
+    @property
+    def route(self):
+        return self._route
 
 
 class BridgeManager:
@@ -948,7 +976,7 @@ class BridgeManager:
     def create(self, name, hwaddr=None, network=None, nat=False, settings={}):
         """
         Create a bridge with the given name, hwaddr and networking setup
-        :param name: name of the bridge (must be unique)
+        :param name: name of the bridge (must be unique), 15 characters or less, and not equal to "default".
         :param hwaddr: MAC address of the bridge. If none, a one will be created for u
         :param network: Networking mode, options are none, static, and dnsmasq
         :param nat: If true, SNAT will be enabled on this bridge. (IF and ONLY IF an IP is set on the bridge

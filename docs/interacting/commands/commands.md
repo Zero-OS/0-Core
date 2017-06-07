@@ -36,3 +36,12 @@ The `Core0` core understands a very specific set of commands:
 - [Job Commands](job.md)
 - [Process Commands](process.md)
 - [Filesystem Commands](filesystem.md)
+
+## Check wether Redis is listening
+
+A basic test to check if your Zero-OS is ready to receive commands, is using the `redis-cli` Redis command line tool:
+```
+ZEROTIER_NETWORK="..."
+REDIS_PORT="6379"
+redis-cli -h $ZEROTIER_NETWORK -p $REDIS_PORT ping
+```
