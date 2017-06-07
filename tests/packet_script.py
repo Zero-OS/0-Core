@@ -49,7 +49,7 @@ def mount_disks(config):
     cl.disk.mount('/dev/sda', '/var/cache', options=[""])
 
 
-def check_status(found):
+def check_status(found, branch):
     session = requests.Session()
     url = 'https://build.gig.tech/build/status'
     while True:
@@ -103,10 +103,10 @@ if __name__ == '__main__':
         print('branch: {}'.format(branch))
         url2 = 'https://build.gig.tech/build/history'
         session = requests.Session()
-        t = check_status(True)
+        t = check_status(True, branch)
         print('build has been started at {}'.format(t))
         print('waiting for g8os build to pass ..')
-        check_status(False)
+        check_status(False, branch)
         time.sleep(2)
         res_hs = session.get(url2)
         if res_hs.json()[0]['started'] == t:
@@ -116,4 +116,3 @@ if __name__ == '__main__':
                 print('build has failed')
         else:
             print('build wasn\'t found in the history page')
-
