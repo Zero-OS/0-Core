@@ -4,7 +4,6 @@ protected = true
 
 [startup.libvirt.args]
 name = "libvirtd"
-args = ["--listen"]
 
 [startup.virtlogd]
 name = "core.system"
