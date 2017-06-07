@@ -9,7 +9,7 @@ import sys
 import requests
 
 
-def create_new_device(manager, hostname='zero2s', branch='master'):
+def create_new_device(manager, hostname, branch='master'):
     project = manager.list_projects()[0]
     ipxe_script_url = 'https://bootstrap.gig.tech/ipxe/{}/abcdef/console=ttyS1,115200n8%20debug'.format(branch)
     print('creating new machine  .. ')
@@ -22,7 +22,10 @@ def create_new_device(manager, hostname='zero2s', branch='master'):
     return device
 
 
-def delete_device(manager, hostname='zero2s'):
+def delete_device(manager):
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    hostname = config['main']['machine_hostname']
     project = manager.list_projects()[0]
     devices = manager.list_devices(project.id)
     for dev in devices:
@@ -66,9 +69,9 @@ def check_status(found, branch):
 
 
 def create_pkt_machine(manager, branch):
-    #hostname = 'g8os{}'.format(randint(100, 300))
+    hostname = 'g8os{}'.format(randint(100, 300))
     try:
-        device = create_new_device(manager, branch=branch)
+        device = create_new_device(manager, hostname, branch=branch)
     except:
         print('device hasn\'t been created')
         raise
@@ -84,6 +87,7 @@ def create_pkt_machine(manager, branch):
     config = configparser.ConfigParser()
     config.read('config.ini')
     config['main']['target_ip'] = dev.ip_addresses[0]['address']
+    config['main']['machine_hostname'] = hostname
     with open('config.ini', 'w') as configfile:
         config.write(configfile)
     mount_disks(config)
