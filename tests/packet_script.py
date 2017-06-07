@@ -97,6 +97,7 @@ if __name__ == '__main__':
     action = sys.argv[1]
     token = sys.argv[2]
     manager = packet.Manager(auth_token=token)
+    print(os.system('echo $TRAVIS_EVENT_TYPE'))
     if action == 'delete':
         print('deleting the g8os machine ..')
         delete_device(manager)
@@ -105,13 +106,13 @@ if __name__ == '__main__':
         if len(sys.argv) == 5:
             branch = sys.argv[4]
         print('branch: {}'.format(branch))
-        url2 = 'https://build.gig.tech/build/history'
-        session = requests.Session()
         t = check_status(True, branch)
         print('build has been started at {}'.format(t))
         print('waiting for g8os build to pass ..')
         check_status(False, branch)
         time.sleep(2)
+        url2 = 'https://build.gig.tech/build/history'
+        session = requests.Session()
         res_hs = session.get(url2)
         if res_hs.json()[0]['started'] == t:
             if res_hs.json()[0]['status'] == 'success':
