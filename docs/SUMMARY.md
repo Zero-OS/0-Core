@@ -14,6 +14,7 @@
   * [Booting Zero-OS on a VM using QEMU](booting/qemu.md)
   * [Booting Zero-OS on VirtualBox](booting/virtualbox.md)
   * [Booting Zero-OS on Packet.net](booting/ays.md)
+  * [Create a Bootable Zero-OS ISO File](booting/iso.md)
 * [Bootstrap Service](bootstrap/bootstrap.md)
 * [Interacting with Zero-OS](interacting/interacting.md)
   * [Available Commands](interacting/commands/commands.md)  
