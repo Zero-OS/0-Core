@@ -10,7 +10,9 @@ import (
 	"github.com/zero-os/0-core/core0/bootstrap/network"
 	"github.com/zero-os/0-core/core0/options"
 	"github.com/zero-os/0-core/core0/screen"
+	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"syscall"
 	"time"
@@ -22,23 +24,41 @@ const (
 	screenStateLine = "->%25s: %s %s"
 
 	nft = `
-nft add table nat
-nft add chain nat pre { type nat hook prerouting priority 0 \; policy accept \;}
-nft add chain nat post { type nat hook postrouting priority 0 \; policy accept \;}
+table ip nat {
+	chain pre {
+		type nat hook prerouting priority 0; policy accept;
+	}
 
-nft add table filter
-nft add chain filter input { type filter hook input priority 0 \; policy accept\; }
-nft add chain filter forward { type filter hook forward priority 0 \; policy accept\; }
-nft add chain filter output { type filter hook output priority 0 \; policy accept\; }
+	chain post {
+		type nat hook postrouting priority 0; policy accept;
+	}
+}
+table ip filter {
+	chain input {
+		type filter hook input priority 0; policy accept;
+	}
+
+	chain forward {
+		type filter hook forward priority 0; policy accept;
+	}
+
+	chain output {
+		type filter hook output priority 0; policy accept;
+	}
+}
 `
 
 	//TODO: Hack that need to be configurable.
 	ztOnly = `
-nft add rule ip filter input iifname "zt*" tcp dport 22 counter accept
-nft add rule ip filter input tcp dport 22 counter drop
-nft add rule ip filter input iifname "zt*" tcp dport 6379 counter accept
-nft add rule ip filter input tcp dport 6379 counter drop
-	`
+table ip filter {
+	chain input {
+		iifname "zt*" tcp dport 6379 counter packets 0 bytes 0 accept
+		tcp dport 6379 counter packets 0 bytes 0 drop
+		iifname "zt*" tcp dport 22 counter packets 0 bytes 0 accept
+		tcp dport 22 counter packets 0 bytes 0 drop
+	}
+}
+`
 )
 
 var (
@@ -187,15 +207,37 @@ func (b *Bootstrap) screen() {
 	}
 }
 
+func (b *Bootstrap) writeRules(r string) (string, error) {
+	f, err := ioutil.TempFile("", "nft")
+	if err != nil {
+		return "", err
+	}
+
+	defer f.Close()
+
+	f.WriteString(r)
+	return f.Name(), nil
+}
+
 func (b *Bootstrap) setNFT() error {
-	if _, err := pm.GetManager().System("sh", "-c", nft); err != nil {
+
+	file, err := b.writeRules(nft)
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(file)
+	if _, err := pm.GetManager().System("nft", "-f", file); err != nil {
 		return err
 	}
 
 	//hack, probably need to be configurable
 	if !options.Options.Kernel.Is("debug") {
-		//only apply nft rules if system is in release mode (no debug flag)
-		if _, err := pm.GetManager().System("sh", "-c", ztOnly); err != nil {
+		file, err := b.writeRules(ztOnly)
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(file)
+		if _, err := pm.GetManager().System("nft", "-f", file); err != nil {
 			return err
 		}
 	}
