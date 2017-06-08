@@ -22,7 +22,15 @@ def create_new_device(manager, hostname, branch='master'):
     return device
 
 
-def delete_device(manager, hostname, device_id):
+def delete_device(manager):
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    hostname = config['main']['machine_hostname']
+    project = manager.list_projects()[0]
+    devices = manager.list_devices(project.id)
+    for dev in devices:
+        if dev.hostname == hostname:
+            device_id = dev.id
     params = {
              "hostname": hostname,
              "description": "string",
@@ -31,21 +39,29 @@ def delete_device(manager, hostname, device_id):
              "locked": False,
              "tags": []
              }
-    manager.call_api('devices/%s' % device_id, type='DELETE', params=params)
+    if device_id:
+        manager.call_api('devices/%s' % device_id, type='DELETE', params=params)
 
 
 def mount_disks(config):
     target_ip = config['main']['target_ip']
+    time.sleep(10)
     cl = client.Client(target_ip)
     cl.timeout = 100
     cl.btrfs.create('storage', ['/dev/sda'])
     cl.disk.mount('/dev/sda', '/var/cache', options=[""])
 
 
-def check_status(found):
+def check_status(found, branch):
     session = requests.Session()
+    url = 'https://build.gig.tech/build/status'
+    t1 = time.time()
     while True:
         try:
+            if found:
+                t2 = time.time()
+                if t1+10 > t2:
+                    return 'No_build_triggered'
             res_st = session.get(url)
             t = res_st.json()['zero-os/0-core/{}'.format(branch)]['started']
             if found:
@@ -57,9 +73,7 @@ def check_status(found):
     time.sleep(1)
 
 
-def run_tests(branch):
-    token = sys.argv[2]
-    manager = packet.Manager(auth_token=token)
+def create_pkt_machine(manager, branch):
     hostname = 'g8os{}'.format(randint(100, 300))
     try:
         device = create_new_device(manager, hostname, branch=branch)
@@ -78,35 +92,40 @@ def run_tests(branch):
     config = configparser.ConfigParser()
     config.read('config.ini')
     config['main']['target_ip'] = dev.ip_addresses[0]['address']
+    config['main']['machine_hostname'] = hostname
     with open('config.ini', 'w') as configfile:
         config.write(configfile)
     mount_disks(config)
 
-    print('start running g8os tests .. ')
-    os.system('nosetests -v -s testsuite')
-
-    print('deleting the g8os machine ..')
-    delete_device(manager, hostname, device.id)
-
 
 if __name__ == '__main__':
-    branch = sys.argv[1]
-    if len(sys.argv) == 4:
-        branch = sys.argv[3]
-    print('branch: {}'.format(branch))
-    url = 'https://build.gig.tech/build/status'
-    url2 = 'https://build.gig.tech/build/history'
-    session = requests.Session()
-    t = check_status(True)
-    print('build has been started at {}'.format(t))
-    print('waiting for g8os build to pass ..')
-    check_status(False)
-    time.sleep(2)
-    res_hs = session.get(url2)
-    if res_hs.json()[0]['started'] == t:
-        if res_hs.json()[0]['status'] == 'success':
-            run_tests(branch)
-        else:
-            print('build has failed')
+    action = sys.argv[1]
+    token = sys.argv[2]
+    manager = packet.Manager(auth_token=token)
+    print(os.system('echo $TRAVIS_EVENT_TYPE'))
+    if action == 'delete':
+        print('deleting the g8os machine ..')
+        delete_device(manager)
     else:
-        print('build wasn\'t found in the history page')
+        branch = sys.argv[3]
+        if len(sys.argv) == 5:
+            branch = sys.argv[4]
+        print('branch: {}'.format(branch))
+        t = check_status(True, branch)
+        if t != 'No_build_triggered':
+            print('build has been started at {}'.format(t))
+            print('waiting for g8os build to pass ..')
+            check_status(False, branch)
+            time.sleep(2)
+            url2 = 'https://build.gig.tech/build/history'
+            session = requests.Session()
+            res_hs = session.get(url2)
+            if res_hs.json()[0]['started'] == t:
+                if res_hs.json()[0]['status'] == 'success':
+                    create_pkt_machine(manager, branch)
+                else:
+                    print('build has failed')
+            else:
+                print('build wasn\'t found in the history page')
+        else:
+            create_pkt_machine(manager, branch)

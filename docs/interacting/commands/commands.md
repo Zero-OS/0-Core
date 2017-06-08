@@ -2,7 +2,7 @@
 
 ## Core0
 
-Core0 is the first process to start on bare metal. It works as a simple process manager.
+Core0 is the first & master process for zero-os.
 
 When started it first configures the networking, and then starts a local Redis instance to dispatch commands to the CoreX cores.
 
