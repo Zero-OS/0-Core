@@ -4,7 +4,7 @@
 * [Booting from PXE Boot Server](pxe.md)
 * [Booting Zero-OS on a VM using QEMU](qemu.md)
 * [Booting Zero-OS on VirtualBox](virtualbox.md)
-* [Booting Zero-OS on Packet.net](ays.md)
+* [Booting Zero-OS on Packet.net](packet.md)
 * [Create a Bootable Zero-OS ISO File](iso.md)
 
 ## Boot Options

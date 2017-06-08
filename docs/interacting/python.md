@@ -4,9 +4,9 @@
 
 ## Install
 
-Install `zeroos` package:
+Install `0-core-client` package:
 ```bash
-pip3 install zerroos
+pip3 install 0-core-client
 ```
 
 Or, if the above doesn't work (yet):
