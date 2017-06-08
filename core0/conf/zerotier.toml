@@ -20,6 +20,10 @@ args = ["-D/tmp/core-0-zt", "leave", "{network}"]
 binary = "sh"
 args = ["-c", "echo 20::: && zerotier-cli -D/tmp/core-0-zt listnetworks -j && echo :::"]
 
+[extension."zerotier.info"]
+binary = "sh"
+args = ["-c", "echo 20::: && zerotier-cli -D/tmp/core-0-zt info -j && echo :::"]
+
 [startup.zerotierkernel]
 name = "zerotier.join"
 after = ["zerotier"]

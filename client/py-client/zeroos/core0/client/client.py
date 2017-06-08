@@ -1464,7 +1464,7 @@ class ZerotierManager:
         result = response.get()
 
         if result.state != 'SUCCESS':
-            raise RuntimeError('failed to join zerotier network: %s', result.stderr)
+            raise RuntimeError('failed to list zerotier networks: %s', result.stderr)
 
         data = result.data.strip()
         if data == '':
@@ -1472,6 +1472,23 @@ class ZerotierManager:
 
         return json.loads(data)
 
+    def info(self):
+        """
+        Display zerotier status info
+
+        :return: dict of zerotier statusinfo
+        """
+        response = self._client.raw('zerotier.info', {})
+        result = response.get()
+
+        if result.state != 'SUCCESS':
+            raise RuntimeError('failed to get zerotier info: %s', result.stderr)
+
+        data = result.data.strip()
+        if data == '':
+            return {}
+
+        return json.loads(data)
 
 class KvmManager:
     _iotune_dict = {
