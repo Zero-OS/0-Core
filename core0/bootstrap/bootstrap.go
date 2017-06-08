@@ -8,8 +8,11 @@ import (
 	"github.com/zero-os/0-core/base/settings"
 	"github.com/zero-os/0-core/base/utils"
 	"github.com/zero-os/0-core/core0/bootstrap/network"
+	"github.com/zero-os/0-core/core0/options"
 	"github.com/zero-os/0-core/core0/screen"
+	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"syscall"
 	"time"
@@ -19,6 +22,43 @@ const (
 	InternetTestAddress = "http://www.google.com/"
 
 	screenStateLine = "->%25s: %s %s"
+
+	nft = `
+table ip nat {
+	chain pre {
+		type nat hook prerouting priority 0; policy accept;
+	}
+
+	chain post {
+		type nat hook postrouting priority 0; policy accept;
+	}
+}
+table ip filter {
+	chain input {
+		type filter hook input priority 0; policy accept;
+	}
+
+	chain forward {
+		type filter hook forward priority 0; policy accept;
+	}
+
+	chain output {
+		type filter hook output priority 0; policy accept;
+	}
+}
+`
+
+	//TODO: Hack that need to be configurable.
+	ztOnly = `
+table ip filter {
+	chain input {
+		iifname "zt*" tcp dport 6379 counter packets 0 bytes 0 accept
+		tcp dport 6379 counter packets 0 bytes 0 drop
+		iifname "zt*" tcp dport 22 counter packets 0 bytes 0 accept
+		tcp dport 22 counter packets 0 bytes 0 drop
+	}
+}
+`
 )
 
 var (
@@ -167,10 +207,52 @@ func (b *Bootstrap) screen() {
 	}
 }
 
+func (b *Bootstrap) writeRules(r string) (string, error) {
+	f, err := ioutil.TempFile("", "nft")
+	if err != nil {
+		return "", err
+	}
+
+	defer f.Close()
+
+	f.WriteString(r)
+	return f.Name(), nil
+}
+
+func (b *Bootstrap) setNFT() error {
+
+	file, err := b.writeRules(nft)
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(file)
+	if _, err := pm.GetManager().System("nft", "-f", file); err != nil {
+		return err
+	}
+
+	//hack, probably need to be configurable
+	if !options.Options.Kernel.Is("debug") {
+		file, err := b.writeRules(ztOnly)
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(file)
+		if _, err := pm.GetManager().System("nft", "-f", file); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 //Bootstrap registers extensions and startup system services.
 func (b *Bootstrap) Bootstrap() {
 	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &syscall.Rlimit{65536, 65536}); err != nil {
 		log.Errorf("failed to setup max open files limit: %s", err)
+	}
+
+	if err := b.setNFT(); err != nil {
+		log.Criticalf("failed to setup NFT: %s", err)
 	}
 
 	//register core extensions

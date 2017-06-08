@@ -3,7 +3,6 @@ package builtin
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/pborman/uuid"
 	"github.com/vishvananda/netlink"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/core"
@@ -20,8 +19,7 @@ import (
 )
 
 type bridgeMgr struct {
-	init sync.Once
-	m    sync.Mutex
+	m sync.Mutex
 }
 
 func init() {
@@ -42,17 +40,6 @@ const (
 	DnsMasqBridgeNetworkMode BridgeNetworkMode = "dnsmasq"
 	StaticBridgeNetworkMode  BridgeNetworkMode = "static"
 )
-
-const nftInitScript = `
-nft add table nat
-nft add chain nat pre { type nat hook prerouting priority 0 \; policy accept \;}
-nft add chain nat post { type nat hook postrouting priority 0 \; policy accept \;}
-
-nft add table filter
-nft add chain filter input { type filter hook input priority 0 \; policy accept\; }
-nft add chain filter forward { type filter hook forward priority 0 \; policy accept\; }
-nft add chain filter output { type filter hook output priority 0 \; policy accept\; }
-`
 
 type BridgeNetworkMode string
 
@@ -133,31 +120,6 @@ type BridgeAddHost struct {
 	Bridge string `json:"bridge"`
 	IP     string `json:"ip"`
 	Mac    string `json:"mac"`
-}
-
-func (b *bridgeMgr) nftInit() {
-	b.init.Do(func() {
-		nft := &core.Command{
-			ID:      uuid.New(),
-			Command: "bash",
-			Arguments: core.MustArguments(
-				map[string]string{
-					"script": nftInitScript,
-				},
-			),
-		}
-
-		runner, err := pm.GetManager().RunCmd(nft)
-		if err != nil {
-			log.Errorf("failed to initialize netfilter: %s", err)
-			return
-		}
-
-		job := runner.Wait()
-		if job.State != core.StateSuccess {
-			log.Errorf("failed to initialize netfileter: %v", job.Streams)
-		}
-	})
 }
 
 func (b *bridgeMgr) intersect(n1 *net.IPNet, n2 *net.IPNet) bool {
@@ -428,7 +390,6 @@ func (b *bridgeMgr) unsetNAT(addr []netlink.Addr) error {
 }
 
 func (b *bridgeMgr) create(cmd *core.Command) (interface{}, error) {
-	b.nftInit()
 	b.m.Lock()
 	defer b.m.Unlock()
 
