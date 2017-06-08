@@ -1,16 +1,29 @@
-language: go
-sudo: true
-dist: trusty
-go: 1.8
-before_install:
-  - sudo apt-get -qq update
-  - sudo apt-get install -y libvirt-dev libcap-dev
-install:
-  - go get github.com/stretchr/testify
-script:
-  - bash test.sh
-after_success:
-  - go install ./core0
-  - go install ./coreX
-  - bash <(curl -s https://codecov.io/bash)
-
+matrix:
+  include: 
+    - language: python
+      python: 3.5
+      before_script:
+        - pip3 install -r tests/requirements.txt
+        - pip3 install client/py-client/.
+        - pip3 install git+https://github.com/gigforks/packet-python.git
+        - cd tests; python3 packet_script.py create $PACKET_TOKEN $TRAVIS_BRANCH $TRAVIS_PULL_REQUEST_BRANCH
+      script:
+        - nosetests -v -s testsuite
+      after_script:
+        - python3 packet_script.py delete $PACKET_TOKEN
+    
+    - language: go
+      sudo: true
+      dist: trusty
+      go: 1.8
+      before_install:
+        - sudo apt-get -qq update
+        - sudo apt-get install -y libvirt-dev libcap-dev
+      install:
+        - go get github.com/stretchr/testify
+      script:
+        - bash test.sh
+      after_success:
+        - go install ./core0
+        - go install ./coreX
+        - bash <(curl -s https://codecov.io/bash)
