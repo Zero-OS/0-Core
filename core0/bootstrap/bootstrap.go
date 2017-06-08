@@ -8,6 +8,7 @@ import (
 	"github.com/zero-os/0-core/base/settings"
 	"github.com/zero-os/0-core/base/utils"
 	"github.com/zero-os/0-core/core0/bootstrap/network"
+	"github.com/zero-os/0-core/core0/options"
 	"github.com/zero-os/0-core/core0/screen"
 	"net/http"
 	"strings"
@@ -19,6 +20,25 @@ const (
 	InternetTestAddress = "http://www.google.com/"
 
 	screenStateLine = "->%25s: %s %s"
+
+	nft = `
+nft add table nat
+nft add chain nat pre { type nat hook prerouting priority 0 \; policy accept \;}
+nft add chain nat post { type nat hook postrouting priority 0 \; policy accept \;}
+
+nft add table filter
+nft add chain filter input { type filter hook input priority 0 \; policy accept\; }
+nft add chain filter forward { type filter hook forward priority 0 \; policy accept\; }
+nft add chain filter output { type filter hook output priority 0 \; policy accept\; }
+`
+
+	//TODO: Hack that need to be configurable.
+	ztOnly = `
+nft add rule ip filter input iifname "zt*" tcp dport 22 counter accept
+nft add rule ip filter input tcp dport 22 counter drop
+nft add rule ip filter input iifname "zt*" tcp dport 6379 counter accept
+nft add rule ip filter input tcp dport 6379 counter drop
+	`
 )
 
 var (
@@ -167,10 +187,30 @@ func (b *Bootstrap) screen() {
 	}
 }
 
+func (b *Bootstrap) setNFT() error {
+	if _, err := pm.GetManager().System("sh", "-c", nft); err != nil {
+		return err
+	}
+
+	//hack, probably need to be configurable
+	if !options.Options.Kernel.Is("debug") {
+		//only apply nft rules if system is in release mode (no debug flag)
+		if _, err := pm.GetManager().System("sh", "-c", ztOnly); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 //Bootstrap registers extensions and startup system services.
 func (b *Bootstrap) Bootstrap() {
 	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &syscall.Rlimit{65536, 65536}); err != nil {
 		log.Errorf("failed to setup max open files limit: %s", err)
+	}
+
+	if err := b.setNFT(); err != nil {
+		log.Criticalf("failed to setup NFT: %s", err)
 	}
 
 	//register core extensions
