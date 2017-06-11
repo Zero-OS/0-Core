@@ -109,14 +109,19 @@ class Any(Option):
 
 
 class Length(Option):
-    def __init__(self, typ, len):
+    def __init__(self, typ, min=None, max=None):
         self._checker = Checker(typ)
-        self._len = len
+        if min is None and max is None:
+            raise ValueError("you have to pass wither min or max to the length type checker")
+        self._min = min
+        self._max = max
 
     def check(self, object, t):
         self._checker.check(object, t)
-        if len(object) != self._len:
-            raise t.reason('invalid length, expecting {} got {}'.format(self._len, len(object)))
+        if self._min is not None and len(object) < self._min:
+            raise t.reason('invalid length, expecting more than or equal {} got {}'.format(self._min, len(object)))
+        if self._max is not None and len(object) > self._max:
+            raise t.reason('invalid length, expecting less than or equal {} got {}'.format(self._max, len(object)))
 
 
 class Map(Option):

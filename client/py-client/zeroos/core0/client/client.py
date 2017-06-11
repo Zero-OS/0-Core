@@ -1527,7 +1527,7 @@ class KvmManager:
     }
     _create_chk = typchk.Checker({
         'name': str,
-        'media': [_media_dict],
+        'media': typchk.Length([_media_dict], 1),
         'cpu': int,
         'memory': int,
         'nics': [{
