@@ -168,6 +168,9 @@ func (c *CreateParams) Valid() error {
 			return fmt.Errorf("invalid nic type '%s'", nic.Type)
 		}
 	}
+	if len(c.Media) < 1 {
+		return fmt.Errorf("At least a boot disk has to be provided")
+	}
 	return nil
 }
 
