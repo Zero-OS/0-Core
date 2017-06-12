@@ -48,7 +48,6 @@ table ip filter {
 }
 `
 
-	//TODO: Hack that need to be configurable.
 	ztOnly = `
 table ip filter {
 	chain input {
@@ -230,8 +229,7 @@ func (b *Bootstrap) setNFT() error {
 		return err
 	}
 
-	//hack, probably need to be configurable
-	if !options.Options.Kernel.Is("debug") {
+	if options.Options.Kernel.Is("zerotier") && !options.Options.Kernel.Is("debug") {
 		file, err := b.writeRules(ztOnly)
 		if err != nil {
 			return err
