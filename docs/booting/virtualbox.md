@@ -2,7 +2,7 @@
 
 The easiest and recommended approach is to boot from an ISO image you get from the [Zero-OS Bootstrap Service](https://bootstrap.gig.tech/). You get an ISO boot image using `https://bootstrap.gig.tech/iso/{BRANCH}/{ZEROTIER-NETWORK}` where:
 
-- **{BRANCH}** is the branch of the CoreOS, e.g. `1.1.0-alpha`
+- **{BRANCH}** is the branch of the CoreOS, e.g. `1.1.0-alpha`, or `zero-os-master`
 - **{ZEROTIER-NETWORK}** is the ZeroTier network ID, create one on https://my.zerotier.com/network
 
 See the [ISO section in the Zero-OS Bootstrap Service documentation](../bootstrap/bootstrap.md#iso) for more details on this.

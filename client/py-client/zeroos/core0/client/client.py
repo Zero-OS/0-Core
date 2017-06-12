@@ -1461,17 +1461,15 @@ class ZerotierManager:
 
         :return: list of joined networks with their info
         """
-        response = self._client.raw('zerotier.list', {})
-        result = response.get()
+        return self._client.json('zerotier.list', {})
 
-        if result.state != 'SUCCESS':
-            raise RuntimeError('failed to join zerotier network: %s', result.stderr)
+    def info(self):
+        """
+        Display zerotier status info
 
-        data = result.data.strip()
-        if data == '':
-            return []
-
-        return json.loads(data)
+        :return: dict of zerotier statusinfo
+        """
+        return self._client.json('zerotier.info', {})
 
 
 class KvmManager:
@@ -1530,7 +1528,7 @@ class KvmManager:
     }
     _create_chk = typchk.Checker({
         'name': str,
-        'media': [_media_dict],
+        'media': typchk.Length([_media_dict], 1),
         'cpu': int,
         'memory': int,
         'nics': [{
