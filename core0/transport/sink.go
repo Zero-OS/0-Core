@@ -46,11 +46,21 @@ func NewSink(mgr *pm.PM, c SinkConfig) (*Sink, error) {
 		return nil, err
 	}
 
+	crt, key, err := generateCRT()
+	if err != nil {
+		return nil, err
+	}
+
 	cfg := config.NewConfigDefault()
 	cfg.DBName = "memory"
 	cfg.DataDir = "/var/core0"
 	cfg.Addr = fmt.Sprintf(":%d", c.Port)
 	cfg.AuthMethod = auth
+	cfg.TLS = config.TLS{
+		Enabled:     true,
+		Certificate: crt,
+		Key:         key,
+	}
 
 	server, err := server.NewApp(cfg)
 	if err != nil {

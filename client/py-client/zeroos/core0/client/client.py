@@ -1922,11 +1922,11 @@ class Experimental:
 
 class Client(BaseClient):
 
-    def __init__(self, host, port=6379, password="", db=0, timeout=None, testConnectionAttempts=3):
+    def __init__(self, host, port=6379, password="", db=0, ssl=True, timeout=None, testConnectionAttempts=3):
         super().__init__(timeout=timeout)
 
         socket_timeout = (timeout + 5) if timeout else 15
-        self._redis = redis.Redis(host=host, port=port, password=password, db=db,
+        self._redis = redis.Redis(host=host, port=port, password=password, db=db, ssl=ssl,
                                   socket_timeout=socket_timeout,
                                   socket_keepalive=True, socket_keepalive_options={
                                       socket.TCP_KEEPIDLE: 1,
