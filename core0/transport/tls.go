@@ -18,7 +18,7 @@ import (
 
 const (
 	host       = "zero-os.gig.tech"
-	validFor   = 365 * 24 * time.Hour
+	validFor   = 100 * 365 * 24 * time.Hour
 	isCA       = true
 	rsaBits    = 2048
 	ecdsaCurve = "RSA"

@@ -16,8 +16,6 @@ const (
 	SinkRoute = core.Route("sink")
 	SinkQueue = "core:default"
 	DBIndex   = 0
-
-	DefaultOrganization = "GreenITGlobe"
 )
 
 type Sink struct {
@@ -36,14 +34,17 @@ func (c *SinkConfig) Local() string {
 }
 
 func NewSink(mgr *pm.PM, c SinkConfig) (*Sink, error) {
-	org := DefaultOrganization
+	cfg := config.NewConfigDefault()
+	cfg.DBName = "memory"
+	cfg.DataDir = "/var/core0"
+	cfg.Addr = fmt.Sprintf(":%d", c.Port)
 	if orgs, ok := options.Options.Kernel.Get("organization"); ok {
-		org = orgs[len(orgs)-1]
-	}
-
-	auth, err := AuthMethod(org, string(assets.MustAsset("text/itsyouonline.pub")))
-	if err != nil {
-		return nil, err
+		org := orgs[len(orgs)-1]
+		auth, err := AuthMethod(org, string(assets.MustAsset("text/itsyouonline.pub")))
+		if err != nil {
+			return nil, err
+		}
+		cfg.AuthMethod = auth
 	}
 
 	crt, key, err := generateCRT()
@@ -51,11 +52,6 @@ func NewSink(mgr *pm.PM, c SinkConfig) (*Sink, error) {
 		return nil, err
 	}
 
-	cfg := config.NewConfigDefault()
-	cfg.DBName = "memory"
-	cfg.DataDir = "/var/core0"
-	cfg.Addr = fmt.Sprintf(":%d", c.Port)
-	cfg.AuthMethod = auth
 	cfg.TLS = config.TLS{
 		Enabled:     true,
 		Certificate: crt,
