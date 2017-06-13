@@ -15,15 +15,14 @@ const (
 )
 
 type Nft map[string]Table
+type Chains map[string]Chain
 
 type Table struct {
-	Name        string
-	TableFamily Family
-	Chains      map[string]Chain
+	Family Family
+	Chains Chains
 }
 
 type Chain struct {
-	Name   string
 	Type   string
 	Hook   string
 	Policy string
