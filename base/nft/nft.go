@@ -1,13 +1,5 @@
 package nft
 
-import (
-	"bufio"
-	"fmt"
-	"strings"
-
-	"github.com/g8os/core0/base/pm"
-)
-
 type Family int
 
 const (
@@ -35,7 +27,7 @@ type Chain struct {
 	Type   string
 	Hook   string
 	Policy string
-	Rules  []Rules
+	Rules  []Rule
 }
 
 type Rule struct {
