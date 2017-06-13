@@ -21,15 +21,15 @@ func Get() (*Nft, error) {
 func Parse(config string) (*Nft, error) {
 
 	level := NFT
-	chainProp := false
 
 	nft := Nft{}
 	var tablename []byte
 	var chainname []byte
 	var table *Table
+	var tmpTable *Table
 	var chain *Chain
+	var tmpChain *Chain
 	var rule *Rule
-	var err error
 	scanner := bufio.NewScanner(strings.NewReader(config))
 	for scanner.Scan() {
 		line := scanner.Bytes()
@@ -38,16 +38,19 @@ func Parse(config string) (*Nft, error) {
 		}
 		switch level {
 		case NFT:
-			tablename, table = parseTable(line)
+			tablename, tmpTable = parseTable(line)
+			if tmpTable != nil {
+				table = tmpTable
+			}
 		case TABLE:
-			chainname, chain = parseChain(line)
-			if chain != nil {
-				chainProp = true
+			chainname, tmpChain = parseChain(line)
+			if tmpChain != nil {
+				chain = tmpChain
 			}
 		case CHAIN:
-			if chainProp {
-				if parseChainProp(chain, line) {
-					chainProp = false
+			if bytes.HasPrefix(bytes.TrimSpace(line), []byte("type ")) {
+				if err := parseChainProp(chain, line); err != nil {
+					return nil, err
 				}
 			} else {
 				rule = parseRule(line)
@@ -61,13 +64,11 @@ func Parse(config string) (*Nft, error) {
 			switch level {
 			case NFT:
 				if table == nil {
-					err = fmt.Errorf("cannot parse table")
-					goto err
+					return nil, fmt.Errorf("cannot parse table")
 				}
 			case TABLE:
 				if chain == nil {
-					err = fmt.Errorf("cannot parse chain")
-					goto err
+					return nil, fmt.Errorf("cannot parse chain")
 				}
 			}
 			level += 1
@@ -80,14 +81,11 @@ func Parse(config string) (*Nft, error) {
 				table.Chains[string(chainname)] = *chain
 			case CHAIN:
 			default:
-				err = fmt.Errorf("invalid syntax")
-				goto err
+				return nil, fmt.Errorf("invalid syntax")
 			}
 		}
 	}
 	return &nft, nil
-err:
-	return nil, err
 }
 
 func parseTable(line []byte) ([]byte, *Table) {
@@ -115,7 +113,7 @@ func parseChain(line []byte) ([]byte, *Chain) {
 	}
 }
 
-func parseChainProp(chain *Chain, line []byte) bool {
+func parseChainProp(chain *Chain, line []byte) error {
 	chainPropRegex := regexp.MustCompile("type ([a-z]+) hook ([a-z]+) priority ([0-9]+); policy ([a-z]+);")
 	match := chainPropRegex.FindSubmatch(line)
 	if len(match) > 0 {
@@ -125,9 +123,9 @@ func parseChainProp(chain *Chain, line []byte) bool {
 		fmt.Sscanf(string(match[3]), "%d", &n)
 		chain.Priority = n
 		chain.Policy = string(match[4])
-		return true
+		return nil
 	} else {
-		return false
+		return fmt.Errorf("couldn't parse line: %q", line)
 	}
 }
 
