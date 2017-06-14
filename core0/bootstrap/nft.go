@@ -96,15 +96,15 @@ func (b *Bootstrap) writeRules(r string) (string, error) {
 }
 
 func (b *Bootstrap) setNFT() error {
-	if err := nft.Apply(&nftInit); err != nil {
+	if err := nft.Apply(nftInit); err != nil {
 		return err
 	}
 
 	if options.Options.Kernel.Is("zerotier") && !options.Options.Kernel.Is("debug") {
-		if err := nft.Apply(&zt); err != nil {
+		if err := nft.Apply(zt); err != nil {
 			return err
 		}
-	} else if err := nft.Apply(&pub); err != nil {
+	} else if err := nft.Apply(pub); err != nil {
 		return err
 	}
 

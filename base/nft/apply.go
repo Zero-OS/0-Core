@@ -1,6 +1,7 @@
 package nft
 
 import (
+	"fmt"
 	"github.com/zero-os/0-core/base/pm"
 	"io/ioutil"
 	"os"
@@ -11,7 +12,7 @@ func ApplyFromFile(cfg string) error {
 	return err
 }
 
-func Apply(nft *Nft) error {
+func Apply(nft Nft) error {
 	data, err := nft.MarshalText()
 	if err != nil {
 		return err
@@ -31,4 +32,9 @@ func Apply(nft *Nft) error {
 	f.Close()
 
 	return ApplyFromFile(f.Name())
+}
+
+func Drop(table, chain string, handle int) error {
+	_, err := pm.GetManager().System("nft", "delete", "rule", table, chain, "handle", fmt.Sprint(handle))
+	return err
 }

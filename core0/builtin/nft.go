@@ -57,6 +57,6 @@ func (b *nftMgr) openPort(cmd *core.Command) (interface{}, error) {
 			},
 		},
 	}
-	return nil, nft.Apply(&x)
+	return nil, nft.Apply(x)
 
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/vishvananda/netlink"
+	"github.com/zero-os/0-core/base/nft"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/process"
@@ -13,7 +14,6 @@ import (
 	"os"
 	"path"
 	"regexp"
-	"strings"
 	"sync"
 	"syscall"
 )
@@ -358,10 +358,20 @@ func (b *bridgeMgr) bridgeNetworking(bridge *netlink.Bridge, network *BridgeNetw
 
 func (b *bridgeMgr) setNAT(addr *netlink.Addr) error {
 	//enable nat-ting
-	_, err := pm.GetManager().System("nft", "add", "rule", "nat", "post", "ip",
-		"saddr", addr.IPNet.String(), "masquerade")
+	n := nft.Nft{
+		"nat": nft.Table{
+			Family: nft.FamilyIP,
+			Chains: nft.Chains{
+				"post": nft.Chain{
+					Rules: []nft.Rule{
+						{Body: fmt.Sprintf("ip saddr %s masquerade", addr.IPNet.String())},
+					},
+				},
+			},
+		},
+	}
 
-	return err
+	return nft.Apply(n)
 }
 
 func (b *bridgeMgr) unsetNAT(addr []netlink.Addr) error {
@@ -442,7 +452,7 @@ func (b *bridgeMgr) create(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	if err := b.isolate(args.Name); err != nil {
+	if err := b.nft(args.Name); err != nil {
 		return nil, err
 	}
 
@@ -453,57 +463,71 @@ func (b *bridgeMgr) create(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func (b *bridgeMgr) isolate(br string) error {
+func (b *bridgeMgr) nft(br string) error {
 	name := fmt.Sprintf("\"%v\"", br)
-	//make sure all packages coming from this interface is marked with (1)
-	if _, err := pm.GetManager().System("nft",
-		"add", "rule", "nat", "pre", "iifname", name, "meta", "mark", "set", "1"); err != nil {
+
+	n := nft.Nft{
+		"nat": nft.Table{
+			Family: nft.FamilyIP,
+			Chains: nft.Chains{
+				"pre": nft.Chain{
+					Rules: []nft.Rule{
+						{Body: fmt.Sprintf("iif %s meta mark set 1", name)},
+					},
+				},
+			},
+		},
+		"filter": nft.Table{
+			Family: nft.FamilyIP,
+			Chains: nft.Chains{
+				"input": nft.Chain{
+					Rules: []nft.Rule{
+						{Body: fmt.Sprintf("iif %s udp dport {53,67,68} accept", name)},
+					},
+				},
+				"forward": nft.Chain{
+					Rules: []nft.Rule{
+						{Body: fmt.Sprintf("iif %s oif %s meta mark set 2", name, name)},
+						{Body: fmt.Sprintf("oif %s meta mark 1 drop", name)},
+					},
+				},
+			},
+		},
+	}
+
+	return nft.Apply(n)
+}
+
+func (b *bridgeMgr) unNFT(idx int) error {
+	ruleset, err := nft.Get()
+	if err != nil {
 		return err
 	}
 
-	//any packages that is coming and exiting on the same bridge should be marked as 2
-	if _, err := pm.GetManager().System("nft",
-		"add", "rule", "filter", "forward", "iifname", name, "oifname", name, "meta", "mark", "set", "2"); err != nil {
+	pat, err := regexp.Compile(fmt.Sprintf(`[io]if %d\s+`, idx))
+	if err != nil {
 		return err
 	}
 
-	//drop any package that is forwarded to this bridge and still marked as 1
-	if _, err := pm.GetManager().System("nft",
-		"add", "rule", "filter", "forward", "oifname", name, "meta", "mark", "1", "drop"); err != nil {
-		return err
+	var errored bool
+	for tname, table := range ruleset {
+		for cname, chain := range table.Chains {
+			for _, rule := range chain.Rules {
+				if ok := pat.MatchString(rule.Body); ok {
+					if err := nft.Drop(tname, cname, rule.Handle); err != nil {
+						log.Errorf("nft delete rule: %s", err)
+						errored = true
+					}
+				}
+			}
+		}
+	}
+
+	if errored {
+		return fmt.Errorf("failed to clean up nft rules")
 	}
 
 	return nil
-}
-
-func (b *bridgeMgr) unIsolate(br string) {
-	job, err := pm.GetManager().System("nft", "list", "ruleset", "-a")
-	if err != nil {
-		log.Errorf("failed to list nft rules: %s", err)
-		return
-	}
-
-	var table, chain string
-	for _, line := range strings.Split(job.Streams.Stdout(), "\n") {
-		line = strings.TrimSpace(line)
-		fmt.Sscanf(line, "table ip %s {", &table)
-		fmt.Sscanf(line, "chain %s {", &chain)
-
-		if strings.Index(line, fmt.Sprintf(`"%s"`, br)) == -1 {
-			continue
-		}
-
-		//get handler.
-		m := HandlerP.FindStringSubmatch(line)
-		if len(m) != 2 {
-			continue
-		}
-		_, err := pm.GetManager().System("nft", "delete", "rule", table, chain, "handle", m[1])
-		if err != nil {
-			log.Errorf("failed to remove nft rule '%s/%s/%s'", table, chain, m[1])
-		}
-	}
-
 }
 
 func (b *bridgeMgr) list(cmd *core.Command) (interface{}, error) {
@@ -548,14 +572,17 @@ func (b *bridgeMgr) delete(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	b.unIsolate(args.Name)
-
 	if err := b.unsetNAT(addresses); err != nil {
 		return nil, err
 	}
 
 	if err := netlink.LinkDel(link); err != nil {
 		return nil, err
+	}
+
+	//we remove the bridge first before we remove the nft rules
+	if err := b.unNFT(link.Attrs().Index); err != nil {
+		log.Errorf("error cleaning up nft rules for bridge %s: %s", args.Name, err)
 	}
 
 	return nil, nil
