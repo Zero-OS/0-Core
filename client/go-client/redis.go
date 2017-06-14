@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"crypto/tls"
 	"github.com/garyburd/redigo/redis"
 	"github.com/pborman/uuid"
+	"net"
 )
 
 const (
@@ -35,7 +37,13 @@ func NewClient(address, password string) Client {
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
 			// the redis protocol should probably be made sett-able
-			c, err := redis.Dial("tcp", address)
+			c, err := redis.Dial("tcp", address, redis.DialNetDial(func(network, address string) (net.Conn, error) {
+
+				return tls.Dial(network, address, &tls.Config{
+					InsecureSkipVerify: true,
+				})
+			}))
+
 			if err != nil {
 				return nil, err
 			}
