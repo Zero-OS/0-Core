@@ -83,12 +83,10 @@ func Parse(config string) (Nft, error) {
 				table.Chains[string(chainname)] = *chain
 			case CHAIN:
 			default:
-				fmt.Println(level, ":", string(line))
-				return nil, fmt.Errorf("invalid syntax")
+				return nil, fmt.Errorf("invalid syntax: unexpected level %d", level)
 			}
 		}
 	}
-
 	return nft, nil
 }
 
@@ -96,7 +94,7 @@ var (
 	tableRegex     = regexp.MustCompile("table ([a-z0-9]+) ([a-z]+)")
 	chainRegex     = regexp.MustCompile("chain ([a-z]+)")
 	chainPropRegex = regexp.MustCompile("type ([a-z]+) hook ([a-z]+) priority ([0-9]+); policy ([a-z]+);")
-	ruleRegex      = regexp.MustCompile("(.+) # handle ([0-9]+)")
+	ruleRegex      = regexp.MustCompile("\\s*(.+) # handle ([0-9]+)")
 )
 
 func parseTable(line []byte) ([]byte, *Table) {

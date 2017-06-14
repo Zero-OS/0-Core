@@ -1900,6 +1900,53 @@ class Logger:
         return self._client.json('logger.reopen', {})
 
 
+class Nft:
+    _port_chk = typchk.Checker({
+        'port': int,
+        'interface': typchk.Or(str, typchk.Missing()),
+        'subnet': typchk.Or(str, typchk.Missing()),
+    })
+
+    def __init__(self, client):
+        self._client = client
+
+    def open_port(self, port, interface=None, subnet=None):
+        """
+        open port
+        :param port: then port number
+        :param interface: an optional interface to open the port for
+        :param subnet: an optional subnet to open the port for
+        """
+        args = {
+            'port': port,
+            'interface': interface,
+            'subnet': subnet,
+        }
+        self._port_chk.check(args)
+        if interface is not None and subnet is not None:
+            raise ValueError("interface and subnet cannot be passed together")
+
+        return self._client.json('nft.open_port', args)
+
+    def drop_port(self, port, interface=None, subnet=None):
+        """
+        close an opened port (takes the same parameters passed in open)
+        :param port: then port number
+        :param interface: an optional interface to close the port for
+        :param subnet: an optional subnet to close the port for
+        """
+        args = {
+            'port': port,
+            'interface': interface,
+            'subnet': subnet,
+        }
+        self._port_chk.check(args)
+        if interface is not None and subnet is not None:
+            raise ValueError("interface and subnet cannot be passed together")
+
+        return self._client.json('nft.drop_port', args)
+
+
 class Config:
 
     def __init__(self, client):
@@ -1939,6 +1986,7 @@ class Client(BaseClient):
         self._experimntal = Experimental(self)
         self._kvm = KvmManager(self)
         self._logger = Logger(self)
+        self._nft = Nft(self)
         self._config = Config(self)
 
         if testConnectionAttempts:
@@ -1982,6 +2030,10 @@ class Client(BaseClient):
     @property
     def logger(self):
         return self._logger
+
+    @property
+    def nft(self):
+        return self._nft
 
     @property
     def config(self):
