@@ -31,19 +31,18 @@ func (b *nftMgr) openPort(cmd *core.Command) (interface{}, error) {
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
 	}
-
-	if args.Interface == "" && args.Range == "" {
-		return nil, fmt.Errorf("interface and range are not passed")
-	} else if args.Interface != "" && args.Range != "" {
+	if args.Interface != "" && args.Range != "" {
 		return nil, fmt.Errorf("interface and range are both passed")
 	}
 	var body string
 
 	if args.Interface != "" {
 		body = fmt.Sprintf(`iifname "%s" tcp dport %d counter packets 0 bytes 0 accept`, args.Interface, args.Number)
-	} else {
+	} else if args.Range != "" {
 		// TODO: add checks to make sure the range is a valid range
 		body = fmt.Sprintf(`ip saddr %s tcp dport %d counter packets 0 bytes 0 accept`, args.Range, args.Number)
+	} else {
+		body = fmt.Sprintf(`tcp dport %d accept`, args.Number)
 	}
 	x := nft.Nft{
 		"filter": nft.Table{
@@ -58,5 +57,4 @@ func (b *nftMgr) openPort(cmd *core.Command) (interface{}, error) {
 		},
 	}
 	return nil, nft.Apply(x)
-
 }
