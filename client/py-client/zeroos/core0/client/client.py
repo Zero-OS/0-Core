@@ -1923,8 +1923,6 @@ class Nft:
             'subnet': subnet,
         }
         self._port_chk.check(args)
-        if interface is not None and subnet is not None:
-            raise ValueError("interface and subnet cannot be passed together")
 
         return self._client.json('nft.open_port', args)
 
@@ -1941,8 +1939,6 @@ class Nft:
             'subnet': subnet,
         }
         self._port_chk.check(args)
-        if interface is not None and subnet is not None:
-            raise ValueError("interface and subnet cannot be passed together")
 
         return self._client.json('nft.drop_port', args)
 

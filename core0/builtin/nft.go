@@ -3,6 +3,7 @@ package builtin
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"sync"
 
 	"github.com/zero-os/0-core/base/nft"
@@ -32,19 +33,22 @@ func parsePort(cmd *core.Command) (nft.Nft, error) {
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
 	}
-	if args.Interface != "" && args.Subnet != "" {
-		return nil, fmt.Errorf("interface and subnet are both passed")
-	}
-	var body string
 
+	body := ""
 	if args.Interface != "" {
-		body = fmt.Sprintf(`iifname "%s" tcp dport %d accept`, args.Interface, args.Port)
-	} else if args.Subnet != "" {
-		// TODO: add checks to make sure the subnet is valid
-		body = fmt.Sprintf(`ip saddr %s tcp dport %d 0 accept`, args.Subnet, args.Port)
-	} else {
-		body = fmt.Sprintf(`tcp dport %d accept`, args.Port)
+		body += fmt.Sprintf(`iifname "%s" `, args.Interface)
 	}
+	if args.Subnet != "" {
+		subnet := args.Subnet
+		_, net, err := net.ParseCIDR(args.Subnet)
+		if err == nil {
+			subnet = net.String()
+		}
+
+		body += fmt.Sprintf(`ip saddr %s `, subnet)
+	}
+
+	body += fmt.Sprintf(`tcp dport %d accept`, args.Port)
 	n := nft.Nft{
 		"filter": nft.Table{
 			Family: nft.FamilyIP,
