@@ -13,11 +13,14 @@ import (
 )
 
 type nftMgr struct {
-	m sync.Mutex
+	rules map[string]struct{}
+	m     sync.Mutex
 }
 
 func init() {
-	b := &nftMgr{}
+	b := &nftMgr{
+		rules: make(map[string]struct{}),
+	}
 	pm.CmdMap["nft.open_port"] = process.NewInternalProcessFactory(b.openPort)
 	pm.CmdMap["nft.drop_port"] = process.NewInternalProcessFactory(b.dropPort)
 }
@@ -28,10 +31,10 @@ type Port struct {
 	Subnet    string `json:"subnet,omitempty"`
 }
 
-func parsePort(cmd *core.Command) (nft.Nft, error) {
+func (b *nftMgr) parsePort(cmd *core.Command) (string, error) {
 	var args Port
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
-		return nil, err
+		return "", err
 	}
 
 	body := ""
@@ -49,37 +52,83 @@ func parsePort(cmd *core.Command) (nft.Nft, error) {
 	}
 
 	body += fmt.Sprintf(`tcp dport %d accept`, args.Port)
+
+	return body, nil
+}
+
+func (b *nftMgr) exists(rule string) bool {
+	_, ok := b.rules[rule]
+	return ok
+}
+
+func (b *nftMgr) register(rule string) error {
+	if b.exists(rule) {
+		return fmt.Errorf("exists")
+	}
+
+	b.rules[rule] = struct{}{}
+	return nil
+}
+
+func (b *nftMgr) openPort(cmd *core.Command) (interface{}, error) {
+	rule, err := b.parsePort(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	b.m.Lock()
+	defer b.m.Unlock()
+
+	if err := b.register(rule); err != nil {
+		return nil, fmt.Errorf("rule exists")
+	}
+
 	n := nft.Nft{
 		"filter": nft.Table{
 			Family: nft.FamilyIP,
 			Chains: nft.Chains{
 				"input": nft.Chain{
 					Rules: []nft.Rule{
-						{Body: body},
+						{Body: rule},
 					},
 				},
 			},
 		},
 	}
-	return n, nil
 
-}
-
-func (b *nftMgr) openPort(cmd *core.Command) (interface{}, error) {
-	n, err := parsePort(cmd)
-	if err != nil {
-		return nil, err
-	}
 	return nil, nft.Apply(n)
 }
 
 func (b *nftMgr) dropPort(cmd *core.Command) (interface{}, error) {
-	n, err := parsePort(cmd)
+	rule, err := b.parsePort(cmd)
 	if err != nil {
 		return nil, err
 	}
+
+	b.m.Lock()
+	defer b.m.Unlock()
+
+	if !b.exists(rule) {
+		return nil, fmt.Errorf("rule does not exist")
+	}
+
+	n := nft.Nft{
+		"filter": nft.Table{
+			Family: nft.FamilyIP,
+			Chains: nft.Chains{
+				"input": nft.Chain{
+					Rules: []nft.Rule{
+						{Body: rule},
+					},
+				},
+			},
+		},
+	}
+
 	if err := nft.DropRules(n); err != nil {
 		return nil, err
 	}
+
+	delete(b.rules, rule)
 	return nil, nil
 }
