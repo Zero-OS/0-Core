@@ -75,8 +75,8 @@ You will again need to go to `https://my.zerotier.com/network/$ZEROTIER_NETWORK_
 
 Check the result:
 ```python
-result = job.get(timeout=60)
-result
+job = job.get(timeout=3660)
+job
 ```
 
 List all containers:
@@ -92,23 +92,21 @@ c.info.nic()
 
 Install the SSH daemon and start it in the container:
 ```python
-rv = c.system('apt-get update').get(timeout=60)
-rv.state
-rv=c.system("apt install ssh -y").get(timeout=3600)
-rv.state
-rv=c.system('/etc/init.d/ssh start').get(timeout=3600)
+rv = c.system('apt-get update').get(timeout=3600)
+rv = c.system("apt install ssh -y").get(timeout=3600)
+rv = c.system('/etc/init.d/ssh start').get(timeout=3600)
 ```
 
 Copy your SSH into the `authorized_keys`:
 ```python
-rv = c6.system('mkdir -p /root/.ssh').get(timeout=3600)
-rv = c6.system('bash -c "echo \'%s\' > /root/.ssh/authorized_keys"' % SSHKEY)
-rv.get()
+rv = c.system('mkdir -p /root/.ssh').get(timeout=3600)
+rv = c.system('bash -c "echo \'%s\' > /root/.ssh/authorized_keys"' % SSHKEY).get(timeout=3600)
+rv.state
 ```
 
-Check the network infaces of you container:
+****NOTE**: If you want to be sure that the previous commands work, just run the next command after execute each one:
 ```python
-c6.info.nic()
+rv.state
 ```
 
 You should now be able to SSH into your container.

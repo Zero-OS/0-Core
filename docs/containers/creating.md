@@ -17,7 +17,7 @@ Here's the Python script using the Zero-OS client:
 
 ```python
 from zeroos.core0.client import Client
-cl = Client("IP OF Zero-OS")
+cl = Client("<IP address Zero-OS node>")
 
 flist = 'https://hub.gig.tech/gig-official-apps/ubuntu1604.flist'
 
