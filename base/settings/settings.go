@@ -1,8 +1,8 @@
 package settings
 
 import (
-	"github.com/zero-os/0-core/base/utils"
 	"github.com/op/go-logging"
+	"github.com/zero-os/0-core/base/utils"
 )
 
 var (
@@ -16,7 +16,7 @@ const (
 
 //Logger settings
 type Logger struct {
-	Levels []int `json:"levels"`
+	Levels []uint16 `json:"levels"`
 }
 
 //Extension cmd config

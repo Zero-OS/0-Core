@@ -2,8 +2,6 @@ package logger
 
 import (
 	"encoding/json"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/stream"
 	"github.com/siddontang/ledisdb/ledis"
 )
 
@@ -16,14 +14,14 @@ const (
 type redisLogger struct {
 	coreID   uint16
 	db       *ledis.DB
-	defaults []int
+	defaults []uint16
 	size     int64
 
 	ch chan *LogRecord
 }
 
 // NewRedisLogger creates new redis logger handler
-func NewLedisLogger(coreID uint16, db *ledis.DB, defaults []int, size int64) Logger {
+func NewLedisLogger(coreID uint16, db *ledis.DB, defaults []uint16, size int64) Logger {
 	if size == 0 {
 		size = MaxRedisQueueSize
 	}
@@ -38,18 +36,6 @@ func NewLedisLogger(coreID uint16, db *ledis.DB, defaults []int, size int64) Log
 
 	go rl.pusher()
 	return rl
-}
-
-func (l *redisLogger) Log(cmd *core.Command, msg *stream.Message) {
-	if !IsLoggableCmd(cmd, msg) {
-		return
-	}
-
-	l.LogRecord(&LogRecord{
-		Core:    l.coreID,
-		Command: cmd.ID,
-		Message: msg,
-	})
 }
 
 func (l *redisLogger) LogRecord(record *LogRecord) {

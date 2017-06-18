@@ -57,7 +57,7 @@ func (process *internalProcess) Run() (<-chan *stream.Message, error) {
 				debug.PrintStack()
 				m, _ := json.Marshal(fmt.Sprintf("%v", err))
 				channel <- &stream.Message{
-					Level:   stream.LevelResultJSON,
+					Meta:    stream.NewMeta(stream.LevelResultJSON),
 					Message: string(m),
 				}
 				channel <- stream.MessageExitError
@@ -68,7 +68,7 @@ func (process *internalProcess) Run() (<-chan *stream.Message, error) {
 
 		value, err := process.runnable(process.cmd)
 		msg := stream.Message{
-			Level: stream.LevelResultJSON,
+			Meta: stream.NewMeta(stream.LevelResultJSON),
 		}
 
 		if err != nil {

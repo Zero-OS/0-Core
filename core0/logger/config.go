@@ -1,13 +1,13 @@
 package logger
 
 import (
+	"github.com/op/go-logging"
+	"github.com/siddontang/ledisdb/ledis"
 	"github.com/zero-os/0-core/base/logger"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/stream"
 	"github.com/zero-os/0-core/base/settings"
-	"github.com/op/go-logging"
-	"github.com/siddontang/ledisdb/ledis"
 )
 
 var (
@@ -18,11 +18,11 @@ var (
 
 type Loggers []logger.Logger
 
-func (l Loggers) Log(cmd *core.Command, msg *stream.Message) {
-	//default logging
-	for _, logger := range l {
-		logger.Log(cmd, msg)
-	}
+func (l Loggers) log(cmd *core.Command, msg *stream.Message) {
+	l.LogRecord(&logger.LogRecord{
+		Command: cmd.ID,
+		Message: msg,
+	})
 }
 
 func (l Loggers) LogRecord(record *logger.LogRecord) {
@@ -38,5 +38,5 @@ func ConfigureLogging(db *ledis.DB) {
 
 	Current = append(Current, file, ledis)
 
-	pm.GetManager().AddMessageHandler(Current.Log)
+	pm.GetManager().AddMessageHandler(Current.log)
 }
