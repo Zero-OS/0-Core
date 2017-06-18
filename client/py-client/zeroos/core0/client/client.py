@@ -1970,7 +1970,6 @@ class Client(BaseClient):
         self._redis = redis.Redis(host=host, port=port, password=password, db=db, ssl=ssl,
                                   socket_timeout=socket_timeout,
                                   socket_keepalive=True, socket_keepalive_options={
-                                      socket.TCP_KEEPIDLE: 1,
                                       socket.TCP_KEEPINTVL: 1,
                                       socket.TCP_KEEPCNT: 10
                                   })
