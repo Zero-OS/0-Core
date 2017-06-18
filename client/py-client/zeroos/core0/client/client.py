@@ -508,7 +508,7 @@ class BaseClient:
     def ip(self):
         return self._ip
 
-    def raw(self, command, arguments, queue=None, max_time=None):
+    def raw(self, command, arguments, queue=None, max_time=None, stream=False):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -516,6 +516,10 @@ class BaseClient:
         :param command: Command name to execute supported by the node (ex: core.system, info.cpu, etc...)
                         check documentation for list of built in commands
         :param arguments: A dict of required command arguments depends on the command name.
+        :param queue: command queue (commands on the same queue are executed sequentially)
+        :param max_time: kill job server side if it exceeded this amount of seconds
+        :param stream: If True, process stdout and stderr are pushed to a special queue (stream:<id>) so 
+            client can stream output
         :return: Response object
         """
         raise NotImplemented()
@@ -624,6 +628,7 @@ class ContainerClient(BaseClient):
             'arguments': typchk.Any(),
             'queue': typchk.Or(str, typchk.IsNone()),
             'max_time': typchk.Or(int, typchk.IsNone()),
+            'stream': bool
         }
     })
 
@@ -642,7 +647,7 @@ class ContainerClient(BaseClient):
     def zerotier(self):
         return self._zerotier
 
-    def raw(self, command, arguments, queue=None, max_time=None):
+    def raw(self, command, arguments, queue=None, max_time=None, stream=False):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -650,6 +655,10 @@ class ContainerClient(BaseClient):
         :param command: Command name to execute supported by the node (ex: core.system, info.cpu, etc...)
                         check documentation for list of built in commands
         :param arguments: A dict of required command arguments depends on the command name.
+        :param queue: command queue (commands on the same queue are executed sequentially)
+        :param max_time: kill job server side if it exceeded this amount of seconds
+        :param stream: If True, process stdout and stderr are pushed to a special queue (stream:<id>) so 
+            client can stream output
         :return: Response object
         """
         args = {
@@ -659,6 +668,7 @@ class ContainerClient(BaseClient):
                 'arguments': arguments,
                 'queue': queue,
                 'max_time': max_time,
+                'stream': stream,
             },
         }
 
@@ -2035,7 +2045,7 @@ class Client(BaseClient):
     def config(self):
         return self._config
 
-    def raw(self, command, arguments, queue=None, max_time=None):
+    def raw(self, command, arguments, queue=None, max_time=None, stream=False):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -2043,6 +2053,10 @@ class Client(BaseClient):
         :param command: Command name to execute supported by the node (ex: core.system, info.cpu, etc...)
                         check documentation for list of built in commands
         :param arguments: A dict of required command arguments depends on the command name.
+        :param queue: command queue (commands on the same queue are executed sequentially)
+        :param max_time: kill job server side if it exceeded this amount of seconds
+        :param stream: If True, process stdout and stderr are pushed to a special queue (stream:<id>) so 
+            client can stream output
         :return: Response object
         """
         id = str(uuid.uuid4())
@@ -2053,6 +2067,7 @@ class Client(BaseClient):
             'arguments': arguments,
             'queue': queue,
             'max_time': max_time,
+            'stream': stream,
         }
 
         flag = 'result:{}:flag'.format(id)

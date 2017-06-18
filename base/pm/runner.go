@@ -193,10 +193,8 @@ loop:
 			//messages with Exit flags are always the last.
 			if message.Meta.Is(stream.ExitSuccessFlag) {
 				jobresult.State = core.StateSuccess
-				break loop
 			} else if message.Meta.Is(stream.ExitErrorFlag) {
 				jobresult.State = core.StateError
-				break loop
 			} else if message.Meta.Assert(stream.ResultMessageLevels...) {
 				//a result message.
 				result = message
@@ -214,13 +212,16 @@ loop:
 
 			//by default, all messages are forwarded to the manager for further processing.
 			runner.manager.msgCallback(runner.command, message)
+			if message.Meta.Is(stream.ExitSuccessFlag | stream.ExitErrorFlag) {
+				break loop
+			}
 		}
 	}
 
 	runner.process = nil
 
 	//consume channel to the end to allow process to cleanup properly
-	for _ = range channel {
+	for range channel {
 		//noop.
 	}
 

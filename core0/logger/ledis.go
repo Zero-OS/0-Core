@@ -6,13 +6,12 @@ import (
 )
 
 const (
-	RedisLoggerQueue  = "core.logs"
+	RedisLoggerQueue  = "core:logs"
 	MaxRedisQueueSize = 100000
 )
 
 // redisLogger send log to redis queue
 type redisLogger struct {
-	coreID   uint16
 	db       *ledis.DB
 	defaults []uint16
 	size     int64
@@ -21,13 +20,12 @@ type redisLogger struct {
 }
 
 // NewRedisLogger creates new redis logger handler
-func NewLedisLogger(coreID uint16, db *ledis.DB, defaults []uint16, size int64) Logger {
+func NewLedisLogger(db *ledis.DB, defaults []uint16, size int64) Logger {
 	if size == 0 {
 		size = MaxRedisQueueSize
 	}
 
 	rl := &redisLogger{
-		coreID:   coreID,
 		db:       db,
 		defaults: defaults,
 		size:     size,

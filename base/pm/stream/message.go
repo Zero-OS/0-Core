@@ -51,11 +51,11 @@ var (
 		LevelResultYAML, LevelResultTOML, LevelResultHRD, LevelResultJob}
 
 	MessageExitSuccess = &Message{
-		Meta: NewMeta(0, ExitSuccessFlag),
+		Meta: NewMeta(LevelStdout, ExitSuccessFlag),
 	}
 
 	MessageExitError = &Message{
-		Meta: NewMeta(0, ExitErrorFlag),
+		Meta: NewMeta(LevelStderr, ExitErrorFlag),
 	}
 )
 
@@ -92,7 +92,7 @@ func (m Meta) Is(flag Flag) bool {
 }
 
 func (m Meta) Set(flag Flag) Meta {
-	return uint32(m) | uint32(flag)
+	return Meta(uint32(m) | uint32(flag))
 }
 
 //Message is a message from running process
