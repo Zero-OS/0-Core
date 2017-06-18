@@ -482,12 +482,15 @@ func (pm *PM) handleStatsMessage(cmd *core.Command, msg *stream.Message) {
 
 func (pm *PM) msgCallback(cmd *core.Command, msg *stream.Message) {
 	//handle stats messages
-	if msg.Meta.Level() == stream.LevelStatsd {
+	if msg.Meta.Assert(stream.LevelStatsd) {
 		pm.handleStatsMessage(cmd, msg)
 	}
 
-	//stamp msg.
+	//update message
 	msg.Epoch = time.Now().UnixNano()
+	if cmd.Stream {
+		msg.Meta = msg.Meta.Set(stream.StreamFlag)
+	}
 	for _, handler := range pm.msgHandlers {
 		handler(cmd, msg)
 	}

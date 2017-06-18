@@ -91,6 +91,10 @@ func (m Meta) Is(flag Flag) bool {
 	return (uint16(m) & uint16(flag)) != 0
 }
 
+func (m Meta) Set(flag Flag) Meta {
+	return uint32(m) | uint32(flag)
+}
+
 //Message is a message from running process
 type Message struct {
 	Message string `json:"message"`
