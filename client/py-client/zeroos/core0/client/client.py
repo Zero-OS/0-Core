@@ -8,6 +8,7 @@ import signal
 import socket
 import logging
 import time
+import sys
 from . import typchk
 
 
@@ -109,7 +110,53 @@ class Response:
     def exists(self):
         r = self._client._redis
         flag = '{}:flag'.format(self._queue)
-        return r.rpoplpush(flag, flag) is not None
+        return bool(r.execute_command('LKEYEXISTS', flag))
+
+    @property
+    def running(self):
+        r = self._client._redis
+        flag = '{}:flag'.format(self._queue)
+        if bool(r.execute_command('LKEYEXISTS', flag)):
+            return r.execute_command('LTTL', flag) == -1
+
+        return False
+
+    def stream(self, out=sys.stdout, err=sys.stderr):
+        """
+        Runtime copy of job stdout and stderr. This required the 'stream` flag to be set to True otherwise it will
+        not be able to copy any output, while it will block until the process exits.
+        
+        :note: This function will block until it reaches end of stream or the process is no longer running.
+
+        :param out: Output stream
+        :param err: Error stream
+
+        :return: None
+        """
+        queue = 'stream:%s' % self.id
+        r = self._client._redis
+
+        while True:
+            data = r.blpop(queue, 10)
+            if data is None:
+                if not self.running:
+                    break
+                continue
+            _, body = data
+            payload = json.loads(body)
+            message = payload['message']
+            line = message['message']
+            meta = message['meta']
+            if meta & 0x0006 != 0:
+                #exit flags are 0x2 (success) or 0x4 error, and we only care for any of them.
+                break
+            level = (meta & 0xff00) >> 16
+            if level == 1:
+                out.write(line)
+                out.write('\n')
+            else:
+                err.write(line)
+                err.write('\n')
 
     def get(self, timeout=None):
         if timeout is None:

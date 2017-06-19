@@ -9,6 +9,7 @@ import (
 
 const (
 	MaxStreamRedisQueueSize = 1000
+	StreamRedisQueueTTL     = 60
 )
 
 // redisLogger send log to redis queue
@@ -74,6 +75,6 @@ func (l *streamLogger) push() error {
 			return err
 		}
 
-		l.db.LExpire([]byte(queue), 30)
+		l.db.LExpire([]byte(queue), StreamRedisQueueTTL)
 	}
 }
