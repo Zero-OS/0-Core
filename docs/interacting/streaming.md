@@ -19,7 +19,7 @@ Each entry in the queue is a json serialized object structured as following
 ## Meta flags
 the meta is a unsigned 32 bit int formatted as follows:
 - 2 high order bytes contains the log level (1 for stdout, and 2 for stderr)
-- 2 lowe order bytes contains flags associated with the message
+- 2 lower order bytes contains flags associated with the message
 	- flag: 0x2 EOF and process has exited with success
 	- flag: 0x4 EOF and process has exited with error
 	
@@ -39,7 +39,7 @@ elif level == 2:
 
 # Python client streaming
 The python client exposes the stream functionality. Although the stream flag can work with 
-any command (even the internal commands that doesn't start an external process), the puthon
+any command (even the internal commands that doesn't start an external process), the python
 client only exposes the `stream` flag on `system` and `bash` methods.
  
 When u start a process via `system` or `bash` the stream method is available on the
