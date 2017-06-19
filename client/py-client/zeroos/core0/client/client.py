@@ -147,7 +147,7 @@ class Response:
                     break
                 continue
             _, body = data
-            payload = json.loads(body)
+            payload = json.loads(body.decode())
             message = payload['message']
             line = message['message']
             meta = message['meta']
