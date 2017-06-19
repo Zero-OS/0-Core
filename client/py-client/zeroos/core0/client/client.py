@@ -154,13 +154,12 @@ class Response:
             if meta & 0x0006 != 0:
                 #eof flags are 0x2 (success) or 0x4 error
                 break
-            level = (meta & 0xff00) >> 16
-            if level == 1:
-                out.write(line)
-                out.write('\n')
-            else:
-                err.write(line)
-                err.write('\n')
+            level = meta >> 16
+            w = out if level == 1 else err
+
+            if w is not None:
+                w.write(line)
+                w.write('\n')
 
     def get(self, timeout=None):
         if timeout is None:
