@@ -18,6 +18,7 @@ When started it first configures the networking, and then starts a local Redis i
 	"max_time": 0,
 	"max_restart": 0,
 	"recurring_period": 0,
+	"stream": false,
 	"log_levels": [int]
 }
 ```
