@@ -136,6 +136,10 @@ class Response:
         queue = 'stream:%s' % self.id
         r = self._client._redis
 
+        # we can terminate quickly by checking if the process is not running and it has no queued output.
+        if not self.running and r.llen(queue) == 0:
+            return
+
         while True:
             data = r.blpop(queue, 10)
             if data is None:
@@ -148,7 +152,7 @@ class Response:
             line = message['message']
             meta = message['meta']
             if meta & 0x0006 != 0:
-                #exit flags are 0x2 (success) or 0x4 error, and we only care for any of them.
+                #eof flags are 0x2 (success) or 0x4 error
                 break
             level = (meta & 0xff00) >> 16
             if level == 1:
@@ -611,7 +615,7 @@ class BaseClient:
 
         return json.loads(result.data)
 
-    def system(self, command, dir='', stdin='', env=None):
+    def system(self, command, dir='', stdin='', env=None, queue=None, max_time=None, stream=False):
         """
         Execute a command
 
@@ -634,11 +638,12 @@ class BaseClient:
         }
 
         self._system_chk.check(args)
-        response = self.raw(command='core.system', arguments=args)
+        response = self.raw(command='core.system', arguments=args,
+                            queue=queue, max_time=max_time, stream=stream)
 
         return response
 
-    def bash(self, script, stdin=''):
+    def bash(self, script, stdin='', queue=None, max_time=None, stream=False):
         """
         Execute a bash script, or run a process inside a bash shell.
 
@@ -651,7 +656,8 @@ class BaseClient:
             'stdin': stdin,
         }
         self._bash_chk.check(args)
-        response = self.raw(command='bash', arguments=args)
+        response = self.raw(command='bash', arguments=args,
+                            queue=queue, max_time=max_time, stream=stream)
 
         return response
 
