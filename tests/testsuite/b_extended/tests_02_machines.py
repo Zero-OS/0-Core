@@ -24,7 +24,6 @@ class ExtendedMachines(BaseTest):
         super(ExtendedMachines, self).setUp()
         self.check_g8os_connection(ExtendedMachines)
 
-    @unittest.skip('bug: https://github.com/g8os/core0/issues/223')
     def test001_kvm_add_remove_nics(self):
         """ g8os-035
 
@@ -82,8 +81,7 @@ class ExtendedMachines(BaseTest):
         self.lg('Deattach all these nics, should succeed')
         self.client.kvm.remove_nic(vm_uuid, 'vlan', id=str(t1))
         self.client.kvm.remove_nic(vm_uuid, 'vxlan', id=str(vx1_id))
-        self.client.kvm.remove_nic(vm_uuid, 'bridge', id=bn2)
-        self.assertEqual(len(self.client.kvm.info(vm_uuid)['Net']), 0)
+        self.assertEqual(len(self.client.kvm.info(vm_uuid)['Net']), 1)
 
         self.lg('Delete (vm1)')
         self.client.kvm.destroy(vm_uuid)
