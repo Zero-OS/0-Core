@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -12,11 +13,11 @@ const (
 type Operation string
 
 type Sample struct {
-	Avg   float64
-	Total float64
-	Max   float64
-	Count uint
-	Start int64
+	Avg   float64 `json:"avg"`
+	Total float64 `json:"total"`
+	Max   float64 `json:"max"`
+	Count uint    `json:"count"`
+	Start int64   `json:"start"`
 }
 
 /*
@@ -56,11 +57,11 @@ func (m *Sample) Feed(value float64, now int64, duration int64) *Sample {
 type Samples map[int64]*Sample
 
 type State struct {
-	Operation Operation
-	LastValue float64
-	LastTime  int64
-	Tags      string
-	Samples   Samples
+	Operation Operation `json:"op"`
+	LastValue float64   `json:"last_value"`
+	LastTime  int64     `json:"last_time"`
+	Tags      string    `json:"tags,omitempty"`
+	Samples   Samples   `json:"samples"`
 }
 
 func NewState(op Operation, durations ...int64) *State {
@@ -75,6 +76,11 @@ func NewState(op Operation, durations ...int64) *State {
 	}
 
 	return &s
+}
+
+func LoadState(data []byte) (*State, error) {
+	var state State
+	return &state, json.Unmarshal(data, &state)
 }
 
 func (s *State) avg(now int64, value float64) {
