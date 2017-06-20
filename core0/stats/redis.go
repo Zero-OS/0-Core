@@ -9,16 +9,13 @@ import (
 	"time"
 )
 
-const (
-	Counter    Operation = "A"
-	Difference Operation = "D"
-)
+
 
 var (
 	log = logging.MustGetLogger("stats")
 )
 
-type Operation string
+
 
 /*
 StatsBuffer implements a buffering and flushing mechanism to buffer statsd messages
