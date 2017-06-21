@@ -48,8 +48,8 @@ func NewLedisStatsAggregator(db *ledis.DB) Aggregator {
 
 type Point struct {
 	*Sample
-	Key  string
-	Tags string
+	Key  string `json:"key"`
+	Tags string `json:"tags"`
 }
 
 func (r *redisStatsBuffer) Aggregate(op string, key string, value float64, tags string) {
