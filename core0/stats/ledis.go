@@ -74,6 +74,11 @@ func (r *redisStatsBuffer) Aggregate(op string, key string, value float64, tags 
 	}
 
 	for period, sample := range state.Feed(value) {
+		if sample.Start == 0 {
+			//undefined sample
+			continue
+		}
+
 		queue := fmt.Sprintf(StatisticsQueueKey, period)
 		p := Point{
 			Sample: sample,

@@ -31,7 +31,7 @@ func TestSampleCalculations(t *testing.T) {
 
 	feed := s.Feed(100, t2, duration)
 	if !assert.NotNil(t, feed) {
-		t.Fail()
+		t.Fatal()
 	}
 
 	if !assert.Equal(t, t1, feed.Start) {
