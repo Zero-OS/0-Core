@@ -49,9 +49,29 @@ Some more simple examples:
   cl.system('ip a').get()
   ```
 
-- List all disks:
+- Create a new partition table for UEFI systems:
+```python
+cl.disk.mktable("sda", "gpt")
+```
+See more partition tables types [here](https://www.gnu.org/software/parted/manual/html_node/mklabel.html#mklabel).
+
+- Create a new partition on a given device:
+```python
+cl.disk.mkpart("sda", 1, "20%", "extended")
+```
+or
+```python
+cl.disk.mkpart("sda", 1, 400, "extended")
+```
+
+- List all disks and partitions:
   ```python
   cl.disk.list()
   ```
+
+- Remove a partition:
+```python
+cl.disk.rmpart("sda", 1)
+```
 
 Also see the examples in [JumpScale Client](jumpscale.md).

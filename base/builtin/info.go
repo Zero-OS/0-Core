@@ -126,7 +126,7 @@ func parseIP(s string) (ip gonet.IP) {
 }
 
 func getTCPUDPInfo() ([]*Port, error) {
-	var ports []*Port
+	ports := make([]*Port, 0)
 	for _, network := range []string{"tcp", "tcp6", "udp", "udp6"} {
 		p := path.Join("/proc", "net", network)
 		content, err := ioutil.ReadFile(p)
@@ -167,7 +167,7 @@ func getTCPUDPInfo() ([]*Port, error) {
 }
 
 func getUnixSocketInfo() ([]*Port, error) {
-	var ports []*Port
+	ports := make([]*Port, 0)
 	p := path.Join("/proc", "net", "unix")
 	content, err := ioutil.ReadFile(p)
 	if err != nil {
@@ -227,6 +227,9 @@ func getSocketsInodes() map[uint64]uint64 {
 		if path == "/proc" {
 			return nil
 		}
+		if info == nil {
+			return nil
+		}
 		if !info.IsDir() {
 			return nil
 		}
@@ -252,7 +255,6 @@ func getPortInfo(cmd *core.Command) (interface{}, error) {
 	ports = append(ports, unix...)
 
 	inodes := getSocketsInodes()
-	log.Debugf("Inodes: %v", inodes)
 	for _, port := range ports {
 		pid, ok := inodes[port.inode]
 		if ok {

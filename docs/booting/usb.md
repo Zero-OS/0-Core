@@ -32,13 +32,16 @@ Next you'll need to go through follow steps:
 <a id="fat32"></a>
 Assuming that your USB device is `/dev/sdc`, you first need to create a FAT32 partition (this will erase the whole device):
 ``` bash
-mkfs.vfat /dev/sdc
+parted -a optimal -s /dev/sdc mklabel msdos
+parted -a optimal -s /dev/sdc mkpart primary fat32 2048s 100%
+parted -a optimal -s /dev/sdc set 1 boot
+mkfs.vfat /dev/sdc1
 ```
 
 <a id="mount"></a>
 Then mont the partition:
 ```bash
-mount /dev/sdc /mnt/g8os-usb
+mount /dev/sdc1 /mnt/g8os-usb
 ```
 
 <a id="efi-dirs"></a>
