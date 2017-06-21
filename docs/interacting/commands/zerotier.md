@@ -2,9 +2,16 @@
 
 Available commands:
 
+- [zerotier.info](#info)
 - [zerotier.join](#join)
 - [zerotier.leave](#leave)
 - [zerotier.list](#list)
+
+
+<a id="info"></a>
+## zerotier.info
+
+Information about the ZeroTier network.
 
 <a id="join"></a>
 ## zerotier.join

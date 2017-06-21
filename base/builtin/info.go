@@ -227,6 +227,9 @@ func getSocketsInodes() map[uint64]uint64 {
 		if path == "/proc" {
 			return nil
 		}
+		if info == nil {
+			return nil
+		}
 		if !info.IsDir() {
 			return nil
 		}
