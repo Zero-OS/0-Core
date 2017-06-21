@@ -109,7 +109,8 @@ func TestStateDiff(t *testing.T) {
 	state.FeedOn(30, 4)
 	state.FeedOn(40, 5)
 
-	updates := state.FeedOn(50, 6)
+	//flush (at time 50, and start using a step of 2
+	updates := state.FeedOn(50, 7)
 	if !assert.NotNil(t, updates) {
 		t.Fatal()
 	}
@@ -120,6 +121,26 @@ func TestStateDiff(t *testing.T) {
 	}
 
 	if !assert.Equal(t, 0.1, sample.Avg) {
+		t.Fatal()
+	}
+
+	state.FeedOn(60, 9)
+	state.FeedOn(70, 11)
+	state.FeedOn(80, 13)
+	state.FeedOn(90, 15)
+
+	updates = state.FeedOn(100, 11)
+
+	if !assert.NotNil(t, updates) {
+		t.Fatal()
+	}
+
+	sample, ok = updates[p]
+	if !ok {
+		t.Fatal()
+	}
+
+	if !assert.Equal(t, 0.2, sample.Avg) {
 		t.Fatal()
 	}
 }

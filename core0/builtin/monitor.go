@@ -3,13 +3,13 @@ package builtin
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/shirou/gopsutil/net"
+	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm/process"
 	"io/ioutil"
 	"strconv"
 	"strings"
@@ -84,8 +84,8 @@ func (m *monitor) disk() error {
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
-			fmt.Sprintf(key, "disk.iops.write"),
-			float64(counter.WriteCount/1024),
+			fmt.Sprintf(key, "disk.throughput.write"),
+			float64(counter.WriteBytes/1024),
 			"",
 		)
 	}

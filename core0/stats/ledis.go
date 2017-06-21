@@ -48,7 +48,8 @@ func NewLedisStatsAggregator(db *ledis.DB) Aggregator {
 
 type Point struct {
 	*Sample
-	Key string
+	Key  string
+	Tags string
 }
 
 func (r *redisStatsBuffer) Aggregate(op string, key string, value float64, tags string) {
@@ -68,17 +69,20 @@ func (r *redisStatsBuffer) Aggregate(op string, key string, value float64, tags 
 		return
 	}
 
-	state.Tags = tags
+	if len(tags) != 0 {
+		state.Tags = tags
+	}
 
 	for period, sample := range state.Feed(value) {
-		key := fmt.Sprintf(StatisticsQueueKey, period)
+		queue := fmt.Sprintf(StatisticsQueueKey, period)
 		p := Point{
 			Sample: sample,
 			Key:    key,
+			Tags:   state.Tags,
 		}
 
 		if data, err := json.Marshal(&p); err == nil {
-			r.db.RPush([]byte(key), data)
+			r.db.RPush([]byte(queue), data)
 		} else {
 			log.Errorf("statistics point marshal error: %s", err)
 		}

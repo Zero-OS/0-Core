@@ -2,6 +2,7 @@ package stats
 
 import (
 	"encoding/json"
+	"math"
 	"time"
 )
 
@@ -109,8 +110,18 @@ func (s *State) FeedOn(now int64, value float64) Samples {
 		return nil
 	}
 
+	if s.LastTime >= now {
+		//repeated value
+		return nil
+	}
+
 	if s.Operation == Differential {
 		value = (value - s.LastValue) / float64(now-s.LastTime)
+	}
+
+	if math.IsNaN(value) {
+		//ignore value.
+		return nil
 	}
 
 	updates := Samples{}
