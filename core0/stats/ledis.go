@@ -83,4 +83,14 @@ func (r *redisStatsBuffer) Aggregate(op string, key string, value float64, tags 
 			log.Errorf("statistics point marshal error: %s", err)
 		}
 	}
+
+	data, err = json.Marshal(state)
+	if err != nil {
+		log.Errorf("failed to marshal state object for %s: %s", key, err)
+		return
+	}
+
+	if err := r.db.Set([]byte(lkey), data); err != nil {
+		log.Errorf("failed to save state object for %s: %s", key, err)
+	}
 }
