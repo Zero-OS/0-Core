@@ -3,9 +3,9 @@ package transport
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/garyburd/redigo/redis"
 	"github.com/siddontang/ledisdb/ledis"
+	"github.com/zero-os/0-core/base/pm/core"
 	"time"
 )
 
@@ -118,7 +118,7 @@ func (cl *channel) Flag(id string) error {
 
 func (cl *channel) UnFlag(id string) error {
 	key := fmt.Sprintf("result:%s:flag", id)
-	_, err := cl.db.Expire([]byte(key), ReturnExpire)
+	_, err := cl.db.LExpire([]byte(key), ReturnExpire)
 	return err
 }
 

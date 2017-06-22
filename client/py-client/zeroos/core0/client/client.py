@@ -8,6 +8,7 @@ import signal
 import socket
 import logging
 import time
+import sys
 from . import typchk
 
 
@@ -109,7 +110,56 @@ class Response:
     def exists(self):
         r = self._client._redis
         flag = '{}:flag'.format(self._queue)
-        return r.rpoplpush(flag, flag) is not None
+        return bool(r.execute_command('LKEYEXISTS', flag))
+
+    @property
+    def running(self):
+        r = self._client._redis
+        flag = '{}:flag'.format(self._queue)
+        if bool(r.execute_command('LKEYEXISTS', flag)):
+            return r.execute_command('LTTL', flag) == -1
+
+        return False
+
+    def stream(self, out=sys.stdout, err=sys.stderr):
+        """
+        Runtime copy of job stdout and stderr. This required the 'stream` flag to be set to True otherwise it will
+        not be able to copy any output, while it will block until the process exits.
+        
+        :note: This function will block until it reaches end of stream or the process is no longer running.
+
+        :param out: Output stream
+        :param err: Error stream
+
+        :return: None
+        """
+        queue = 'stream:%s' % self.id
+        r = self._client._redis
+
+        # we can terminate quickly by checking if the process is not running and it has no queued output.
+        if not self.running and r.llen(queue) == 0:
+            return
+
+        while True:
+            data = r.blpop(queue, 10)
+            if data is None:
+                if not self.running:
+                    break
+                continue
+            _, body = data
+            payload = json.loads(body.decode())
+            message = payload['message']
+            line = message['message']
+            meta = message['meta']
+            if meta & 0x0006 != 0:
+                #eof flags are 0x2 (success) or 0x4 error
+                break
+            level = meta >> 16
+            w = out if level == 1 else err
+
+            if w is not None:
+                w.write(line)
+                w.write('\n')
 
     def get(self, timeout=None):
         if timeout is None:
@@ -508,7 +558,7 @@ class BaseClient:
     def ip(self):
         return self._ip
 
-    def raw(self, command, arguments, queue=None, max_time=None):
+    def raw(self, command, arguments, queue=None, max_time=None, stream=False):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -516,6 +566,10 @@ class BaseClient:
         :param command: Command name to execute supported by the node (ex: core.system, info.cpu, etc...)
                         check documentation for list of built in commands
         :param arguments: A dict of required command arguments depends on the command name.
+        :param queue: command queue (commands on the same queue are executed sequentially)
+        :param max_time: kill job server side if it exceeded this amount of seconds
+        :param stream: If True, process stdout and stderr are pushed to a special queue (stream:<id>) so 
+            client can stream output
         :return: Response object
         """
         raise NotImplemented()
@@ -560,7 +614,7 @@ class BaseClient:
 
         return json.loads(result.data)
 
-    def system(self, command, dir='', stdin='', env=None):
+    def system(self, command, dir='', stdin='', env=None, queue=None, max_time=None, stream=False):
         """
         Execute a command
 
@@ -583,11 +637,12 @@ class BaseClient:
         }
 
         self._system_chk.check(args)
-        response = self.raw(command='core.system', arguments=args)
+        response = self.raw(command='core.system', arguments=args,
+                            queue=queue, max_time=max_time, stream=stream)
 
         return response
 
-    def bash(self, script, stdin=''):
+    def bash(self, script, stdin='', queue=None, max_time=None, stream=False):
         """
         Execute a bash script, or run a process inside a bash shell.
 
@@ -600,7 +655,8 @@ class BaseClient:
             'stdin': stdin,
         }
         self._bash_chk.check(args)
-        response = self.raw(command='bash', arguments=args)
+        response = self.raw(command='bash', arguments=args,
+                            queue=queue, max_time=max_time, stream=stream)
 
         return response
 
@@ -624,6 +680,7 @@ class ContainerClient(BaseClient):
             'arguments': typchk.Any(),
             'queue': typchk.Or(str, typchk.IsNone()),
             'max_time': typchk.Or(int, typchk.IsNone()),
+            'stream': bool
         }
     })
 
@@ -642,7 +699,7 @@ class ContainerClient(BaseClient):
     def zerotier(self):
         return self._zerotier
 
-    def raw(self, command, arguments, queue=None, max_time=None):
+    def raw(self, command, arguments, queue=None, max_time=None, stream=False):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -650,6 +707,10 @@ class ContainerClient(BaseClient):
         :param command: Command name to execute supported by the node (ex: core.system, info.cpu, etc...)
                         check documentation for list of built in commands
         :param arguments: A dict of required command arguments depends on the command name.
+        :param queue: command queue (commands on the same queue are executed sequentially)
+        :param max_time: kill job server side if it exceeded this amount of seconds
+        :param stream: If True, process stdout and stderr are pushed to a special queue (stream:<id>) so 
+            client can stream output
         :return: Response object
         """
         args = {
@@ -659,6 +720,7 @@ class ContainerClient(BaseClient):
                 'arguments': arguments,
                 'queue': queue,
                 'max_time': max_time,
+                'stream': stream,
             },
         }
 
@@ -2034,7 +2096,7 @@ class Client(BaseClient):
     def config(self):
         return self._config
 
-    def raw(self, command, arguments, queue=None, max_time=None):
+    def raw(self, command, arguments, queue=None, max_time=None, stream=False):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -2042,6 +2104,10 @@ class Client(BaseClient):
         :param command: Command name to execute supported by the node (ex: core.system, info.cpu, etc...)
                         check documentation for list of built in commands
         :param arguments: A dict of required command arguments depends on the command name.
+        :param queue: command queue (commands on the same queue are executed sequentially)
+        :param max_time: kill job server side if it exceeded this amount of seconds
+        :param stream: If True, process stdout and stderr are pushed to a special queue (stream:<id>) so 
+            client can stream output
         :return: Response object
         """
         id = str(uuid.uuid4())
@@ -2052,6 +2118,7 @@ class Client(BaseClient):
             'arguments': arguments,
             'queue': queue,
             'max_time': max_time,
+            'stream': stream,
         }
 
         flag = 'result:{}:flag'.format(id)

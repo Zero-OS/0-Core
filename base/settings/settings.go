@@ -16,7 +16,7 @@ const (
 
 //Logger settings
 type Logger struct {
-	Levels []int `json:"levels"`
+	Levels []uint16 `json:"levels"`
 }
 
 //Extension cmd config

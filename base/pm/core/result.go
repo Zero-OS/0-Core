@@ -38,7 +38,7 @@ type JobResult struct {
 	Data      string  `json:"data"`
 	Streams   Streams `json:"streams,omitempty"`
 	Critical  string  `json:"critical,omitempty"`
-	Level     int     `json:"level"`
+	Level     uint16  `json:"level"`
 	State     string  `json:"state"`
 	StartTime int64   `json:"starttime"`
 	Time      int64   `json:"time"`

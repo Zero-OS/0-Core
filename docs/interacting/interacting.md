@@ -4,3 +4,4 @@
 * [Python Client](python.md)
 * [JumpScale Client](jumpscale.md)
 * [Go Client](go.md)
+* [Streaming](streaming.md)

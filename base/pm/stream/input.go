@@ -21,11 +21,11 @@ type Consumer interface {
 
 type consumerImpl struct {
 	reader io.Reader
-	level  int
+	level  uint16
 	signal chan int
 }
 
-func NewConsumer(reader io.Reader, level int) Consumer {
+func NewConsumer(reader io.Reader, level uint16) Consumer {
 	return &consumerImpl{
 		reader: reader,
 		level:  level,
@@ -38,7 +38,7 @@ func NewConsumer(reader io.Reader, level int) Consumer {
 // other messages that has no level are assumed of level consumer.level
 func (consumer *consumerImpl) consume(handler MessageHandler) {
 	reader := bufio.NewReader(consumer.reader)
-	var level int
+	var level uint16
 	var message string
 	var multiline = false
 
@@ -63,12 +63,12 @@ func (consumer *consumerImpl) consume(handler MessageHandler) {
 				if matches == nil {
 					//use default level.
 					handler(&Message{
-						Level:   consumer.level,
+						Meta:    NewMeta(consumer.level),
 						Message: line,
 					})
 				} else {
-					l, _ := strconv.ParseInt(matches[1], 10, 0)
-					level = int(l)
+					l, _ := strconv.ParseUint(matches[1], 10, 16)
+					level = uint16(l)
 					message = matches[3]
 
 					if matches[2] == ":::" {
@@ -76,7 +76,7 @@ func (consumer *consumerImpl) consume(handler MessageHandler) {
 					} else {
 						//single line message
 						handler(&Message{
-							Level:   level,
+							Meta:    NewMeta(level),
 							Message: message,
 						})
 					}
@@ -91,7 +91,7 @@ func (consumer *consumerImpl) consume(handler MessageHandler) {
 					multiline = false
 					//flush message
 					handler(&Message{
-						Level:   level,
+						Meta:    NewMeta(level),
 						Message: message,
 					})
 				} else {

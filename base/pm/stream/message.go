@@ -2,76 +2,104 @@ package stream
 
 import (
 	"fmt"
-	"github.com/zero-os/0-core/base/pm/core"
 )
 
 const (
-	LevelInvalid = -1
+	//Message Flags
+	StreamFlag Flag = 1 << iota
+	//EOP success
+	ExitSuccessFlag
+	//EOP error
+	ExitErrorFlag
+
 	//LevelStdout stdout message
-	LevelStdout = 1 // stdout
+	LevelStdout uint16 = 1 // stdout
 	//LevelStderr stderr message
-	LevelStderr = 2 // stderr
+	LevelStderr uint16 = 2 // stderr
 	//LevelPublic public message
-	LevelPublic = 3 // message for endusers / public message
+	LevelPublic uint16 = 3 // message for endusers / public message
 	//LevelOperator operator message
-	LevelOperator = 4 // message for operator / internal message
+	LevelOperator uint16 = 4 // message for operator / internal message
 	//LevelUnknown unknown message
-	LevelUnknown = 5 // log msg (unstructured = level5, cat=unknown)
+	LevelUnknown uint16 = 5 // log msg (unstructured = level5, cat=unknown)
 	//LevelStructured structured message
-	LevelStructured = 6 // log msg structured
+	LevelStructured uint16 = 6 // log msg structured
 	//LevelWarning warning message
-	LevelWarning = 7 // warning message
+	LevelWarning uint16 = 7 // warning message
 	//LevelOpsError ops error message
-	LevelOpsError = 8 // ops error
+	LevelOpsError uint16 = 8 // ops error
 	//LevelCritical critical message
-	LevelCritical = 9 // critical error
+	LevelCritical uint16 = 9 // critical error
 	//LevelStatsd statsd message
-	LevelStatsd = 10 // statsd message(s) AVG
+	LevelStatsd uint16 = 10 // statsd message(s) AVG
 	//LevelDebug debug message
-	LevelDebug = 11 // debug message
+	LevelDebug uint16 = 11 // debug message
 	//LevelResultJSON json result message
-	LevelResultJSON = 20 // result message, json
+	LevelResultJSON uint16 = 20 // result message, json
 	//LevelResultYAML yaml result message
-	LevelResultYAML = 21 // result message, yaml
+	LevelResultYAML uint16 = 21 // result message, yaml
 	//LevelResultTOML toml result message
-	LevelResultTOML = 22 // result message, toml
+	LevelResultTOML uint16 = 22 // result message, toml
 	//LevelResultHRD hrd result message
-	LevelResultHRD = 23 // result message, hrd
+	LevelResultHRD uint16 = 23 // result message, hrd
 	//LevelResultJob job result message
-	LevelResultJob = 30 // job, json (full result of a job)
-
-	//Exit message (this message must be sent by all processes as a last message)
-	//other wise the PM will assume ERROR exit status.
-	LevelExitState = 50
-
-	//LevelInternal specify the start of the internal log levels
-	LevelInternal = 100
-
-	//LevelInternalMonitorPid instruct the agent to consider the cpu and mem consumption
-	//of that PID (in the message body)
-	LevelInternalMonitorPid = 101
+	LevelResultJob uint16 = 30 // job, json (full result of a job)
 )
 
 var (
-	ResultMessageLevels = []int{LevelResultJSON,
+	ResultMessageLevels = []uint16{LevelResultJSON,
 		LevelResultYAML, LevelResultTOML, LevelResultHRD, LevelResultJob}
 
 	MessageExitSuccess = &Message{
-		Level:   LevelExitState,
-		Message: core.StateSuccess,
+		Meta: NewMeta(LevelStdout, ExitSuccessFlag),
 	}
 
 	MessageExitError = &Message{
-		Level:   LevelExitState,
-		Message: core.StateError,
+		Meta: NewMeta(LevelStderr, ExitErrorFlag),
 	}
 )
 
+type Flag uint16
+
+type Meta uint32
+
+func NewMeta(level uint16, flag ...Flag) Meta {
+	var m uint32
+	m = uint32(level) << 16
+	for _, f := range flag {
+		m |= uint32(f)
+	}
+	return Meta(m)
+}
+
+func (m Meta) Level() uint16 {
+	return uint16((uint32(m) | 0xff00) >> 16)
+}
+
+func (m Meta) Assert(level ...uint16) bool {
+	l := uint16((uint32(m) | 0xff00) >> 16)
+	for _, lv := range level {
+		if l == lv {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (m Meta) Is(flag Flag) bool {
+	return (uint16(m) & uint16(flag)) != 0
+}
+
+func (m Meta) Set(flag Flag) Meta {
+	return Meta(uint32(m) | uint32(flag))
+}
+
 //Message is a message from running process
 type Message struct {
-	Level   int    `json:"level"`
 	Message string `json:"message"`
 	Epoch   int64  `json:"epoch"`
+	Meta    Meta   `json:"meta"`
 }
 
 //MessageHandler represents a callback type
@@ -79,5 +107,5 @@ type MessageHandler func(*Message)
 
 //String represents a message as a string
 func (msg *Message) String() string {
-	return fmt.Sprintf("%d|%s", msg.Level, msg.Message)
+	return fmt.Sprintf("%d|%s", msg.Meta.Level(), msg.Message)
 }
