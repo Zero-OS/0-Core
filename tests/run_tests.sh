@@ -1,6 +1,6 @@
 #!/bin/bash
 point=$1
-if [ "$TRAVIS_EVENT_TYPE" != "cron" ]
+if [ "$TRAVIS_EVENT_TYPE" == "cron" ]
  then
    if [ "$point" == "before" ]
     then
@@ -12,7 +12,7 @@ if [ "$TRAVIS_EVENT_TYPE" != "cron" ]
    elif [ "$point" == "run" ]
     then
       echo "Running tests .."
-      cd tests; nosetests -v -s testsuite/a_basic/tests_02_machines.pyMachinetests.test002_create_list_delete_containers
+      cd tests; nosetests -v -s testsuite
    elif [ "$point" == "after" ]
     then
       cd tests; python3 packet_script.py delete $PACKET_TOKEN
