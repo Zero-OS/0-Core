@@ -44,53 +44,41 @@ max_count = 300 (max number of running containers, defaults to 1000 if not set)
 
 In this section you define how Core0 processes logs from running processes.
 
-Available loggers types are:
+There are 2 built in loggers that are used by zero-os to log jobs outputs that can be refined by the following two seconds
 
-- **console**: prints logs on stdout (console) of Core0
-- **redis**: forwards logs to Redis
+- **logging.file**: writes logs to `/var/log/core.log` 
+- **ledis**: forwards logs to Ledis
 
 For each logger you define log levels, specifying which log levels are logged to this logger.
 
 Example:
 
 ```
-[logging]
-[logging.console]
-type = "console"
-levels = [1, 2, 4, 7, 8, 9]
+[logging.file]
+levels = [2, 4, 7, 8, 9]
 
-[logging.redis]
-type = "redis"
+[logging.ledis]
 levels = [1, 2, 4, 7, 8, 9]
-address = "127.0.0.1:6379"
-batch_size = 1000
+size = 1000
 ```
 
 In the above example:
 
-- The `[logging]` can be omitted since there are no shared settings for both loggers
-- The second logger, of type `redis`, specifies with `batch_size` (wrongly chosen name) how many log messages are kept in the queue before older log messages will get dropped
+- The second logger, of type `ledis`, specifies with `size` how many log messages are kept in the queue before older log messages will get dropped
 
 See the section [Logging](../monitoring/logging.md) for more details about logging.
 
 <a id="stats"></a>
 ## [stats]
 
-This is where the statistics loggings is configured.
+This is where the statistics is configured.
 
 Here's an example:
 
 ```
 [stats]
-interval = 60000 # milliseconds (1 min)
-
-[stats.redis]
 enabled = true
-flush_interval = 10 # seconds
-address = "127.0.0.1:6379"
 ```
-
-In this example there is one shared setting for all statistics logging, in this case specifying the `interval` (is deprecated)
 
 See the section [Stats](../monitoring/stats.md) for more details about stats.
 

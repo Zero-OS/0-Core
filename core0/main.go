@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/op/go-logging"
 	"github.com/zero-os/0-core/base"
@@ -178,14 +177,9 @@ func main() {
 	sink.Start()
 	screen.Refresh()
 
-	if false && config.Stats.Enabled {
-		//Disabled by default.
-		aggregator, err := stats.NewRedisStatsAggregator(cfg.Local(), "", 1000, time.Duration(config.Stats.FlushInterval)*time.Second)
-		if err != nil {
-			log.Errorf("failed to initialize redis stats aggregator: %s", err)
-		} else {
-			mgr.AddStatsHandler(aggregator.Aggregate)
-		}
+	if config.Stats.Enabled {
+		aggregator := stats.NewLedisStatsAggregator(sink.DB())
+		mgr.AddStatsHandler(aggregator.Aggregate)
 	}
 
 	//wait
