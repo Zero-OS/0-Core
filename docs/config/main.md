@@ -44,7 +44,7 @@ max_count = 300 (max number of running containers, defaults to 1000 if not set)
 
 In this section you define how Core0 processes logs from running processes.
 
-There are 2 built in loggers that are used by zero-od to log jobs outputs that can be refined by the following two seconds
+There are 2 built in loggers that are used by zero-os to log jobs outputs that can be refined by the following two seconds
 
 - **logging.file**: writes logs to `/var/log/core.log` 
 - **ledis**: forwards logs to Ledis
