@@ -1,6 +1,7 @@
 #!/bin/bash
 
 BRANCH=$1
+token=$2
 body='{
 "request": {
 "branch": "'${BRANCH}'",
@@ -29,6 +30,6 @@ curl -s -X POST \
  -H "Content-Type: application/json" \
  -H "Accept: application/json" \
  -H "Travis-API-Version: 3" \
- -H "Authorization: token lj17-fmjUgycEAcQWRLWCA" \
+ -H "Authorization: token ${token}" \
  -d "$body" \
  https://api.travis-ci.org/repo/zero-os%2F0-core/requests
