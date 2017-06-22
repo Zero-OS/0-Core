@@ -78,8 +78,7 @@ type AppSettings struct {
 		MaxCount int `json:"max_count"`
 	} `json:"containers"`
 	Stats struct {
-		Enabled       bool `json:"enabled"`
-		FlushInterval int  `json:"flush_interval"` //in seconds
+		Enabled bool `json:"enabled"`
 	} `json:"stats"`
 }
 
