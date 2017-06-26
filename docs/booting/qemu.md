@@ -2,7 +2,7 @@
 
 Follow below steps in order to boot a virtual machine with Zero-OS on a physical machine running Ubuntu using QEMU:
 
-- [Install your machine](#configure-your-machine)
+- [Configure your machine](#configure-your-machine)
 - [Install VM using the Terminal](#install-vm-using-the-terminal)
 - [Install VM using the GUI](#install-vm-using-the-gui)
 - [Ping Zero-OS](#ping-zero-os)
@@ -61,6 +61,7 @@ allow virbr0
 ```
 
 ## Install VM using the Terminal
+
 ### Get the Zero-OS kernel
 
 Either build the kernel yourself as documented in [Building your Zero-OS Kernel](../building/README.md) or download it from the [Zero-OS Bootstrap Service](https://bootstrap.gig.tech/) as documented in [Zero-OS Bootstrap Service](../bootstrap/README.md).
