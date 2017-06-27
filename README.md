@@ -2,9 +2,9 @@
 [![Build Status](https://api.travis-ci.org/zero-os/0-core.svg?branch=master)](https://travis-ci.org/zero-os/0-core/)
 [![codecov](https://codecov.io/gh/g8os/core0/branch/master/graph/badge.svg)](https://codecov.io/gh/g8os/core0)
 
-# Core0
+# 0-core
 
-Core0 is a `systemd` replacement for G8OS.
+The core of Zero-OS is 0-core, which is the Zero-OS replacement for systemd.
 
 ## Branches
 
@@ -20,9 +20,9 @@ See the release schedule in the [Zero-OS home repository](https://github.com/zer
 
 ## Development setup
 
-To run Core0 in a container, just run the following command, which will pull the needed image as well:
+To run Zero-OS in a Docker container, just run the following command, which will pull the needed image as well:
 
-```
+```bash
 docker run --privileged -d --name core -p 6379:6379 g8os/g8os-dev:1.0
 ```
 
@@ -38,7 +38,7 @@ Before using the client make sure the `./pyclient` is in your `PYTHONPATH`.
 ```python
 import client
 
-cl = client.Client(host='ip of docker container running core0')
+cl = client.Client(host='<IP address of Docker container running Zero-OS>')
 
 #validate that core0 is reachable
 print(cl.ping())
@@ -61,7 +61,7 @@ print(
 ## Features
 
 ### v0.9
-- Boot the core0 as init process
+- Boot the 0-core as init process
 - Manage disks
 - Create containers
   - Full Namespace isolation
@@ -77,13 +77,13 @@ print(
 - change datastore for fuse filesystem from ipfs to [Zero-OS Store](https://github.com/g8os/stor).
 
 ### v0.11
-- include of the monitoring of all processes running on the g8os.
+- include of the monitoring of all processes running on the Zero-OS.
   It produces aggregated statistics on the processes that can be dump into a time series database and displayed used something like Grafana.
 
 ### v1.0.0
-- New Flist format, the Flist used in the 0-FS is now a distributed as a RocksDB database.
+- New Flist format, the flist used in the 0-fs is now a distributed as a RocksDB database.
 - Creation of the [0-Hub](https://github.com/zero-os/core0/tree/1.0.0), see https://github.com/zero-os/0-hub
-- Improvement of the builtin commands of core0 and coreX
+- Improvement of the builtin commands of 0-core and coreX
 
 ### v1.1.0-alpha2
 - Lots and lots of bug fixes
@@ -92,8 +92,8 @@ print(
 - Libvirt bindings
 - Processes API
 - Support multiple ZeroTier in container networking
-- Support OpenVSwitch networking for both containers and KVM domains
-- `corectl` command line tool to manage core0 from within the node
+- Support Open vSwitch networking for both containers and KVM domains
+- `corectl` command line tool to manage Zero-OS from within the node
 
 ### Next
 
