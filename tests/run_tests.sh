@@ -1,6 +1,6 @@
 #!/bin/bash
 point=$1
-if [ "$TRAVIS_EVENT_TYPE" == "cron" ]
+if [ "$TRAVIS_EVENT_TYPE" == "cron" ] || [ "$TRAVIS_EVENT_TYPE" == "api" ]
  then
    if [ "$point" == "before" ]
     then
