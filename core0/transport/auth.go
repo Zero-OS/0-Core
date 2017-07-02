@@ -2,6 +2,7 @@ package transport
 
 import (
 	"fmt"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/siddontang/ledisdb/config"
 )
@@ -41,6 +42,10 @@ func AuthMethod(organization string, key string) (config.AuthMethod, error) {
 		if err := claims.Valid(); err != nil {
 			log.Errorf("itsyouonline calim validation error: %s", err)
 			return false
+		}
+
+		if claims["azp"] == organization {
+			return true
 		}
 
 		var scopes []interface{}
