@@ -66,25 +66,25 @@ func (m *monitor) disk() error {
 		p.Aggregate(pm.AggreagteDifference,
 			"disk.iops.read",
 			float64(counter.ReadCount),
-			name,
+			name, pm.Tag{"type", "phys"},
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
 			"disk.iops.write",
 			float64(counter.WriteCount),
-			name,
+			name, pm.Tag{"type", "phys"},
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
 			"disk.throughput.read",
 			float64(counter.ReadBytes/1024),
-			name,
+			name, pm.Tag{"type", "phys"},
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
 			"disk.throughput.write",
 			float64(counter.WriteBytes/1024),
-			name,
+			name, pm.Tag{"type", "phys"},
 		)
 	}
 
@@ -102,7 +102,7 @@ func (m *monitor) cpu() error {
 		p.Aggregate(pm.AggreagteDifference,
 			"machine.CPU.utilisation",
 			t.System+t.User,
-			fmt.Sprint(nr),
+			fmt.Sprint(nr), pm.Tag{"type", "phys"},
 		)
 	}
 
@@ -115,7 +115,7 @@ func (m *monitor) cpu() error {
 		p.Aggregate(pm.AggreagteAverage,
 			"machine.CPU.percent",
 			v,
-			fmt.Sprint(nr),
+			fmt.Sprint(nr), pm.Tag{"type", "phys"},
 		)
 	}
 
@@ -138,7 +138,7 @@ func (m *monitor) cpu() error {
 		p.Aggregate(pm.AggreagteDifference,
 			"machine.CPU.contextswitch",
 			v,
-			"phys",
+			"", pm.Tag{"type", "phys"},
 		)
 	}
 
@@ -147,7 +147,7 @@ func (m *monitor) cpu() error {
 		p.Aggregate(pm.AggreagteDifference,
 			"machine.CPU.interrupts",
 			v,
-			"phys",
+			"", pm.Tag{"type", "phys"},
 		)
 	}
 
@@ -165,7 +165,7 @@ func (m *monitor) memory() error {
 	p.Aggregate(pm.AggreagteAverage,
 		"machine.memory.ram.available",
 		float64(virt.Available)/(1024.*1024.),
-		"phys",
+		"", pm.Tag{"type", "phys"},
 	)
 
 	swap, err := mem.SwapMemory()
@@ -176,13 +176,13 @@ func (m *monitor) memory() error {
 	p.Aggregate(pm.AggreagteAverage,
 		"machine.memory.swap.left",
 		float64(swap.Free)/(1024.*1024.),
-		"phys",
+		"", pm.Tag{"type", "phys"},
 	)
 
 	p.Aggregate(pm.AggreagteAverage,
 		"machine.memory.swap.used",
 		float64(swap.Used)/(1024.*1024.),
-		"phys",
+		"", pm.Tag{"type", "phys"},
 	)
 
 	return nil
@@ -199,25 +199,25 @@ func (m *monitor) network() error {
 		p.Aggregate(pm.AggreagteDifference,
 			"network.throughput.outgoing",
 			float64(counter.BytesSent)/(1024.*1024.),
-			counter.Name,
+			counter.Name, pm.Tag{"type", "phys"},
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
 			"network.throughput.incoming",
 			float64(counter.BytesRecv)/(1024.*1024.),
-			counter.Name,
+			counter.Name, pm.Tag{"type", "phys"},
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
 			"network.packets.tx",
 			float64(counter.PacketsSent)/(1024.*1024.),
-			counter.Name,
+			counter.Name, pm.Tag{"type", "phys"},
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
 			"network.packets.rx",
 			float64(counter.PacketsRecv)/(1024.*1024.),
-			counter.Name,
+			counter.Name, pm.Tag{"type", "phys"},
 		)
 	}
 
