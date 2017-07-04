@@ -3,6 +3,7 @@
 
 [startup."zerotier-init"]
 name = "core.system"
+running_delay = -1
 
 [startup."zerotier-init".args]
 name = "ztid"
