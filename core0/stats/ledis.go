@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"github.com/op/go-logging"
 	"github.com/siddontang/ledisdb/ledis"
+	"github.com/zero-os/0-core/base/pm"
 )
 
 const (
 	StatisticsQueueKey = "statistics:%d"
-	StateKey           = "state:%s"
+	StateKey           = "state:%s:%s"
 )
 
 var (
@@ -24,7 +25,7 @@ that are collected via the process manager. Flush happens when buffer is full or
 The StatsBuffer.Handler should be registers as StatsFlushHandler on the process manager object.
 */
 type Aggregator interface {
-	Aggregate(operation string, key string, value float64, tags string)
+	Aggregate(operation string, key string, value float64, id string, tags ...pm.Tag)
 }
 
 type Stats struct {
@@ -48,13 +49,13 @@ func NewLedisStatsAggregator(db *ledis.DB) Aggregator {
 
 type Point struct {
 	*Sample
-	Key  string `json:"key"`
-	Tags string `json:"tags"`
+	Key  string            `json:"key"`
+	Tags map[string]string `json:"tags,omitempty"`
 }
 
-func (r *redisStatsBuffer) Aggregate(op string, key string, value float64, tags string) {
-	log.Debugf("STATS: %s(%s, %f, '%s')", op, key, value, tags)
-	lkey := fmt.Sprintf(StateKey, key)
+func (r *redisStatsBuffer) Aggregate(op string, key string, value float64, id string, tags ...pm.Tag) {
+	log.Debugf("STATS: %s(%s/%s, %f, '%s')", op, key, id, value, tags)
+	lkey := fmt.Sprintf(StateKey, key, id)
 	data, err := r.db.Get([]byte(lkey))
 	if err != nil {
 		log.Errorf("failed to get value for %s: %s", key, err)
@@ -83,7 +84,15 @@ func (r *redisStatsBuffer) Aggregate(op string, key string, value float64, tags 
 		p := Point{
 			Sample: sample,
 			Key:    key,
-			Tags:   state.Tags,
+			Tags:   make(map[string]string),
+		}
+
+		for _, tag := range state.Tags {
+			p.Tags[tag.Key] = tag.Value
+		}
+
+		if id != "" {
+			p.Tags["id"] = id
 		}
 
 		if data, err := json.Marshal(&p); err == nil {
