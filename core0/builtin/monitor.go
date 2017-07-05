@@ -7,6 +7,7 @@ import (
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/shirou/gopsutil/net"
+	"github.com/vishvananda/netlink"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/process"
@@ -196,6 +197,16 @@ func (m *monitor) network() error {
 
 	p := pm.GetManager()
 	for _, counter := range counters {
+		link, err := netlink.LinkByName(counter.Name)
+		if err != nil {
+			continue
+		}
+
+		//only physical devices !
+		if link.Type() != "device" {
+			continue
+		}
+
 		p.Aggregate(pm.AggreagteDifference,
 			"network.throughput.outgoing",
 			float64(counter.BytesSent)/(1024.*1024.),
@@ -210,13 +221,13 @@ func (m *monitor) network() error {
 
 		p.Aggregate(pm.AggreagteDifference,
 			"network.packets.tx",
-			float64(counter.PacketsSent)/(1024.*1024.),
+			float64(counter.PacketsSent),
 			counter.Name, pm.Tag{"type", "phys"},
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
 			"network.packets.rx",
-			float64(counter.PacketsRecv)/(1024.*1024.),
+			float64(counter.PacketsRecv),
 			counter.Name, pm.Tag{"type", "phys"},
 		)
 	}

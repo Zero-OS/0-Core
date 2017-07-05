@@ -464,9 +464,9 @@ func (pm *PM) handleStatsMessage(cmd *core.Command, msg *stream.Message) {
 
 	optype := parts[1]
 
-	var tags string
+	var tagsStr string
 	if len(parts) == 3 {
-		tags = parts[2]
+		tagsStr = parts[2]
 	}
 
 	data := strings.Split(parts[0], ":")
@@ -482,13 +482,19 @@ func (pm *PM) handleStatsMessage(cmd *core.Command, msg *stream.Message) {
 		return
 	}
 
-	parse := func(t string) []Tag {
+	parse := func(t string) (string, []Tag) {
 		var tags []Tag
+		var id string
 		for _, p := range strings.Split(t, ",") {
 			kv := strings.SplitN(p, "=", 2)
 			var v string
 			if len(kv) == 2 {
 				v = kv[1]
+			}
+			//special tag id.
+			if kv[0] == "id" {
+				id = v
+				continue
 			}
 			tags = append(tags, Tag{
 				Key:   kv[0],
@@ -496,10 +502,11 @@ func (pm *PM) handleStatsMessage(cmd *core.Command, msg *stream.Message) {
 			})
 		}
 
-		return tags
+		return id, tags
 	}
 
-	pm.Aggregate(optype, key, v, "", parse(tags)...)
+	id, tags := parse(tagsStr)
+	pm.Aggregate(optype, key, v, id, tags...)
 }
 
 func (pm *PM) msgCallback(cmd *core.Command, msg *stream.Message) {
