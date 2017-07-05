@@ -322,7 +322,7 @@ func (pm *PM) RunSlice(slice settings.StartupSlice) {
 	}
 
 	state := NewStateMachine(all...)
-	cmdline := utils.GetCmdLine()
+	cmdline := utils.GetKernelOptions().GetLast()
 
 	for _, startup := range slice {
 		if startup.Args == nil {

@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-func validateKeyValue(mapping map[string]interface{}, key string, value string, t *testing.T) {
+func validateKeyValue(mapping KernelOptions, key string, value string, t *testing.T) {
 	if val, ok := mapping[key]; ok {
-		if val != value {
+		if val[0] != value {
 			t.Fatal(fmt.Printf("Value %s != %s", val, value))
 		}
 	} else {
@@ -17,9 +17,9 @@ func validateKeyValue(mapping map[string]interface{}, key string, value string, 
 }
 
 func TestCmdParsing(t *testing.T) {
-	cmdline := parseCmdline("zerotier=mynetwork")
+	cmdline := parseKerenlOptions("zerotier=mynetwork")
 	validateKeyValue(cmdline, "zerotier", "mynetwork", t)
 
-	cmdline = parseCmdline("something   zerotier=mynetwork  rgergerger")
-	validateKeyValue(cmdline, "zerotier", "mynetwork", t)
+	cmdline = parseKerenlOptions(`something   zerotier="my network"  rgergerger`)
+	validateKeyValue(cmdline, "zerotier", "my network", t)
 }
