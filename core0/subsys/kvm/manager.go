@@ -591,7 +591,7 @@ func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error)
 		UUID: uuid.New(),
 		Memory: Memory{
 			Capacity: params.Memory,
-			Unit:     "MB",
+			Unit:     "MiB",
 		},
 		VCPU: params.CPU,
 		OS: OS{
