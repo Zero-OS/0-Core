@@ -57,7 +57,7 @@ func getCPUInfo(cmd *core.Command) (interface{}, error) {
 }
 
 func getDiskInfo(cmd *core.Command) (interface{}, error) {
-	return disk.Partitions(true)
+	return disk.Partitions(false)
 }
 
 func getMemInfo(cmd *core.Command) (interface{}, error) {

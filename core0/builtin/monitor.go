@@ -12,6 +12,7 @@ import (
 	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/process"
 	"io/ioutil"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -86,6 +87,42 @@ func (m *monitor) disk() error {
 			"disk.throughput.write",
 			float64(counter.WriteBytes/1024),
 			name, pm.Tag{"type", "phys"},
+		)
+	}
+
+	parts, err := disk.Partitions(false)
+	if err != nil {
+		return err
+	}
+
+	mounts := map[string]string{}
+	//check the device only once, any mountpoint will do.
+	for _, part := range parts {
+		mounts[part.Device] = part.Mountpoint
+	}
+
+	for device, mount := range mounts {
+		name := path.Base(device) //to be consistent with io counters.
+		usage, err := disk.Usage(mount)
+		if err != nil {
+			log.Errorf("failed to get usage of '%s'", err)
+			continue
+		}
+
+		p.Aggregate(pm.AggreagteAverage,
+			"disk.size.total",
+			float64(usage.Total),
+			name,
+			pm.Tag{"type", "phys"},
+			pm.Tag{"fs", usage.Fstype},
+		)
+
+		p.Aggregate(pm.AggreagteAverage,
+			"disk.size.free",
+			float64(usage.Free),
+			name,
+			pm.Tag{"type", "phys"},
+			pm.Tag{"fs", usage.Fstype},
 		)
 	}
 
