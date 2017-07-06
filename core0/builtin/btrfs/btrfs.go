@@ -338,7 +338,7 @@ func (m *btrfsManager) SubvolList(cmd *core.Command) (interface{}, error) {
 		return nil, fmt.Errorf("invalid path=%v", args.Path)
 	}
 
-	result, err := m.btrfs("subvolume", "list", args.Path)
+	result, err := m.btrfs("subvolume", "list", "-o", args.Path)
 	if err != nil {
 		return nil, err
 	}
