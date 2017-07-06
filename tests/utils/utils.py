@@ -157,11 +157,7 @@ class BaseTest(unittest.TestCase):
 
     def create_container(self, root_url, storage=None, nics=[], host_network=False, tags=None):
         container = self.client.container.create(root_url=root_url, storage=storage, host_network=host_network, nics=nics, tags=tags)
-        result = container.get(30)
-        if result.state != 'SUCCESS':
-            raise RuntimeError('failed to create container %s' % result.data)
-        container_id = json.loads(result.data)
-        return container_id
+        return container.get(30)
 
     def get_vm_uuid(self, vm_name):
         vm_list = self.client.kvm.list()
