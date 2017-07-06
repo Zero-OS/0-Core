@@ -1,6 +1,6 @@
 # Zero-OS
 
-Zero-OS is a stateless and lightweightLinux operating system, designed for clustered deployments, to host containerized applications and virtual machines.
+Zero-OS is a stateless and lightweight Linux operating system, designed for clustered deployments, to host containerized applications and virtual machines.
 
 - Zero-OS is stateless by not needing any locally stored data, not even Zero-OS system files or system configuration
 - Zero-OS is lightweight by only containing the components required to securely run and manage containers and virtual machines
