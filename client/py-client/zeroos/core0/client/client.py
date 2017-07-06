@@ -751,7 +751,7 @@ class ContainerManager:
             'name': typchk.Or(str, typchk.Missing()),
             'hwaddr': typchk.Or(str, typchk.Missing()),
             'config': typchk.Or(
-                typchk.Missing,
+                typchk.Missing(),
                 {
                     'dhcp': typchk.Or(bool, typchk.Missing()),
                     'cidr': typchk.Or(str, typchk.Missing()),
@@ -777,7 +777,19 @@ class ContainerManager:
         'container': int
     })
 
+    _client_chk = typchk.Checker(
+        typchk.Or(int, str)
+    )
+
     DefaultNetworking = object()
+
+    class ContainerResponse(Response):
+        def get(self, timeout=None):
+            result = super().get(timeout)
+            if result.state != 'SUCCESS':
+                raise Exception('failed to create container: %s' % result.data)
+
+            return json.loads(result.data)
 
     def __init__(self, client):
         self._client = client
@@ -840,7 +852,7 @@ class ContainerManager:
 
         response = self._client.raw('corex.create', args)
 
-        return response
+        return self.ContainerResponse(self._client, response.id)
 
     def list(self):
         """
@@ -881,8 +893,11 @@ class ContainerManager:
 
         :param container: container id
         :return: Client object bound to the specified container id
+        Return a ContainerResponse from container.create
         """
-        return ContainerClient(self._client, container)
+
+        self._client_chk.check(container)
+        return ContainerClient(self._client, int(container))
 
 
 class IPManager:
