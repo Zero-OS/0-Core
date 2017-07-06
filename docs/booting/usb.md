@@ -12,7 +12,7 @@ On an EFI enabled machine, it's really easy to boot the Zero-OS kernel.
 All you need to do is to copy a Zero-OS kernel on the `FAT32` partition of the boot device, for instance an USB device.
 
 So you first step will be to get the kernel, options are:
-- Create your own image, as documented in [Building your own Zero-OS Boot Image](../building/building.md)
+- Create your own image, as documented in [Building your own Zero-OS Boot Image](../building/README.md)
 - Get a kernel build from the [Zero-OS Bootstrap Service](https://bootstrap.gig.tech)
 
 The second option is your quickest option:
@@ -20,7 +20,7 @@ The second option is your quickest option:
 curl -o zero-os-master.efi https://bootstrap.gig.tech/kernel/zero-os-master.efi
 ```
 
-For downloading other versions of the kernel from the Zero-OS Bootstrap Service, see the [Zero-OS Bootstrap Service](bootstrap/bootstrap.md) documentation.
+For downloading other versions of the kernel from the Zero-OS Bootstrap Service, see the [Zero-OS Bootstrap Service](bootstrap/README.md) documentation.
 
 Next you'll need to go through follow steps:
 - [Create a FAT32 partition](#fat32)
@@ -32,13 +32,16 @@ Next you'll need to go through follow steps:
 <a id="fat32"></a>
 Assuming that your USB device is `/dev/sdc`, you first need to create a FAT32 partition (this will erase the whole device):
 ``` bash
-mkfs.vfat /dev/sdc
+parted -a optimal -s /dev/sdc mklabel msdos
+parted -a optimal -s /dev/sdc mkpart primary fat32 2048s 100%
+parted -a optimal -s /dev/sdc set 1 boot
+mkfs.vfat /dev/sdc1
 ```
 
 <a id="mount"></a>
 Then mont the partition:
 ```bash
-mount /dev/sdc /mnt/g8os-usb
+mount /dev/sdc1 /mnt/g8os-usb
 ```
 
 <a id="efi-dirs"></a>
@@ -70,7 +73,7 @@ Using a boot loader has several advantages, including:
 - You can pass kernel argument at at boot time, e.g. passing the ZeroTier network ID.
 
 
-As documented in [Zero-OS Bootstrap Service](../bootstrap/bootstrap.md) downloading the bootable USB image is simple:
+As documented in [Zero-OS Bootstrap Service](../bootstrap/README.md) downloading the bootable USB image is simple:
 
 ```
 BRANCH="zero-os-master"

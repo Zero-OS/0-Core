@@ -3,7 +3,6 @@ package containers
 import (
 	"encoding/json"
 	"fmt"
-	blog "github.com/zero-os/0-core/base/logger"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/stream"
@@ -54,7 +53,7 @@ func (c *container) rewind() {
 				log.Errorf("failed to load container log message: %s", err)
 			}
 
-			logger.Current.LogRecord(&blog.LogRecord{
+			logger.Current.LogRecord(&logger.LogRecord{
 				Core:    c.id,
 				Command: message.Command,
 				Message: &msg,

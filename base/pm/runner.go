@@ -8,7 +8,6 @@ import (
 	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/zero-os/0-core/base/pm/stream"
-	"github.com/zero-os/0-core/base/utils"
 	"runtime"
 	"sync"
 	"syscall"
@@ -191,16 +190,19 @@ loop:
 				go hook.Tick(d)
 			}
 		case message := <-channel:
-			if utils.In(stream.ResultMessageLevels, message.Level) {
+			//messages with Exit flags are always the last.
+			if message.Meta.Is(stream.ExitSuccessFlag) {
+				jobresult.State = core.StateSuccess
+			} else if message.Meta.Is(stream.ExitErrorFlag) {
+				jobresult.State = core.StateError
+			} else if message.Meta.Assert(stream.ResultMessageLevels...) {
+				//a result message.
 				result = message
-			} else if message.Level == stream.LevelExitState {
-				jobresult.State = message.Message
-				break loop
-			} else if message.Level == stream.LevelStdout {
+			} else if message.Meta.Assert(stream.LevelStdout) {
 				stdoutBuffer.Append(message.Message)
-			} else if message.Level == stream.LevelStderr {
+			} else if message.Meta.Assert(stream.LevelStderr) {
 				stderrBuffer.Append(message.Message)
-			} else if message.Level == stream.LevelCritical {
+			} else if message.Meta.Assert(stream.LevelCritical) {
 				critical = message.Message
 			}
 
@@ -210,18 +212,21 @@ loop:
 
 			//by default, all messages are forwarded to the manager for further processing.
 			runner.manager.msgCallback(runner.command, message)
+			if message.Meta.Is(stream.ExitSuccessFlag | stream.ExitErrorFlag) {
+				break loop
+			}
 		}
 	}
 
 	runner.process = nil
 
 	//consume channel to the end to allow process to cleanup properly
-	for _ = range channel {
+	for range channel {
 		//noop.
 	}
 
 	if result != nil {
-		jobresult.Level = result.Level
+		jobresult.Level = result.Meta.Level()
 		jobresult.Data = result.Message
 	}
 

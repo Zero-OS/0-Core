@@ -1,30 +1,28 @@
 # Monitoring
 
-All running process can report logs about its operations using the same [logging](logging.md) mechanism.
+All running processes can feedback logs about their operations using the same logging mechanism.
 
-- See [Logging](logging.md) for details about how log information is processed and reported
-- See [Statistics](stats.md) for details about how statistics are reported using log messages
+In [Logging](logging.md) you learn about how the output of processes is processed as log messages.
 
-Monitoring is one of the processes that come with Core0. It collects metrics about the system. It reports about it using the [Logging](logging.md) mechanism. As documented in [Statistics](stats.md) the default monitoring process uses **log level 10**, which is the reserved log level for logging statistics.
+One of the processes that comes preinstalled with Zero-OS is the Zero-OS monitoring process.
+
+See below for:
+- [Monitoring metrics](#monitoring-metrics) - an overview of all metrics that are monitored by the Zero-OS monitoring process
+- [Configuring monitoring](#configuring-monitoring)  - discussing how to configure the Zero-OS monitoring process
+
+The output messages of the Zero-OS monitoring process are all prefixed as level 10 log messages. Or in other words: statistics are reported as level 10 log messages.
 
 Here's an example of a statistics log message:
-
 ```
 10::{monitoring-metric}:23.12|A
 ```
 
-This example log message is reporting a statistic (log level 10) and reports that the metric `{monitoring-metric}` is `23.12` and the reported values should be averaged over the defined aggregator period (usually 5 minutes), as indicated by the `A`; see [Statistics](stats.md) for more details about this statistics log message format.
-
-See below for:
-
-- [Monitoring metrics](#metrics)
-- [Configuring monitoring](#config)
+This example level 10 (statistics) log message reports that the metric `{monitoring-metric}` is `23.12` and that the reported values should be averaged over the defined aggregator period (usually 5 minutes), as indicated by the `A`; see [Statistics Log Message Format](stats-msg-format.md) for more details about this statistics log message format.
 
 
-<a id="metrics"></a>
 ## Monitoring metrics
 
-The built-in/default monitoring logs statistics for following metrics:
+The built-in Zero-OS monitoring process logs statistics for following metrics:
 
 ```
 disk.iops.read@phys.sda
@@ -79,10 +77,9 @@ network.throughput.outgoing@phys.zt0
 ```
 
 
-<a id="config></a>
 ## Configuring Monitoring
 
-The built-in/default monitoring is scheduled to run automatically as defined in the `conf/monitor.toml` configuration file:
+The built-in Zero-OS monitoring process is scheduled to run automatically as defined in the `conf/monitor.toml` configuration file:
 
 ```
 [startup."monitor.cpu"]

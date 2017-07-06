@@ -12,39 +12,39 @@ The following code joins your Zero-OS node to the public network provided by Zer
 ```python
 from zeroos.core0.client import Client
 
-cl = Client("IP OF Zero-OS")
+cl = Client(host="IP address of Zero-OS node")
 
-cl.zerotier.join('8056c2e21c000001')
+cl.zerotier.join('<ZeroTier network ID>')
 ```
 
 To check all the joined networks:
 
 ```python
-import g8core
+from zeroos.core0.client import Client
 
-cl = g8core.Client(host='{ip of the Zero-OS}')
+cl = Client(host="<IP address of Zero-OS node>")
 cl.zerotier.list()
 ```
 
 And to leave a joined network:
 
 ```python
-import g8core
+from zeroos.core0.client import Client
 
-cl = g8core.Client(host='{ip of the Zero-OS}')
-cl.zerotier.leave('8056c2e21c000001')
+cl = Client(host="<IP address of Zero-OS node>")
+cl.zerotier.leave('<ZeroTier network ID>')
 ```
 
 
 ## How to create a container and make the container join a ZeroTier network
 
-You can also specify a ZeroTier network ID when you create a container. This will make the container connect to the ZeroTier network just after creation. This is a nice way to allow people to reach you container without using natting.
+You can also specify a ZeroTier network ID when you create a container. This will make the container connect to the ZeroTier network just after creation. This is a nice way to allow people to reach you container without using NAT.
 
 Just pass the network ID you want to join to the container create command of the Python client in the ZeroTier argument:
 
 ```python
-import g8core
+from zeroos.core0.client import Client
 
-cl = g8core.Client(host='ip of the Zero-OS')
-cl.container.create("flist url", zerotier="8056c2e21c000001")
+cl = Client(host="<IP address of Zero-OS node>")
+cl.container.create("<flist URL>", zerotier="<ZeroTier network ID>")
 ```

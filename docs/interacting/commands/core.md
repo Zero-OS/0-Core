@@ -53,7 +53,7 @@ Arguments:
 <a id="killall"></a>
 ## core.killall
 
-Kills all processes on the system, i.e. only the ones that where started by core0 itself and still running by the time of calling this command. Takes no arguments.
+Kills all processes on the system, i.e. only the ones that where started by 0-core itself and still running by the time of calling this command. Takes no arguments.
 
 
 <a id="state"></a>

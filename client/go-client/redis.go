@@ -1,14 +1,14 @@
 package client
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net"
 	"time"
 
-	"crypto/tls"
 	"github.com/garyburd/redigo/redis"
 	"github.com/pborman/uuid"
-	"net"
 )
 
 const (
@@ -31,14 +31,13 @@ func NewClientWithPool(pool *redis.Pool) Client {
 	return cl
 }
 
-func NewClient(address, password string) Client {
-	pool := &redis.Pool{
+func NewPool(address, password string) *redis.Pool {
+	return &redis.Pool{
 		MaxIdle:     5,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
 			// the redis protocol should probably be made sett-able
 			c, err := redis.Dial("tcp", address, redis.DialNetDial(func(network, address string) (net.Conn, error) {
-
 				return tls.Dial(network, address, &tls.Config{
 					InsecureSkipVerify: true,
 				})
@@ -70,7 +69,10 @@ func NewClient(address, password string) Client {
 			return nil
 		},
 	}
+}
 
+func NewClient(address, password string) Client {
+	pool := NewPool(address, password)
 	return NewClientWithPool(pool)
 }
 

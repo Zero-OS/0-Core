@@ -336,7 +336,7 @@ func (c *container) setGateway(dev string, gw string) error {
 		"ip", "route", "add", "metric", "1000", "default", "via", gw, "dev", dev)
 
 	if err != nil {
-		return fmt.Errorf("error settings interface ip: %v", err)
+		return fmt.Errorf("error settings default gateway: %v", err)
 	}
 
 	return nil

@@ -1,10 +1,10 @@
 # Main Configuration
 
-The main configuration is auto-loaded from the `g8os.toml` file.
+The main configuration is auto-loaded from the `zero-os.toml` file.
 
-In the [zero-os/0-initramfs](https://github.com/zero-os/0-initramfs) repository that you'll use for creating the Zero-OS boot image, `g8os.toml` can be found in the `/config/g8os` directory.
+In the [zero-os/0-initramfs](https://github.com/zero-os/0-initramfs) repository, used for creating a Zero-OS kernel, `zero-os.toml` can be found in the `/config/etc/zero-os/zero-os.toml` directory.
 
-`g8os.toml` has the following sections:
+`zero-os.toml` has the following sections:
 
 - [\[main\]](#main)
 - [\[containers\]](#containers)
@@ -24,8 +24,8 @@ include = "/config/root"
 network = "/config/g8os/network.toml"
 ```
 
-- **max_jobs**: Max parallel jobs the core can execute concurrently (as its own direct children), once this limit is reached core0 will not pull for any new jobs from its dedicated Redis queue until it has at least one free job slot to fill
-- **include**: Path to the directory with TOML files to include, this directory can have configurations for startup services and extensions, when core0 boots it will try to load all `.toml` files from the given locations, each of these TOML file can define one or more extensions to the core0 commands, and/or start up services
+- **max_jobs**: Max parallel jobs the core can execute concurrently (as its own direct children), once this limit is reached 0-core will not pull for any new jobs from its dedicated Redis queue until it has at least one free job slot to fill
+- **include**: Path to the directory with TOML files to include, this directory can have configurations for startup services and extensions, when Zero-OS boots it will try to load all `.toml` files from the given locations, each of these TOML file can define one or more extensions to the 0-core commands, and/or start up services
 - **network**: Path to the network configuration file, discussed in [Network Configuration](network.md)
 
 
@@ -44,55 +44,43 @@ max_count = 300 (max number of running containers, defaults to 1000 if not set)
 
 In this section you define how Core0 processes logs from running processes.
 
-Available loggers types are:
+There are 2 built in loggers that are used by zero-os to log jobs outputs that can be refined by the following two seconds
 
-- **console**: prints logs on stdout (console) of Core0
-- **redis**: forwards logs to Redis
+- **logging.file**: writes logs to `/var/log/core.log`
+- **ledis**: forwards logs to Ledis
 
 For each logger you define log levels, specifying which log levels are logged to this logger.
 
 Example:
 
 ```
-[logging]
-[logging.console]
-type = "console"
-levels = [1, 2, 4, 7, 8, 9]
+[logging.file]
+levels = [2, 4, 7, 8, 9]
 
-[logging.redis]
-type = "redis"
+[logging.ledis]
 levels = [1, 2, 4, 7, 8, 9]
-address = "127.0.0.1:6379"
-batch_size = 1000
+size = 1000
 ```
 
 In the above example:
 
-- The `[logging]` can be omitted since there are no shared settings for both loggers
-- The second logger, of type `redis`, specifies with `batch_size` (wrongly chosen name) how many log messages are kept in the queue before older log messages will get dropped
+- The second logger, of type `ledis`, specifies with `size` how many log messages are kept in the queue before older log messages will get dropped
 
 See the section [Logging](../monitoring/logging.md) for more details about logging.
 
 <a id="stats"></a>
 ## [stats]
 
-This is where the statistics loggings is configured.
+This is where the statistics is configured.
 
 Here's an example:
 
 ```
 [stats]
-interval = 60000 # milliseconds (1 min)
-
-[stats.redis]
 enabled = true
-flush_interval = 10 # seconds
-address = "127.0.0.1:6379"
 ```
 
-In this example there is one shared setting for all statistics logging, in this case specifying the `interval` (is deprecated)
-
-See the section [Stats](../monitoring/stats.md) for more details about stats.
+See [Monitoring](../monitoring/README.md) for more details about statistics.
 
 
 <a id="globals"></a>
@@ -107,13 +95,13 @@ Example:
 storage = "ardb://hub.gig.tech:16379"
 ```
 
-With `storage` you set the default key-value store that will be mounted by the [Zero-OS File System](https://github.com/zero-os/0-fs) when creating containers using the [container.create()](../interacting/commands/corex.md#create) command. The default, as shown above, is the ARDB storage cluster implemented in [0-Hub](https://github.com/zero-os/-hub?). When creating a new container you can override this default by specifying any other ARDB storage cluster, as documented in [Creating Containers](../containers/creating.md).
+With `storage` you set the default key-value store that will be mounted by the [Zero-OS File System](https://github.com/zero-os/0-fs) when creating containers using the [container.create()](../interacting/commands/container.md#create) command. The default, as shown above, is the ARDB storage cluster implemented in [0-Hub](https://github.com/zero-os/-hub?). When creating a new container you can override this default by specifying any other ARDB storage cluster, as documented in [Creating Containers](../containers/creating.md).
 
 
 <a id="extension"></a>
 ## [extension]
 
-An extension is simply a new command or functionality to extend what core0 can do. This allows you to add new functionality and commands to core0 without actually changing its code. An extension works as a wrapper around the `core.system` command by wrapping the actual command call.
+An extension is simply a new command or functionality to extend what Zero-OS can do. This allows you to add new functionality and commands to Zero-OS without actually changing its code. An extension works as a wrapper around the `core.system` command by wrapping the actual command call.
 
 The below example is a user management extension for adding and removing users, and changing their passwords:
 
@@ -131,7 +119,7 @@ binary = "sh"
 args = ["-c", "echo '{username}:{password}' | chpasswd"]
 ```
 
-Adding the above into a TOML file and saving it in one of the paths specified in the `include` section of the main configuration file will add the following commands to core0:
+Adding the above into a TOML file and saving it in one of the paths specified in the `include` section of the main configuration file will add the following commands to Zero-OS:
 
  - **user.add**
    - Args: `{"username": "user name to add"}`

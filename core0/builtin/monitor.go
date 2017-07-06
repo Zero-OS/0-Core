@@ -3,14 +3,16 @@ package builtin
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/shirou/gopsutil/net"
+	"github.com/vishvananda/netlink"
+	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm/process"
 	"io/ioutil"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -63,30 +65,64 @@ func (m *monitor) disk() error {
 
 	p := pm.GetManager()
 	for name, counter := range counters {
-		key := fmt.Sprintf("%%s@phys.%s", name)
-
 		p.Aggregate(pm.AggreagteDifference,
-			fmt.Sprintf(key, "disk.iops.read"),
+			"disk.iops.read",
 			float64(counter.ReadCount),
-			"",
+			name, pm.Tag{"type", "phys"},
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
-			fmt.Sprintf(key, "disk.iops.write"),
+			"disk.iops.write",
 			float64(counter.WriteCount),
-			"",
+			name, pm.Tag{"type", "phys"},
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
-			fmt.Sprintf(key, "disk.throughput.read"),
+			"disk.throughput.read",
 			float64(counter.ReadBytes/1024),
-			"",
+			name, pm.Tag{"type", "phys"},
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
-			fmt.Sprintf(key, "disk.iops.write"),
-			float64(counter.WriteCount/1024),
-			"",
+			"disk.throughput.write",
+			float64(counter.WriteBytes/1024),
+			name, pm.Tag{"type", "phys"},
+		)
+	}
+
+	parts, err := disk.Partitions(false)
+	if err != nil {
+		return err
+	}
+
+	mounts := map[string]string{}
+	//check the device only once, any mountpoint will do.
+	for _, part := range parts {
+		mounts[part.Device] = part.Mountpoint
+	}
+
+	for device, mount := range mounts {
+		name := path.Base(device) //to be consistent with io counters.
+		usage, err := disk.Usage(mount)
+		if err != nil {
+			log.Errorf("failed to get usage of '%s'", err)
+			continue
+		}
+
+		p.Aggregate(pm.AggreagteAverage,
+			"disk.size.total",
+			float64(usage.Total),
+			name,
+			pm.Tag{"type", "phys"},
+			pm.Tag{"fs", usage.Fstype},
+		)
+
+		p.Aggregate(pm.AggreagteAverage,
+			"disk.size.free",
+			float64(usage.Free),
+			name,
+			pm.Tag{"type", "phys"},
+			pm.Tag{"fs", usage.Fstype},
 		)
 	}
 
@@ -101,12 +137,10 @@ func (m *monitor) cpu() error {
 
 	p := pm.GetManager()
 	for nr, t := range times {
-		key := fmt.Sprintf("%%s@pyhs.%d", nr)
-
 		p.Aggregate(pm.AggreagteDifference,
-			fmt.Sprintf(key, "machine.CPU.utilisation"),
+			"machine.CPU.utilisation",
 			t.System+t.User,
-			"",
+			fmt.Sprint(nr), pm.Tag{"type", "phys"},
 		)
 	}
 
@@ -116,12 +150,10 @@ func (m *monitor) cpu() error {
 	}
 
 	for nr, v := range percent {
-		key := fmt.Sprintf("%%s@pyhs.%d", nr)
-
 		p.Aggregate(pm.AggreagteAverage,
-			fmt.Sprintf(key, "machine.CPU.percent"),
+			"machine.CPU.percent",
 			v,
-			"",
+			fmt.Sprint(nr), pm.Tag{"type", "phys"},
 		)
 	}
 
@@ -142,18 +174,18 @@ func (m *monitor) cpu() error {
 	if ctxt, ok := statmap["ctxt"]; ok {
 		v, _ := strconv.ParseFloat(ctxt, 64)
 		p.Aggregate(pm.AggreagteDifference,
-			"machine.CPU.contextswitch@phys",
+			"machine.CPU.contextswitch",
 			v,
-			"",
+			"", pm.Tag{"type", "phys"},
 		)
 	}
 
 	if intr, ok := statmap["intr"]; ok {
 		v, _ := strconv.ParseFloat(intr, 64)
 		p.Aggregate(pm.AggreagteDifference,
-			"machine.CPU.interrupts@phys",
+			"machine.CPU.interrupts",
 			v,
-			"",
+			"", pm.Tag{"type", "phys"},
 		)
 	}
 
@@ -169,9 +201,9 @@ func (m *monitor) memory() error {
 	p := pm.GetManager()
 
 	p.Aggregate(pm.AggreagteAverage,
-		"machine.memory.ram.available@phys",
+		"machine.memory.ram.available",
 		float64(virt.Available)/(1024.*1024.),
-		"",
+		"", pm.Tag{"type", "phys"},
 	)
 
 	swap, err := mem.SwapMemory()
@@ -180,15 +212,15 @@ func (m *monitor) memory() error {
 	}
 
 	p.Aggregate(pm.AggreagteAverage,
-		"machine.memory.swap.left@phys",
+		"machine.memory.swap.left",
 		float64(swap.Free)/(1024.*1024.),
-		"",
+		"", pm.Tag{"type", "phys"},
 	)
 
 	p.Aggregate(pm.AggreagteAverage,
-		"machine.memory.swap.used@phys",
+		"machine.memory.swap.used",
 		float64(swap.Used)/(1024.*1024.),
-		"",
+		"", pm.Tag{"type", "phys"},
 	)
 
 	return nil
@@ -202,30 +234,38 @@ func (m *monitor) network() error {
 
 	p := pm.GetManager()
 	for _, counter := range counters {
-		key := fmt.Sprintf("%%s@phys.%s", counter.Name)
+		link, err := netlink.LinkByName(counter.Name)
+		if err != nil {
+			continue
+		}
+
+		//only physical devices !
+		if link.Type() != "device" {
+			continue
+		}
 
 		p.Aggregate(pm.AggreagteDifference,
-			fmt.Sprintf(key, "network.throughput.outgoing"),
+			"network.throughput.outgoing",
 			float64(counter.BytesSent)/(1024.*1024.),
-			"",
+			counter.Name, pm.Tag{"type", "phys"},
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
-			fmt.Sprintf(key, "network.throughput.incoming"),
+			"network.throughput.incoming",
 			float64(counter.BytesRecv)/(1024.*1024.),
-			"",
+			counter.Name, pm.Tag{"type", "phys"},
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
-			fmt.Sprintf(key, "network.packets.tx"),
-			float64(counter.PacketsSent)/(1024.*1024.),
-			"",
+			"network.packets.tx",
+			float64(counter.PacketsSent),
+			counter.Name, pm.Tag{"type", "phys"},
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
-			fmt.Sprintf(key, "network.packets.rx"),
-			float64(counter.PacketsRecv)/(1024.*1024.),
-			"",
+			"network.packets.rx",
+			float64(counter.PacketsRecv),
+			counter.Name, pm.Tag{"type", "phys"},
 		)
 	}
 

@@ -1,8 +1,8 @@
 # Create a Bootable Zero-OS ISO File
 
-You can get bootable Zero-OS ISO file from the Zero-OS Bootstrap Service, as documented in [Zero-OS Bootstrap Service](../bootstrap/bootstrap.md).
+You can get bootable Zero-OS ISO file from the Zero-OS Bootstrap Service, as documented in [Zero-OS Bootstrap Service](../bootstrap/README.md).
 
-Alternatively you can of course create one yourself, after having build your own Zero-OS kernel based on the documentation in [Building your own Zero-OS Boot Image](../building/building.md).
+Alternatively you can of course create one yourself, after having build your own Zero-OS kernel based on the documentation in [Building your own Zero-OS Boot Image](../building/README.md).
 
 This is how:
 ```shell

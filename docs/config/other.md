@@ -24,7 +24,7 @@ Start recurring monitoring actions to monitor CPU, memory, disks, etc...
 
 ## redis.toml
 
-Start required Redis services for core0 communication.
+Start required Redis services for 0-core communication.
 
 
 ## zerotier.toml

@@ -5,7 +5,7 @@ The Zero-OS Bootstrap Service is available on [bootstrap.gig.tech](https://boots
 From the Zero-OS Bootstrap Service you can easily download a build of the kernel, or ISO, USB, and iPXE boot files.
 
 For instance to download an ISO image:
-```
+```shell
 BRANCH="zero-os-master"
 ZEROTIER_NETWORK="..."
 curl -o zero-os.iso https://bootstrap.gig.tech/iso/$BRANCH/$ZEROTIER_NETWORK

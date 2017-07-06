@@ -1,4 +1,4 @@
 # Appendix
 
 * [Zero-OS Boot Process Flow](process.md)
-* [Installing Core0 on a Docker Container](docker.md)
+* [Running Zero-OS in a Docker Container](docker.md)

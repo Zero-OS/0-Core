@@ -17,6 +17,7 @@ type Command struct {
 	MaxTime         int              `json:"max_time,omitempty"`
 	MaxRestart      int              `json:"max_restart,omitempty"`
 	RecurringPeriod int              `json:"recurring_period,omitempty"`
+	Stream          bool             `json:"stream"`
 	LogLevels       []int            `json:"log_levels,omitempty"`
 	Tags            string           `json:"tags"`
 

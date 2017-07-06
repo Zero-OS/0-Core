@@ -36,4 +36,4 @@ Arguments:
 }
 ```
 
-> WARNING: beware of what you kill, if you killed Redis for example core0 or coreX won't be reachable.
+> WARNING: beware of what you kill, if you killed Redis for example 0-core or coreX won't be reachable.

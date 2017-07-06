@@ -1,18 +1,18 @@
-# G8OS Boot Process Flow
+# Zero-OS Boot Process Flow
 
 ![Sequence Diagram](http://www.plantuml.com/plantuml/img/NL9DZnCn3BtdL_W84imFMAb8PSMA5Mn158bBBsxYpaJDs2F7NJJyUfpfTa1xYkAyZxoNMBP2i9D4y574gYbEK-O-X32XMevvGZQu5pQLKaW1AyHNPqfjYY5iDl38sJAM_0Sj2yDc4qAlSfbWH_PRz0p7PkCk0U7z1y0x-2gOWCawax44B0O_TOOep1IRHWCwCjwzceF9WUDwiK2b4ZnWBfJyw0PSRHev3N42Ps8f1yvif7p2IDLd1CUvBJUPKeuOpojxMslk6HGvoGZLF5s4n-_W-uFVO8O1DKMlCVaq42Vti6LTqeUkwvPwFZkX3dYcrimYxhds3VUqlG_nnUqJHvsd9UGNcWEB4SXpApyyoSKxfol0tHxsSAdjmMmWK3BDzEpZCyrriM_SrUW7lRHovK2jvOfS73JtWuLVc0rEebxWEBRRmaazClR45hQBeevOG2RIvOrhzy-enVIKkolasmtImluVOc_-Vy0_HK8QNG7Ur3gy0xBe0czNkRy0)
 
 - Bootstrap OS booted from USB or VM (template in cloud)
     - Bootstrap OS v0.9:
         - Kernel
-        - g8_core
+        - 0-core
         - SSH daemon
         - Networking tools (VXLAN, Open vSwitch, ip)
         - Docker / KVM
         - Midnight Commander (mc)
     - Can start from minimal OS distribution (Arch or other)
 
-- Core gets started and does the following:
+- 0-core gets started and does the following:
     - Start network
         - Configure using `net.toml`
             - Use `/etc/g8os/net.toml`

@@ -1,4 +1,4 @@
-# Building your own Zero-OS Boot Image
+# Building your Zero-OS Kernel
 
 Building is done using the `initramfs.sh` script available from https://github.com/zero-os/0-initramfs
 
@@ -49,7 +49,6 @@ docker run -v $(pwd):/initramfs -ti ubuntu:16.04 /bin/bash
 ```
 
 Then from inside the Docker container, first install the dependencies:
-
 ```shell
 apt-get update
 apt-get install -y asciidoc xmlto --no-install-recommends
@@ -76,7 +75,7 @@ export GOPATH=/gopath
     - OpenSSL and SSL Certificates (CA-certificates)
     - util-linux (for `lsblk`, ...)
     - Redis (only the server is used)
-    - BTRFS (btrfs-progs)
+    - Btrfs (`btrfs-progs`)
     - libvirt and QEMU
     - ZeroTier One
     - parted (partition management)
@@ -101,18 +100,18 @@ The result of the build will be located in `staging/vmlinuz.efi`.
 
 The `initramfs.sh` script accepts multiple options:
 
-```
+```shell
  -d --download    only download and extract archives
  -b --busybox     only (re)build busybox
  -t --tools       only (re)build tools (ssl, fuse, ...)
- -c --cores       only (re)build core0 and coreX
+ -c --cores       only (re)build 0-core and coreX
  -k --kernel      only (re)build kernel (produce final image)
  -h --help        display this help message
 ```
 
 The option `--kernel` is useful if you change something on the root directory and you want to rebuild the kernel (with the initramfs).
 
-If you are modifying core0/coreX, you can simply use the `--cores --kernel` options and first the cores will be rebuilt and then `initramfs`. This will produce a new Zero-OS boot image (kernel) with the latest changes.
+If you are modifying 0-core/coreX, you can simply use the `--cores --kernel` options and first the cores will be rebuilt and then `initramfs`. This will produce a new Zero-OS kernel with the latest changes.
 
 
 <a id="custom"></a>
@@ -134,15 +133,15 @@ network = "8056c2e21c000001"
 
 See [Startup Services](../config/startup.md) in order to understand how to configure the startup services.
 
-For all customization options see [Configuration](../config/config.md).
+For all customization options see [Configuration](../config/README.md).
 
 
 <a id="autobuild"></a>
 ## Autobuild
 
-Every time a change is pushed to [zero-os/0-core](../../README.md), or [zero-os/0-fs](https://github.com/zero-os/0-fs), a pre-compiled initramfs image (called baseimage) will be used.
-Building of core0 or 0-fs only takes about 3 minutes.
-If you push to [zero-os/0-initramfs](https://github.com/zero-os/0-initramfs), a complete kernel image will be rebuilt, which can take from 20 min and up to 1 hour.
+Every time a change is pushed to [zero-os/0-core](../../README.md), or [zero-os/0-fs](https://github.com/zero-os/0-fs), a pre-compiled initramfs image (called `baseimage`) will be used.
+Building of 0-core or 0-fs only takes about 3 minutes.
+If you push to [zero-os/0-initramfs](https://github.com/zero-os/0-initramfs), a complete kernel will be rebuilt, which can take from 20 minutes and up to 1 hour.
 
 The build process can be monitored here: https://build.gig.tech/monitor/.
 
@@ -164,10 +163,10 @@ See the [zero-os/0-bootstrap](https://github.com/zero-os/0-bootstrap) repository
 <a id="whatnext"></a>
 ## I have the kernel, what can I do with it?
 
-Just boot it. The Zero-OS boot image (kernel) is EFI bootable.
+Just boot it. The Zero-OS kernel is EFI bootable.
 
 If you have an EFI shell, just run the kernel like any EFI executable.
 
 If you don't have the shell or want to boot it automatically, save the kernel in `/EFI/BOOT/BOOTX64.EFI` in a FAT partition.
 
-See [Create a Bootable Zero-OS ISO File](booting/iso.md) and [Booting Zero-OS](../booting/booting.md) for all other options.
+See [Create a Bootable Zero-OS ISO File](booting/iso.md) and [Booting Zero-OS](../booting/README.md) for all other options.

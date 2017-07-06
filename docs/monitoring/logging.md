@@ -2,60 +2,54 @@
 
 Discussed here:
 
-- [Log mechanism](#log-mechanism)
-- [Log format](#log-format)
+- [Logging mechanism](#logging-mechanism)
+- [Message format](#message-format)
 - [Log levels](#log-levels)
-- [Where logs are send to](#log-sending)
 
 
-<a id="log-mechanism"></a>
-## Logging Mechanism
+## Logging mechanism
 
-In Core0 terminology, logging means capturing the output of the running processes and store or forward it to loggers.
+In Zero-OS 0-core captures the output of all running processes as "log messages" and forwards them to loggers.
 
-A logger can decide to print the output of the command to the console, and/or push it to Redis.
+Currently there are two loggers available, both implemented in Go:
+- [File logger](/core0/logger/logger.go) writes log messages to `/var/log/core.log`
+- [Ledis logger](/core0/logger/ledis.go) writes log messages to the LedisDB queue `core:logs`
 
-You can control for each logger which messages should be logged. This is achieved  with the `levels` setting in the `[logging]` section of `g8os.toml`, the [main configuration file](../config.main):
+In the `zero-os.toml` configuration file, as documented in [Main Configuration](../config/main.md), you specify for each logger which categories of log messages it should process. Log messages are categorized by `levels`:
 
 ```
-[logging]
+[logging.file]
 levels = [1, 2, 4, 7, 8, 9]
 
-[logging.console]
-type = "console"
+[logging.ledis]
+levels = [1, 2, 4, 7, 8, 9]
+size = 10000 # how many log lines to keep in LedisDB
 
-[stats.redis]
+[stats]
 enabled = true
-flush_interval = 10 # seconds
-address = "127.0.0.1:6379"
 ```
 
-As you can see, in the (above) default configuration template of Core0, all log messages of levels `[1, 2, 4, 7, 8, 9]` are passed to both to the console and Redis.
+As you can see, in the above default configuration template, all log messages of levels (categories) 1, 2, 4, 7, 8 and 9 are passed to both to the file logger and the Ledis logger. For defintion of each log level see below in [Log levels](#log-levels).
 
-When issuing a command you can override this configuration using the `log_levels` attribute of the command to force all loggers to capture and process specific log levels for that command.
+Processes can leverage this mechanism by prefixing their output with a specific level, as shown below in [Message format](#logging-format).
 
-CoreX logging is not configurable, it simply forwards all logs to Core0 logging. Which means Core0 logging configuration applies for both Core0 and CoreX domains.
+When issuing a command, as discussed in [Commands](../interacting/commands/README.md), using the command's attribute `log_levels` you can filter which output of the command gets passed to the loggers. Setting for instance the value of `log_levels` to `[2,9]` will only pass `(2) stderr` and `(9) critical error` output to the loggers that been configured to process log messages of level 2 and/or 9.
 
-See `/core0/base/logger/` for the implementation of the loggers are implemented, both written in Go.
+Logging in the containers is not configurable, it simply forwards all logs to 0-core. Which means that logging configuration applies for both 0-core processes and the container processes.
 
 
-<a id="log-format"></a>
-## Logging Messages
+## Message format
 
-When running any process on Core0 or CoreX the output of the processes are captured and processed as log messages. By default messages that are output on `stdout` stream are considered of level `1`, messages that are output on `stderr` stream are defaulted to level `2` messages.
-
-The running process can leverage on the ability of Core0 to process and handle different log messages by prefixing the output with the desired level as:
-
+The running process can leverage on the ability of 0-core to process and handle different log messages by prefixing the output with the desired level as:
 ```
 8::Some message text goes here
 ```
 
-Or for multi-line output bulk:
-
+Or for multi-line output:
 ```
 20:::
 {
-    "description": "A structured json output from the process",
+    "description": "A structured JSON output from the process",
     "data": {
         "key1": 100,
     }
@@ -63,13 +57,10 @@ Or for multi-line output bulk:
 :::
 ```
 
-Using specific levels, you can pipe your messages through a different path based on your nodes.
 
-Also all `result` levels will make your return data captured and set in the `data` attribute of your job result object.
+## Log levels
 
-
-<a id="log-levels"></a>
-## Log Levels
+By default messages that are output on `stdout` stream are considered level `1`, messages that are output on `stderr` stream are considered level `2`.
 
 - 1: stdout
 - 2: stderr
@@ -80,26 +71,9 @@ Also all `result` levels will make your return data captured and set in the `dat
 - 7: warning message
 - 8: ops error
 - 9: critical error
-- 10: statsd message(s)
-- 20: result message, json
+- 10: statistics/monitoring message(s)
+- 20: result message, JSON
 - 21: result message, yaml
 - 22: result message, toml
 - 23: result message, hrd
 - 30: job, json (full result of a job)
-
-
-<a id="log-sending"></a>
-## Where do the metrics go anyway?
-
-The metrics will be pushed to our Redis stored procedure that do the aggregation of the metrics and then push all the aggregated metrics (every 5 minutes and every 1 hour) to specific Redis queues. Later own, a 3rd party software can pull the aggregated metrics and push it to a graph-able database like `influxdb` for visuals.
-
-The 2 queues to hold the aggregated metrics are:
-
-- queues:stats:min
-- queues:stats:hour
-
-Each object in the queue is a string that is formatted as following:
-
-```
-node|key|epoch|last reported value|calcluated avg|max reported value|total
-```

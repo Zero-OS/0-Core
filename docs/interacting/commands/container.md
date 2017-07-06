@@ -1,18 +1,17 @@
-# CoreX Commands
+# Container Commands
 
 Available commands:
 
-- [corex.create](#create)
-- [corex.list](#list)
-- [corex.terminate](#terminate)
-- [corex.client](#client)
-- [corex.dispatch](#dispatch)
+- [create](#create)
+- [list](#list)
+- [terminate](#terminate)
+- [client](#client)
+- [dispatch](#dispatch)
 
 
-<a id="create"></a>
-## corex.create
+## create
 
-Creates a new container with the given root plist, mount points and ZeroTier ID, and connects it to the given bridges.
+Creates a new container with the given root flist, mount points and ZeroTier network ID, and connects it to the given bridges.
 
 Arguments:
 
@@ -24,6 +23,7 @@ Arguments:
   'nics': [{
       'type': {nic_type},
       'id': {id},
+      'name': {name},
       'hwaddr': {hwaddr},
       'config': {
           'dhcp': {dfhcp},
@@ -34,7 +34,9 @@ Arguments:
   }],
   'port': {port},
   'hostname': {hostname},
-  'storage': {storage}
+  'privileged': {privileged},
+  'storage': {storage},
+  'tags': {tags}
 }
 ```
 
@@ -62,9 +64,11 @@ Values:
     - VLAM tag
     - VXLAM network identifier (VNID)
 
+  - **{name}**: Name of the NIC inside the container
+
   - **{hwaddr}**: (optional) MAC address
 
-  - **{config}**: Only relevant for VLAN and VXLAN types:  
+  - **{config}**: Only relevant for bridge, VLAN and VXLAN types:  
     - `{dhcp}`: True/False. Runs the `Udhcpc` DHCP client on the container link, of course this will only work if the bridge is created with `dnsmasq` networking
     - `{CIDR}`: Assigns a static IP address to the link
     - `{gateway}`: gateway
@@ -74,22 +78,22 @@ Values:
 
   Example: `port=[8080: 80, 7000:7000]`
 
-- **hostname**: Specific hostname you want to give to the container
-  - If none it will automatically be set to core-x, x being the ID of the container
+- **{hostname}**: Specific hostname you want to give to the container
+  - If none it will automatically be set to `core-x`, x being the ID of the container
 
-- **storage**: URL to the ARDB storage cluster to mount, e.g. `ardb://hub.gig.tech:16379`
+- **{privileged}**: True/False. When True the container has privileged access to the host devices, the default is False, isolating the container from the host.
+
+- **{storage}**: URL to the ARDB storage cluster to mount, e.g. `ardb://hub.gig.tech:16379`
   - If not provided the default one from the Zero-OS main configuration will be used, see the documentation about `storage` in [Main Configuration](../../config/main.md) for more details
+- **{tags}**: List of labels (strings) that you can attach to a container, can be used to to search all containers matching a specified set of tags; see the `find()` command
 
 
-<a id="list"></a>
-## corex.list
+## list
 
 Lists all available containers on a host. It takes no arguments.
 
 
-
-<a id="find"></a>
-## corex.find
+## find
 
 Finds containers that matches set of tags.
 
@@ -100,14 +104,7 @@ Arguments:
 }
 ```
 
-<a id="client"></a>
-### corex.client
-
-Returns all container info.
-
-
-<a id="terminate"></a>
-## corex.terminate
+## terminate
 
 Destroys the container and stops the core processes. It takes a mandatory container ID.
 
@@ -118,10 +115,15 @@ Arguments:
 }
 ```
 
-<a id="dispatch"></a>
-## corex.dispatch
 
-Dispatches any given command to the Core0 of the container.
+### client
+
+Returns a container instance.
+
+
+## dispatch
+
+Dispatches any given command to the 0-core of the container.
 
 Arguments:
 ```javascript
