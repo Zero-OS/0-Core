@@ -2,6 +2,7 @@ package stats
 
 import (
 	"encoding/json"
+	"github.com/zero-os/0-core/base/pm"
 	"math"
 	"time"
 )
@@ -61,7 +62,7 @@ type State struct {
 	Operation Operation `json:"op"`
 	LastValue float64   `json:"last_value"`
 	LastTime  int64     `json:"last_time"`
-	Tags      string    `json:"tags,omitempty"`
+	Tags      []pm.Tag  `json:"tags,omitempty"`
 	Samples   Samples   `json:"samples"`
 }
 

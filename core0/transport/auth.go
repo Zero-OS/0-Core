@@ -2,9 +2,41 @@ package transport
 
 import (
 	"fmt"
+
+	"encoding/json"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/siddontang/ledisdb/config"
+	"time"
 )
+
+const (
+	maxJWTDuration int64 = 3600
+)
+
+func validExpiration(claims jwt.MapClaims) error {
+	now := time.Now().Unix()
+	if !claims.VerifyExpiresAt(now, true) {
+		//we call the verify expires at with required=True to make sure that
+		//the exp flag is set.
+		return fmt.Errorf("jwt token expired")
+	}
+
+	exp := claims["exp"]
+
+	var ts int64
+	switch exp := exp.(type) {
+	case float64:
+		ts = int64(exp)
+	case json.Number:
+		ts, _ = exp.Int64()
+	}
+
+	if ts-now > maxJWTDuration {
+		return fmt.Errorf("jwt token expiration exceeds max allowed expiration of %v", time.Duration(maxJWTDuration)*time.Second)
+	}
+
+	return nil
+}
 
 func AuthMethod(organization string, key string) (config.AuthMethod, error) {
 	scope := fmt.Sprintf("user:memberof:%s", organization)
@@ -41,6 +73,15 @@ func AuthMethod(organization string, key string) (config.AuthMethod, error) {
 		if err := claims.Valid(); err != nil {
 			log.Errorf("itsyouonline calim validation error: %s", err)
 			return false
+		}
+
+		if err := validExpiration(claims); err != nil {
+			log.Errorf("itsyouonline calim validation error: %s", err)
+			return false
+		}
+
+		if claims["azp"] == organization {
+			return true
 		}
 
 		var scopes []interface{}

@@ -211,7 +211,7 @@ class InfoManager:
 
 class JobManager:
     _job_chk = typchk.Checker({
-        'id': str,
+        'id': typchk.Or(str, typchk.IsNone()),
     })
 
     _kill_chk = typchk.Checker({
@@ -250,7 +250,7 @@ class JobManager:
 
 class ProcessManager:
     _process_chk = typchk.Checker({
-        'pid': int,
+        'pid': typchk.Or(int, typchk.IsNone()),
     })
 
     _kill_chk = typchk.Checker({
@@ -751,7 +751,7 @@ class ContainerManager:
             'name': typchk.Or(str, typchk.Missing()),
             'hwaddr': typchk.Or(str, typchk.Missing()),
             'config': typchk.Or(
-                typchk.Missing,
+                typchk.Missing(),
                 {
                     'dhcp': typchk.Or(bool, typchk.Missing()),
                     'cidr': typchk.Or(str, typchk.Missing()),
@@ -773,11 +773,19 @@ class ContainerManager:
         'tags': typchk.Or([str], typchk.IsNone())
     })
 
-    _terminate_chk = typchk.Checker({
-        'container': int
-    })
+    _client_chk = typchk.Checker(
+        typchk.Or(int, str)
+    )
 
     DefaultNetworking = object()
+
+    class ContainerResponse(Response):
+        def get(self, timeout=None):
+            result = super().get(timeout)
+            if result.state != 'SUCCESS':
+                raise Exception('failed to create container: %s' % result.data)
+
+            return json.loads(result.data)
 
     def __init__(self, client):
         self._client = client
@@ -840,7 +848,7 @@ class ContainerManager:
 
         response = self._client.raw('corex.create', args)
 
-        return response
+        return self.ContainerResponse(self._client, response.id)
 
     def list(self):
         """
@@ -865,10 +873,10 @@ class ContainerManager:
         :param container: container id
         :return:
         """
+        self._client_chk.check(container)
         args = {
-            'container': container,
+            'container': int(container),
         }
-        self._terminate_chk.check(args)
         response = self._client.raw('corex.terminate', args)
 
         result = response.get()
@@ -881,8 +889,11 @@ class ContainerManager:
 
         :param container: container id
         :return: Client object bound to the specified container id
+        Return a ContainerResponse from container.create
         """
-        return ContainerClient(self._client, container)
+
+        self._client_chk.check(container)
+        return ContainerClient(self._client, int(container))
 
 
 class IPManager:
@@ -1021,7 +1032,7 @@ class IPManager:
 class BridgeManager:
     _bridge_create_chk = typchk.Checker({
         'name': str,
-        'hwaddr': str,
+        'hwaddr': typchk.Or(str, typchk.IsNone()),
         'network': {
             'mode': typchk.Or(typchk.Enum('static', 'dnsmasq'), typchk.IsNone()),
             'nat': bool,
@@ -1311,13 +1322,13 @@ class BtrfsManager:
         'label': str,
         'metadata': typchk.Enum("raid0", "raid1", "raid5", "raid6", "raid10", "dup", "single", ""),
         'data': typchk.Enum("raid0", "raid1", "raid5", "raid6", "raid10", "dup", "single", ""),
-        'devices': [str],
+        'devices': typchk.Length([str], 1),
         'overwrite': bool,
     })
 
     _device_chk = typchk.Checker({
         'mountpoint': str,
-        'devices': (str,),
+        'devices': typchk.Length((str,), 1),
     })
 
     _subvol_chk = typchk.Checker({
@@ -1965,8 +1976,8 @@ class Logger:
 class Nft:
     _port_chk = typchk.Checker({
         'port': int,
-        'interface': typchk.Or(str, typchk.Missing()),
-        'subnet': typchk.Or(str, typchk.Missing()),
+        'interface': typchk.Or(str, typchk.IsNone()),
+        'subnet': typchk.Or(str, typchk.IsNone()),
     })
 
     def __init__(self, client):

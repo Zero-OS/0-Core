@@ -6,7 +6,15 @@
 
 ### Trigger Manual builds
 
-- To trigger a manual build using travis, please use this script: [trigger_travis](https://github.com/zero-os/0-core/blob/cron-jobs/tests/trigger_travis.sh)
+#### To trigger a manual build using travis, use one of the following ways:
+
+1- Using Travis Dashboard
+- Go to [travis-beta-features](https://travis-ci.org/features), and enable the the Dashboard option then a click on the Travis CI logo at the top gets you there!
+- Once you are there, you can trigger a manual build as shown in figure. This build is triggered from the default branch
+![trigger](https://github.com/zero-os/0-core/blob/docs-patch-1/tests/pics/dashboard-repo.png)
+
+2- Using trigger_travis.sh script
+- The advantage of this script is that the build can be triggered from any branch. Here is the script [trigger_travis](https://github.com/zero-os/0-core/blob/cron-jobs/tests/trigger_travis.sh)
 - For this script to work, a travis token need to be provided. To generate token, you need to install line command travis client [travis-client](https://github.com/travis-ci/travis.rb#installation), then use these commands:
     ```
     travis login --org

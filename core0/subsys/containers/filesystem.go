@@ -6,13 +6,13 @@ import (
 	"compress/gzip"
 	"crypto/md5"
 	"fmt"
+	"github.com/pborman/uuid"
+	"github.com/shirou/gopsutil/disk"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/zero-os/0-core/base/pm/stream"
 	"github.com/zero-os/0-core/base/settings"
-	"github.com/pborman/uuid"
-	"github.com/shirou/gopsutil/disk"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -82,6 +82,10 @@ func (c *container) getMetaDBTar(src string) (io.ReadCloser, error) {
 		response, err := http.Get(src)
 		if err != nil {
 			return nil, err
+		}
+
+		if response.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("failed to download flist: %s", response.Status)
 		}
 
 		reader = response.Body

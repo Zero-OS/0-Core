@@ -42,8 +42,13 @@ type MessageHandler func(*core.Command, *stream.Message)
 //ResultHandler represents a callback type
 type ResultHandler func(cmd *core.Command, result *core.JobResult)
 
+type Tag struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
 //StatsFlushHandler represents a callback type
-type StatsHandler func(operation string, key string, value float64, tags string)
+type StatsHandler func(operation string, key string, value float64, id string, tags ...Tag)
 
 //PM is the main process manager.
 type PM struct {
@@ -317,7 +322,7 @@ func (pm *PM) RunSlice(slice settings.StartupSlice) {
 	}
 
 	state := NewStateMachine(all...)
-	cmdline := utils.GetCmdLine()
+	cmdline := utils.GetKernelOptions().GetLast()
 
 	for _, startup := range slice {
 		if startup.Args == nil {
@@ -445,9 +450,9 @@ func (pm *PM) Kill(cmdID string) error {
 	return nil
 }
 
-func (pm *PM) Aggregate(op, key string, value float64, tags string) {
+func (pm *PM) Aggregate(op, key string, value float64, id string, tags ...Tag) {
 	for _, handler := range pm.statsFlushHandlers {
-		handler(op, key, value, tags)
+		handler(op, key, value, id, tags...)
 	}
 }
 
@@ -459,9 +464,9 @@ func (pm *PM) handleStatsMessage(cmd *core.Command, msg *stream.Message) {
 
 	optype := parts[1]
 
-	var tags string
+	var tagsStr string
 	if len(parts) == 3 {
-		tags = parts[2]
+		tagsStr = parts[2]
 	}
 
 	data := strings.Split(parts[0], ":")
@@ -477,7 +482,31 @@ func (pm *PM) handleStatsMessage(cmd *core.Command, msg *stream.Message) {
 		return
 	}
 
-	pm.Aggregate(optype, key, v, tags)
+	parse := func(t string) (string, []Tag) {
+		var tags []Tag
+		var id string
+		for _, p := range strings.Split(t, ",") {
+			kv := strings.SplitN(p, "=", 2)
+			var v string
+			if len(kv) == 2 {
+				v = kv[1]
+			}
+			//special tag id.
+			if kv[0] == "id" {
+				id = v
+				continue
+			}
+			tags = append(tags, Tag{
+				Key:   kv[0],
+				Value: v,
+			})
+		}
+
+		return id, tags
+	}
+
+	id, tags := parse(tagsStr)
+	pm.Aggregate(optype, key, v, id, tags...)
 }
 
 func (pm *PM) msgCallback(cmd *core.Command, msg *stream.Message) {

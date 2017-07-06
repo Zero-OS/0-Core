@@ -1,29 +1,54 @@
 package utils
 
 import (
+	"github.com/google/shlex"
 	"io/ioutil"
 	"strings"
 )
 
-func parseCmdline(content string) map[string]interface{} {
-	cmdline := make(map[string]interface{})
-	for _, cmdarg := range strings.Fields(content) {
-		keyvalue := strings.SplitN(cmdarg, "=", 2)
-		if len(keyvalue) == 1 {
-			cmdline[keyvalue[0]] = ""
-		} else if len(keyvalue) == 2 {
-			cmdline[keyvalue[0]] = keyvalue[1]
-		}
+type KernelOptions map[string][]string
+
+func (k KernelOptions) Is(key string) bool {
+	_, ok := k[key]
+	return ok
+}
+
+func (k KernelOptions) Get(key string) ([]string, bool) {
+	v, ok := k[key]
+	return v, ok
+}
+
+func (k KernelOptions) GetLast() map[string]interface{} {
+	r := make(map[string]interface{})
+	for key, values := range k {
+		r[key] = values[len(values)-1]
 	}
-	return cmdline
+
+	return r
+}
+
+func parseKerenlOptions(content string) KernelOptions {
+	options := KernelOptions{}
+	cmdline, _ := shlex.Split(strings.TrimSpace(content))
+	for _, option := range cmdline {
+		kv := strings.SplitN(option, "=", 2)
+		key := kv[0]
+		value := ""
+		if len(kv) == 2 {
+			value = kv[1]
+		}
+		options[key] = append(options[key], value)
+	}
+	return options
 }
 
 //GetCmdLine Get kernel cmdline arguments
-func GetCmdLine() map[string]interface{} {
+func GetKernelOptions() KernelOptions {
 	content, err := ioutil.ReadFile("/proc/cmdline")
 	if err != nil {
 		log.Warning("Failed to read /proc/cmdline", err)
-		return make(map[string]interface{})
+		return KernelOptions{}
 	}
-	return parseCmdline(string(content))
+
+	return parseKerenlOptions(string(content))
 }

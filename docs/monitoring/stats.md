@@ -14,9 +14,10 @@ Hereby:
 - `{OP}` (string) specifies how to aggregate the reported values
   - `A` Averages the values reported at the end of the current aggregation period
   - `D` Differentiates the values (used usually for incremental counters, e.g. the number of packets send over network card; delta to previous D value
-- `tags` (string optional) user defined tags attached to the metric (currently not used)
-
-
+- `tags` (string optional) user defined tags attached to the metric formatted as _key=value,..._ (ex: device=eth0,type=physical)
+  - a special tag key `id` can be provided which makes stats aggregation distinct based on combo of `key` and `id`. Without the `id` tag aggregation
+   is per metric key only.
+   
 <a id="stats-sending"></a>
 ## Where do the statistics go anyway?
 
@@ -30,7 +31,7 @@ Each object in the queue is a JSON object that is formatted as following:
 ```javascript
 {
  'key': 'metric.key', // reported metric key
- 'tags': '', //reported metric tags
+ 'tags': {key: value, ...}, //reported metric tags
  'avg': 1605.370703125, //average value of the metric over the defined period (300 second, or 3600 seconds according to queue)
  'count': 10, //how many samples reported during this period
  'max': 1605.48828125, //max reported sample during this period

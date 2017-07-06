@@ -3,13 +3,14 @@ package options
 import (
 	"flag"
 	"fmt"
+	"github.com/zero-os/0-core/base/utils"
 	"os"
 )
 
 type AppOptions struct {
 	cfg     string
 	version bool
-	Kernel  KernelOptions
+	Kernel  utils.KernelOptions
 }
 
 func (o *AppOptions) Config() string {
@@ -38,5 +39,6 @@ func init() {
 		printHelp()
 		os.Exit(0)
 	}
-	Options.Kernel = getKernelParams()
+
+	Options.Kernel = utils.GetKernelOptions()
 }

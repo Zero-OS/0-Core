@@ -1,28 +1,38 @@
 # Start the zerotier daemon, after the networking is already configured
+# ZT home is /tmp/zt
+
+[startup."zerotier-init"]
+name = "core.system"
+running_delay = -1
+
+[startup."zerotier-init".args]
+name = "ztid"
+args = ["-out", "/tmp/zt"]
+
 [startup.zerotier]
 name = "core.system"
-after = ["net"]
+after = ["zerotier-init"]
 protected = true
 
 [startup.zerotier.args]
 name = "zerotier-one"
-args = ["/tmp/core-0-zt"]
+args = ["/tmp/zt"]
 
 [extension."zerotier.join"]
 binary = "zerotier-cli"
-args = ["-D/tmp/core-0-zt", "join", "{network}"]
+args = ["-D/tmp/zt", "join", "{network}"]
 
 [extension."zerotier.leave"]
 binary = "zerotier-cli"
-args = ["-D/tmp/core-0-zt", "leave", "{network}"]
+args = ["-D/tmp/zt", "leave", "{network}"]
 
 [extension."zerotier.list"]
 binary = "sh"
-args = ["-c", "echo 20::: && zerotier-cli -D/tmp/core-0-zt listnetworks -j && echo :::"]
+args = ["-c", "echo 20::: && zerotier-cli -D/tmp/zt listnetworks -j && echo :::"]
 
 [extension."zerotier.info"]
 binary = "sh"
-args = ["-c", "echo 20::: && zerotier-cli -D/tmp/core-0-zt info -j && echo :::"]
+args = ["-c", "echo 20::: && zerotier-cli -D/tmp/zt info -j && echo :::"]
 
 [startup.zerotierkernel]
 name = "zerotier.join"
