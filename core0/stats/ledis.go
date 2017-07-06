@@ -6,6 +6,8 @@ import (
 	"github.com/op/go-logging"
 	"github.com/siddontang/ledisdb/ledis"
 	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm/process"
 )
 
 const (
@@ -44,6 +46,8 @@ func NewLedisStatsAggregator(db *ledis.DB) Aggregator {
 		db: db,
 	}
 
+	pm.CmdMap["aggregator.query"] = process.NewInternalProcessFactory(redisBuffer.query)
+
 	return redisBuffer
 }
 
@@ -51,6 +55,28 @@ type Point struct {
 	*Sample
 	Key  string            `json:"key"`
 	Tags map[string]string `json:"tags,omitempty"`
+}
+
+func (r *redisStatsBuffer) query(cmd *core.Command) (interface{}, error) {
+	var keys [][]string
+	if err := json.Unmarshal(*cmd.Arguments, &keys); err != nil {
+		return nil, err
+	}
+
+	for _, metric := range keys {
+		key := metric[0]
+		var id string
+		if len(metric) > 1 {
+			id = metric[1]
+		}
+
+		ledisKey := fmt.Sprintf(StateKey, key, id)
+		//TODO: use key to get stats.
+		//i think if the value does not exist, just put null in the return
+
+	}
+
+	return nil, nil
 }
 
 func (r *redisStatsBuffer) Aggregate(op string, key string, value float64, id string, tags ...pm.Tag) {

@@ -30,6 +30,7 @@ type monitor struct{}
 func init() {
 	m := (*monitor)(nil)
 	pm.CmdMap["monitor"] = process.NewInternalProcessFactory(m.monitor)
+	pm.CmdMap["monitor.get"] = process.NewInternalProcessFactory(m.monitor)
 }
 
 func (m *monitor) monitor(cmd *core.Command) (interface{}, error) {
@@ -55,6 +56,29 @@ func (m *monitor) monitor(cmd *core.Command) (interface{}, error) {
 	}
 
 	return nil, nil
+}
+
+func (m *monitor) get(cmd *core.Command) (interface{}, error) {
+	//TODO: construct the list of {key, id} pair
+	type KeyIDPair []string
+	runner, err := pm.GetManager().RunCmd(&core.Command{
+		Command: "aggregator.query",
+		Arguments: core.MustArguments([]KeyIDPair{
+			{"disk.size.free", "vda"},
+		}),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	job := runner.Wait()
+	if job.State != core.StateSuccess {
+		return nil, fmt.Errorf("failed to query ledis: %s", job.Data)
+	}
+
+	var result interface{}
+	return result, json.Unmarshal([]byte(job.Data), &result)
 }
 
 func (m *monitor) disk() error {
