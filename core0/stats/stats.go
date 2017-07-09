@@ -10,6 +10,8 @@ import (
 const (
 	Average      Operation = "A"
 	Differential Operation = "D"
+
+	HistoryLength = 5
 )
 
 type Operation string
@@ -57,6 +59,7 @@ func (m *Sample) Feed(value float64, now int64, duration int64) *Sample {
 }
 
 type Samples map[int64]*Sample
+type History map[int64][]Sample
 
 type State struct {
 	Operation Operation `json:"op"`
@@ -64,12 +67,14 @@ type State struct {
 	LastTime  int64     `json:"last_time"`
 	Tags      []pm.Tag  `json:"tags,omitempty"`
 	Samples   Samples   `json:"samples"`
+	History   History   `json:"history"`
 }
 
 func NewState(op Operation, durations ...int64) *State {
 	s := State{
 		Operation: op,
 		Samples:   Samples{},
+		History:   History{},
 		LastTime:  -1,
 	}
 
@@ -97,6 +102,16 @@ func (s *State) init(now int64, value float64) {
 			sample.Feed(value, now, d)
 		}
 	}
+}
+
+func (s *State) log(period int64, sample *Sample) {
+	his := s.History[period]
+	his = append(his, *sample)
+	if len(his) > HistoryLength {
+		his = his[len(his)-HistoryLength : len(his)]
+	}
+
+	s.History[period] = his
 }
 
 func (s *State) FeedOn(now int64, value float64) Samples {
@@ -129,6 +144,7 @@ func (s *State) FeedOn(now int64, value float64) Samples {
 	for d, sample := range s.Samples {
 		if update := sample.Feed(value, now, d); update != nil {
 			updates[d] = update
+			s.log(d, update)
 		}
 	}
 
