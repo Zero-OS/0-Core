@@ -32,49 +32,76 @@ class Return:
 
     @property
     def payload(self):
+        """
+        Raw return object data  
+        :return: dict
+        """
         return self._payload
 
     @property
     def id(self):
+        """
+        Job ID
+        :return: string 
+        """
         return self._payload['id']
 
     @property
     def data(self):
         """
-        data returned by the process. Only available if process
+        Data returned by the process. Only available if process
         output data with the correct core level
+        
+        For example, if a job returns a json object the self.level will be 20 and the data will contain the serialized
+        json object, other levels exists for yaml, toml, etc... it really depends on the running job
+        return: python primitive (str, number, dict or array)
         """
         return self._payload['data']
 
     @property
     def level(self):
-        """data message level (if any)"""
+        """
+        Data message level (if any)
+        """
         return self._payload['level']
 
     @property
     def starttime(self):
-        """timestamp"""
+        """
+        Starttime as a timestamp
+        """
         return self._payload['starttime'] / 1000
 
     @property
     def time(self):
-        """execution time in millisecond"""
+        """
+        Execution time in millisecond
+        """
         return self._payload['time']
 
     @property
     def state(self):
         """
-        exit state
+        Exit state
+        :return: str one of [SUCCESS, ERROR, KILLED, TIMEOUT, UNKNOWN_CMD, DUPLICATE_ID]
         """
         return self._payload['state']
 
     @property
     def stdout(self):
+        """
+        The job stdout
+        :return: string or None
+        """
         streams = self._payload.get('streams', None)
         return streams[0] if streams is not None and len(streams) >= 1 else ''
 
     @property
     def stderr(self):
+        """
+        The job stderr
+        :return: string or None
+        """
         streams = self._payload.get('streams', None)
         return streams[1] if streams is not None and len(streams) >= 2 else ''
 
@@ -104,16 +131,31 @@ class Response:
 
     @property
     def id(self):
+        """
+        Job ID
+        :return: string 
+        """
         return self._id
 
     @property
     def exists(self):
+        """
+        Returns true if core0 know (or still knows) about this job ID
+        
+        After a job is finished, a job remains on zero-os for max of 5min where u still can read the job result
+        after the 5 min is gone, the job result is no more fetchable
+        :return: bool
+        """
         r = self._client._redis
         flag = '{}:flag'.format(self._queue)
         return bool(r.execute_command('LKEYEXISTS', flag))
 
     @property
     def running(self):
+        """
+        Returns true if job still in running state
+        :return: 
+        """
         r = self._client._redis
         flag = '{}:flag'.format(self._queue)
         if bool(r.execute_command('LKEYEXISTS', flag)):
@@ -162,6 +204,16 @@ class Response:
                 w.write('\n')
 
     def get(self, timeout=None):
+        """
+        Waits for a job to finish (max of given timeout seconds) and retun job results. When a job exits get() will
+        keep returning the same result until zero-os doesn't remember the job anymore (self.exists == False)
+        
+        :notes: the timeout here is a client side timeout, it's different than the timeout given to the job on start
+        (like in system method) witch will cause the job to be killed if it exceeded this timeout.
+        
+        :param timeout: max time to wait for the job to finish in seconds
+        :return: Return object
+        """
         if timeout is None:
             timeout = self._client.timeout
         r = self._client._redis
@@ -188,24 +240,52 @@ class InfoManager:
         self._client = client
 
     def cpu(self):
+        """
+        CPU information
+        :return: 
+        """
         return self._client.json('info.cpu', {})
 
     def nic(self):
+        """
+        Return (physical) network devices information including IPs
+        :return: 
+        """
         return self._client.json('info.nic', {})
 
     def mem(self):
+        """
+        Memory information
+        :return: 
+        """
         return self._client.json('info.mem', {})
 
     def disk(self):
+        """
+        Disk information
+        :return: 
+        """
         return self._client.json('info.disk', {})
 
     def os(self):
+        """
+        Operating system info
+        :return: 
+        """
         return self._client.json('info.os', {})
 
     def port(self):
+        """
+        Return information about open ports on the system (similar to netstat)
+        :return: 
+        """
         return self._client.json('info.port', {})
 
     def version(self):
+        """
+        Return OS version
+        :return: 
+        """
         return self._client.json('info.version', {})
 
 
@@ -540,22 +620,42 @@ class BaseClient:
 
     @property
     def info(self):
+        """
+        info manager
+        :return: 
+        """
         return self._info
 
     @property
     def job(self):
+        """
+        job manager
+        :return: 
+        """
         return self._job
 
     @property
     def process(self):
+        """
+        process manager
+        :return: 
+        """
         return self._process
 
     @property
     def filesystem(self):
+        """
+        filesystem manager
+        :return: 
+        """
         return self._filesystem
 
     @property
     def ip(self):
+        """
+        ip manager
+        :return: 
+        """
         return self._ip
 
     def raw(self, command, arguments, queue=None, max_time=None, stream=False):
@@ -591,7 +691,7 @@ class BaseClient:
     def json(self, command, arguments):
         """
         Same as self.sync except it assumes the returned result is json, and loads the payload of the return object
-
+        if the returned (data) is not of level (20) an error is raised.
         :Return: Data
         """
         result = self.sync(command, arguments)
@@ -693,10 +793,17 @@ class ContainerClient(BaseClient):
 
     @property
     def container(self):
+        """
+        :return: container id 
+        """
         return self._container
 
     @property
     def zerotier(self):
+        """
+        information about zerotier id
+        :return: 
+        """
         return self._zerotier
 
     def raw(self, command, arguments, queue=None, max_time=None, stream=False):
@@ -781,6 +888,11 @@ class ContainerManager:
 
     class ContainerResponse(Response):
         def get(self, timeout=None):
+            """
+            Get container ID
+            :param timeout: client side timeout in seconds (for the container ID to return)
+            :return: int
+            """
             result = super().get(timeout)
             if result.state != 'SUCCESS':
                 raise Exception('failed to create container: %s' % result.data)
@@ -902,6 +1014,14 @@ class IPManager:
             self._client = client
 
         def add(self, name, hwaddr=None):
+            """
+            Add bridge with given name and optional hardware address
+            
+            For more advanced bridge options please check the `bridge` manager.
+            :param name: bridge name
+            :param hwaddr: mac address (str)
+            :return: 
+            """
             args = {
                 'name': name,
                 'hwaddr': hwaddr,
@@ -910,6 +1030,11 @@ class IPManager:
             return self._client.json("ip.bridge.add", args)
 
         def delete(self, name):
+            """
+            Delete bridge with given name 
+            :param name: bridge name to delete
+            :return: 
+            """
             args = {
                 'name': name,
             }
@@ -917,6 +1042,12 @@ class IPManager:
             return self._client.json("ip.bridge.del", args)
 
         def addif(self, name, inf):
+            """
+            Add interface to bridge
+            :param name: bridge name
+            :param inf: interface name to add
+            :return: 
+            """
             args = {
                 'name': name,
                 'inf': inf,
@@ -925,6 +1056,12 @@ class IPManager:
             return self._client.json('ip.bridge.addif', args)
 
         def delif(self, name, inf):
+            """
+            Delete interface from bridge
+            :param name: bridge name
+            :param inf: interface to remove
+            :return: 
+            """
             args = {
                 'name': name,
                 'inf': inf,
@@ -937,18 +1074,37 @@ class IPManager:
             self._client = client
 
         def up(self, link):
+            """
+            Set interface state to UP
+            
+            :param link: link/interface name
+            :return: 
+            """
             args = {
                 'name': link,
             }
             return self._client.json('ip.link.up', args)
 
         def down(self, link):
+            """
+            Set link/interface state to DOWN
+            
+            :param link: link/interface name
+            :return: 
+            """
             args = {
                 'name': link,
             }
             return self._client.json('ip.link.down', args)
 
         def name(self, link, name):
+            """
+            Rename link
+            
+            :param link: link to rename
+            :param name: new name
+            :return: 
+            """
             args = {
                 'name': link,
                 'new': name,
@@ -963,6 +1119,13 @@ class IPManager:
             self._client = client
 
         def add(self, link, ip):
+            """
+            Add IP to link
+            
+            :param link: link
+            :param ip: ip address to add
+            :return: 
+            """
             args = {
                 'name': link,
                 'ip': ip,
@@ -970,6 +1133,13 @@ class IPManager:
             return self._client.json('ip.addr.add', args)
 
         def delete(self, link, ip):
+            """
+            Delete IP from link
+            
+            :param link: link
+            :param ip: ip address to remove
+            :return: 
+            """
             args = {
                 'name': link,
                 'ip': ip,
@@ -977,6 +1147,12 @@ class IPManager:
             return self._client.json('ip.addr.del', args)
 
         def list(self, link):
+            """
+            List IPs of a link
+            
+            :param link: link name
+            :return: 
+            """
             args = {
                 'name': link,
             }
@@ -987,6 +1163,14 @@ class IPManager:
             self._client = client
 
         def add(self, dev, dst, gw=None):
+            """
+            Add a route
+            
+            :param dev: device name
+            :param dst: destination network
+            :param gw: optional gateway
+            :return: 
+            """
             args = {
                 'dev': dev,
                 'dst': dst,
@@ -995,6 +1179,14 @@ class IPManager:
             return self._client.json('ip.route.add', args)
 
         def delete(self, dev, dst, gw=None):
+            """
+            Delete a route
+            
+            :param dev: device name
+            :param dst: destination network
+            :param gw: optional gateway
+            :return: 
+            """
             args = {
                 'dev': dev,
                 'dst': dst,
@@ -1014,18 +1206,34 @@ class IPManager:
 
     @property
     def bridge(self):
+        """
+        Bridge manager
+        :return: 
+        """
         return self._bridge
 
     @property
     def link(self):
+        """
+        Link manager
+        :return: 
+        """
         return self._link
 
     @property
     def addr(self):
+        """
+        Address manager
+        :return: 
+        """
         return self._addr
 
     @property
     def route(self):
+        """
+        Route manager
+        :return: 
+        """
         return self._route
 
 
@@ -1968,7 +2176,7 @@ class Logger:
 
     def reopen(self):
         """
-        Reopen log file
+        Reopen log file (rotate)
         """
         return self._client.json('logger.reopen', {})
 
@@ -2028,12 +2236,6 @@ class Config:
         return self._client.json('config.get', {})
 
 
-class Experimental:
-
-    def __init__(self, client):
-        pass
-
-
 class Client(BaseClient):
 
     def __init__(self, host, port=6379, password="", db=0, ssl=True, timeout=None, testConnectionAttempts=3):
@@ -2055,7 +2257,6 @@ class Client(BaseClient):
         self._disk_manager = DiskManager(self)
         self._btrfs_manager = BtrfsManager(self)
         self._zerotier = ZerotierManager(self)
-        self._experimntal = Experimental(self)
         self._kvm = KvmManager(self)
         self._logger = Logger(self)
         self._nft = Nft(self)
@@ -2072,43 +2273,75 @@ class Client(BaseClient):
             raise RuntimeError("Could not connect to remote host %s" % host)
 
     @property
-    def experimental(self):
-        return self._experimntal
-
-    @property
     def container(self):
+        """
+        Container manager
+        :return: 
+        """
         return self._container_manager
 
     @property
     def bridge(self):
+        """
+        Bridge manager
+        :return: 
+        """
         return self._bridge_manager
 
     @property
     def disk(self):
+        """
+        Disk manager
+        :return: 
+        """
         return self._disk_manager
 
     @property
     def btrfs(self):
+        """
+        Btrfs manager
+        :return: 
+        """
         return self._btrfs_manager
 
     @property
     def zerotier(self):
+        """
+        Zerotier manager
+        :return: 
+        """
         return self._zerotier
 
     @property
     def kvm(self):
+        """
+        KVM manager
+        :return: 
+        """
         return self._kvm
 
     @property
     def logger(self):
+        """
+        Logger manager
+        :return: 
+        """
         return self._logger
 
     @property
     def nft(self):
+        """
+        NFT manager
+        :return: 
+        """
         return self._nft
 
     @property
     def config(self):
+        """
+        Config manager
+        :return: 
+        """
         return self._config
 
     def raw(self, command, arguments, queue=None, max_time=None, stream=False):
