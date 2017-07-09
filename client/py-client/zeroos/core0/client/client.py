@@ -140,9 +140,9 @@ class Response:
     @property
     def exists(self):
         """
-        Returns true if core0 know (or still knows) about this job ID
+        Returns true if the job is still running or zero-os still knows about this job ID
         
-        After a job is finished, a job remains on zero-os for max of 5min where u still can read the job result
+        After a job is finished, a job remains on zero-os for max of 5min where you still can read the job result
         after the 5 min is gone, the job result is no more fetchable
         :return: bool
         """
@@ -205,7 +205,7 @@ class Response:
 
     def get(self, timeout=None):
         """
-        Waits for a job to finish (max of given timeout seconds) and retun job results. When a job exits get() will
+        Waits for a job to finish (max of given timeout seconds) and return job results. When a job exits get() will
         keep returning the same result until zero-os doesn't remember the job anymore (self.exists == False)
         
         :notes: the timeout here is a client side timeout, it's different than the timeout given to the job on start
