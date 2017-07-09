@@ -68,24 +68,25 @@ func (r *redisStatsBuffer) query(cmd *core.Command) (interface{}, error) {
 
 	for _, metric := range keys {
 		key := metric[0]
-		var id string
-		if len(metric) > 1 {
-			id = metric[1]
-		}
+		id := metric[1]
 
-		ledisKey := fmt.Sprintf(StateKey, key, id)
-		//TODO: use key to get stats.
-		//i think if the value does not exist, just put null in the return
-		data, err := r.db.Get([]byte(ledisKey))
+		lkey := fmt.Sprintf(StateKey, key, id)
+		data, err := r.db.Get([]byte(lkey))
 		if err != nil || data == nil {
 			result[key] = nil
 		}
 
-		if state, err := LoadState(data); err != nil {
-			result[key] = state
-		} else {
+		if id != "" {
+			//reformat key for user
+			key = fmt.Sprintf("%s:%s", key, id)
+		}
+
+		state, err := LoadState(data)
+		if err != nil {
 			result[key] = nil
 			log.Errorf("failed to load stat for %s/%s", key, id)
+		} else {
+			result[key] = state
 		}
 	}
 

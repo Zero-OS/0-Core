@@ -66,20 +66,20 @@ type State struct {
 	LastValue float64   `json:"last_value"`
 	LastTime  int64     `json:"last_time"`
 	Tags      []pm.Tag  `json:"tags,omitempty"`
-	Samples   Samples   `json:"samples"`
+	Current   Samples   `json:"current"`
 	History   History   `json:"history"`
 }
 
 func NewState(op Operation, durations ...int64) *State {
 	s := State{
 		Operation: op,
-		Samples:   Samples{},
+		Current:   Samples{},
 		History:   History{},
 		LastTime:  -1,
 	}
 
 	for _, d := range durations {
-		s.Samples[d] = &Sample{}
+		s.Current[d] = &Sample{}
 	}
 
 	return &s
@@ -91,13 +91,13 @@ func LoadState(data []byte) (*State, error) {
 }
 
 func (s *State) avg(now int64, value float64) {
-	for d, sample := range s.Samples {
+	for d, sample := range s.Current {
 		sample.Feed(value, now, d)
 	}
 }
 
 func (s *State) init(now int64, value float64) {
-	for d, sample := range s.Samples {
+	for d, sample := range s.Current {
 		if s.Operation == Average {
 			sample.Feed(value, now, d)
 		}
@@ -105,6 +105,11 @@ func (s *State) init(now int64, value float64) {
 }
 
 func (s *State) log(period int64, sample *Sample) {
+	if sample.Start == 0 {
+		//undefined sample, probably the first one
+		return
+	}
+
 	his := s.History[period]
 	his = append(his, *sample)
 	if len(his) > HistoryLength {
@@ -141,7 +146,7 @@ func (s *State) FeedOn(now int64, value float64) Samples {
 	}
 
 	updates := Samples{}
-	for d, sample := range s.Samples {
+	for d, sample := range s.Current {
 		if update := sample.Feed(value, now, d); update != nil {
 			updates[d] = update
 			s.log(d, update)
