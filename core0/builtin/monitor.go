@@ -15,6 +15,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -25,12 +26,31 @@ const (
 	monitorMemory  = "memory"
 )
 
-type monitor struct{}
+type Pair [2]string
+
+type monitor struct {
+	keys map[Pair]struct{}
+	m    sync.RWMutex
+}
 
 func init() {
-	m := (*monitor)(nil)
+	m := &monitor{
+		keys: make(map[Pair]struct{}),
+	}
+
 	pm.CmdMap["monitor"] = process.NewInternalProcessFactory(m.monitor)
-	pm.CmdMap["monitor.get"] = process.NewInternalProcessFactory(m.monitor)
+	pm.CmdMap["monitor.get"] = process.NewInternalProcessFactory(m.get)
+}
+
+func (m *monitor) aggregate(op, key string, value float64, id string, tags ...pm.Tag) {
+	p := pm.GetManager()
+
+	//make sure we track this key for query operations
+	m.m.Lock()
+	m.keys[Pair{key, id}] = struct{}{}
+	defer m.m.Unlock()
+
+	p.Aggregate(op, key, value, id, tags...)
 }
 
 func (m *monitor) monitor(cmd *core.Command) (interface{}, error) {
@@ -60,12 +80,17 @@ func (m *monitor) monitor(cmd *core.Command) (interface{}, error) {
 
 func (m *monitor) get(cmd *core.Command) (interface{}, error) {
 	//TODO: construct the list of {key, id} pair
-	type KeyIDPair []string
+
+	var pairs []Pair
+	m.m.RLock()
+	for k := range m.keys {
+		pairs = append(pairs, k)
+	}
+
+	m.m.RUnlock()
 	runner, err := pm.GetManager().RunCmd(&core.Command{
-		Command: "aggregator.query",
-		Arguments: core.MustArguments([]KeyIDPair{
-			{"disk.size.free", "vda"},
-		}),
+		Command:   "aggregator.query",
+		Arguments: core.MustArguments(pairs),
 	})
 
 	if err != nil {

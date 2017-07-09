@@ -58,10 +58,13 @@ type Point struct {
 }
 
 func (r *redisStatsBuffer) query(cmd *core.Command) (interface{}, error) {
-	var keys [][]string
+	type Pair [2]string
+	var keys []Pair
 	if err := json.Unmarshal(*cmd.Arguments, &keys); err != nil {
 		return nil, err
 	}
+
+	result := make(map[string]*State)
 
 	for _, metric := range keys {
 		key := metric[0]
@@ -73,10 +76,20 @@ func (r *redisStatsBuffer) query(cmd *core.Command) (interface{}, error) {
 		ledisKey := fmt.Sprintf(StateKey, key, id)
 		//TODO: use key to get stats.
 		//i think if the value does not exist, just put null in the return
+		data, err := r.db.Get([]byte(ledisKey))
+		if err != nil || data == nil {
+			result[key] = nil
+		}
 
+		if state, err := LoadState(data); err != nil {
+			result[key] = state
+		} else {
+			result[key] = nil
+			log.Errorf("failed to load stat for %s/%s", key, id)
+		}
 	}
 
-	return nil, nil
+	return result, nil
 }
 
 func (r *redisStatsBuffer) Aggregate(op string, key string, value float64, id string, tags ...pm.Tag) {
