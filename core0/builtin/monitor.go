@@ -11,11 +11,11 @@ import (
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/process"
+	"github.com/zero-os/0-core/base/utils"
 	"io/ioutil"
 	"path"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -26,31 +26,27 @@ const (
 	monitorMemory  = "memory"
 )
 
-type Pair [2]string
-
-type monitor struct {
-	keys map[Pair]struct{}
-	m    sync.RWMutex
-}
-
-func init() {
-	m := &monitor{
-		keys: make(map[Pair]struct{}),
+var (
+	networkMonitorTypes = []string{
+		"device",
+		"bridge",
+		"openvswitch",
 	}
 
+	networkMonitorIgnoreNames = []string{
+		"lo",
+		"ovs-system",
+	}
+)
+
+type Pair [2]string
+
+type monitor struct{}
+
+func init() {
+	m := (*monitor)(nil)
+
 	pm.CmdMap["monitor"] = process.NewInternalProcessFactory(m.monitor)
-	pm.CmdMap["monitor.get"] = process.NewInternalProcessFactory(m.get)
-}
-
-func (m *monitor) aggregate(op, key string, value float64, id string, tags ...pm.Tag) {
-	p := pm.GetManager()
-
-	//make sure we track this key for query operations
-	m.m.Lock()
-	m.keys[Pair{key, id}] = struct{}{}
-	defer m.m.Unlock()
-
-	p.Aggregate(op, key, value, id, tags...)
 }
 
 func (m *monitor) monitor(cmd *core.Command) (interface{}, error) {
@@ -78,60 +74,33 @@ func (m *monitor) monitor(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func (m *monitor) get(cmd *core.Command) (interface{}, error) {
-	//TODO: construct the list of {key, id} pair
-
-	var pairs []Pair
-	m.m.RLock()
-	for k := range m.keys {
-		pairs = append(pairs, k)
-	}
-
-	m.m.RUnlock()
-	runner, err := pm.GetManager().RunCmd(&core.Command{
-		Command:   "aggregator.query",
-		Arguments: core.MustArguments(pairs),
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	job := runner.Wait()
-	if job.State != core.StateSuccess {
-		return nil, fmt.Errorf("failed to query ledis: %s", job.Data)
-	}
-
-	var result interface{}
-	return result, json.Unmarshal([]byte(job.Data), &result)
-}
-
 func (m *monitor) disk() error {
 	counters, err := disk.IOCounters()
 	if err != nil {
 		return err
 	}
 
+	p := pm.GetManager()
 	for name, counter := range counters {
-		m.aggregate(pm.AggreagteDifference,
+		p.Aggregate(pm.AggreagteDifference,
 			"disk.iops.read",
 			float64(counter.ReadCount),
 			name, pm.Tag{"type", "phys"},
 		)
 
-		m.aggregate(pm.AggreagteDifference,
+		p.Aggregate(pm.AggreagteDifference,
 			"disk.iops.write",
 			float64(counter.WriteCount),
 			name, pm.Tag{"type", "phys"},
 		)
 
-		m.aggregate(pm.AggreagteDifference,
+		p.Aggregate(pm.AggreagteDifference,
 			"disk.throughput.read",
 			float64(counter.ReadBytes/1024),
 			name, pm.Tag{"type", "phys"},
 		)
 
-		m.aggregate(pm.AggreagteDifference,
+		p.Aggregate(pm.AggreagteDifference,
 			"disk.throughput.write",
 			float64(counter.WriteBytes/1024),
 			name, pm.Tag{"type", "phys"},
@@ -157,7 +126,7 @@ func (m *monitor) disk() error {
 			continue
 		}
 
-		m.aggregate(pm.AggreagteAverage,
+		p.Aggregate(pm.AggreagteAverage,
 			"disk.size.total",
 			float64(usage.Total),
 			name,
@@ -165,7 +134,7 @@ func (m *monitor) disk() error {
 			pm.Tag{"fs", usage.Fstype},
 		)
 
-		m.aggregate(pm.AggreagteAverage,
+		p.Aggregate(pm.AggreagteAverage,
 			"disk.size.free",
 			float64(usage.Free),
 			name,
@@ -183,8 +152,10 @@ func (m *monitor) cpu() error {
 		return err
 	}
 
+	p := pm.GetManager()
+
 	for nr, t := range times {
-		m.aggregate(pm.AggreagteDifference,
+		p.Aggregate(pm.AggreagteDifference,
 			"machine.CPU.utilisation",
 			t.System+t.User,
 			fmt.Sprint(nr), pm.Tag{"type", "phys"},
@@ -197,7 +168,7 @@ func (m *monitor) cpu() error {
 	}
 
 	for nr, v := range percent {
-		m.aggregate(pm.AggreagteAverage,
+		p.Aggregate(pm.AggreagteAverage,
 			"machine.CPU.percent",
 			v,
 			fmt.Sprint(nr), pm.Tag{"type", "phys"},
@@ -220,7 +191,7 @@ func (m *monitor) cpu() error {
 
 	if ctxt, ok := statmap["ctxt"]; ok {
 		v, _ := strconv.ParseFloat(ctxt, 64)
-		m.aggregate(pm.AggreagteDifference,
+		p.Aggregate(pm.AggreagteDifference,
 			"machine.CPU.contextswitch",
 			v,
 			"", pm.Tag{"type", "phys"},
@@ -229,7 +200,7 @@ func (m *monitor) cpu() error {
 
 	if intr, ok := statmap["intr"]; ok {
 		v, _ := strconv.ParseFloat(intr, 64)
-		m.aggregate(pm.AggreagteDifference,
+		p.Aggregate(pm.AggreagteDifference,
 			"machine.CPU.interrupts",
 			v,
 			"", pm.Tag{"type", "phys"},
@@ -245,7 +216,9 @@ func (m *monitor) memory() error {
 		return err
 	}
 
-	m.aggregate(pm.AggreagteAverage,
+	p := pm.GetManager()
+
+	p.Aggregate(pm.AggreagteAverage,
 		"machine.memory.ram.available",
 		float64(virt.Available)/(1024.*1024.),
 		"", pm.Tag{"type", "phys"},
@@ -256,13 +229,13 @@ func (m *monitor) memory() error {
 		return err
 	}
 
-	m.aggregate(pm.AggreagteAverage,
+	p.Aggregate(pm.AggreagteAverage,
 		"machine.memory.swap.left",
 		float64(swap.Free)/(1024.*1024.),
 		"", pm.Tag{"type", "phys"},
 	)
 
-	m.aggregate(pm.AggreagteAverage,
+	p.Aggregate(pm.AggreagteAverage,
 		"machine.memory.swap.used",
 		float64(swap.Used)/(1024.*1024.),
 		"", pm.Tag{"type", "phys"},
@@ -277,39 +250,45 @@ func (m *monitor) network() error {
 		return err
 	}
 
+	p := pm.GetManager()
+
 	for _, counter := range counters {
 		link, err := netlink.LinkByName(counter.Name)
 		if err != nil {
 			continue
 		}
 
-		//only physical devices !
-		if link.Type() != "device" {
+		if utils.InString(networkMonitorIgnoreNames, counter.Name) {
 			continue
 		}
 
-		m.aggregate(pm.AggreagteDifference,
+		//only required devices
+		if !utils.InString(networkMonitorTypes, link.Type()) {
+			continue
+		}
+
+		p.Aggregate(pm.AggreagteDifference,
 			"network.throughput.outgoing",
 			float64(counter.BytesSent)/(1024.*1024.),
-			counter.Name, pm.Tag{"type", "phys"},
+			counter.Name, pm.Tag{"type", link.Type()},
 		)
 
-		m.aggregate(pm.AggreagteDifference,
+		p.Aggregate(pm.AggreagteDifference,
 			"network.throughput.incoming",
 			float64(counter.BytesRecv)/(1024.*1024.),
-			counter.Name, pm.Tag{"type", "phys"},
+			counter.Name, pm.Tag{"type", link.Type()},
 		)
 
-		m.aggregate(pm.AggreagteDifference,
+		p.Aggregate(pm.AggreagteDifference,
 			"network.packets.tx",
 			float64(counter.PacketsSent),
-			counter.Name, pm.Tag{"type", "phys"},
+			counter.Name, pm.Tag{"type", link.Type()},
 		)
 
-		m.aggregate(pm.AggreagteDifference,
+		p.Aggregate(pm.AggreagteDifference,
 			"network.packets.rx",
 			float64(counter.PacketsRecv),
-			counter.Name, pm.Tag{"type", "phys"},
+			counter.Name, pm.Tag{"type", link.Type()},
 		)
 	}
 
