@@ -15,8 +15,7 @@ cl = Client("<IP address Zero-OS node>")
 flist = 'https://hub.gig.tech/gig-official-apps/ubuntu1604.flist'
 
 job = cl.container.create(flist, storage='ardb://hub.gig.tech:16379')
-response = job.get()
-container_id = int(response.data)
+container_id = job.get()
 container = cl.container.client(container_id)
 
 print(container.system('ls -l /opt').get())

@@ -33,7 +33,7 @@ resp = cl.container.create('https://hub.gig.tech/gig-official-apps/ovs.flist',
        host_network=True,
 	     storage='ardb://hub.gig.tech:16379',
 	     tags=['ovs'])
-ovs = int(resp.get().data)
+ovs = resp.get()
 ```
 
 Note the following:

@@ -7,6 +7,10 @@ import (
 	"github.com/google/shlex"
 )
 
+var (
+	NotFound = fmt.Errorf("not found")
+)
+
 type Job struct {
 	Command   Command `json:"cmd"`
 	CPU       float64 `json:"cpu"`
@@ -139,7 +143,7 @@ func (s *coreMgr) Job(job JobId) (*Job, error) {
 	}
 
 	if len(jobs) == 0 {
-		return nil, fmt.Errorf("not found")
+		return nil, NotFound
 	}
 
 	return &jobs[0], err
@@ -177,7 +181,7 @@ func (s *coreMgr) Process(pid ProcessId) (*Process, error) {
 	}
 
 	if len(processes) == 0 {
-		return nil, fmt.Errorf("not found")
+		return nil, NotFound
 	}
 
 	return &processes[0], err

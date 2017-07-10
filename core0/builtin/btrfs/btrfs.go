@@ -351,9 +351,10 @@ func (m *btrfsManager) btrfs(args ...string) (*core.JobResult, error) {
 }
 
 func (m *btrfsManager) parseSubvolList(out string) ([]btrfsSubvol, error) {
-	var svs []btrfsSubvol
+	lines := strings.Split(out, "\n")
+	svs := make([]btrfsSubvol, 0, len(lines))
 
-	for _, line := range strings.Split(out, "\n") {
+	for _, line := range lines {
 		var sv btrfsSubvol
 		line = strings.TrimSpace(line)
 		if line == "" {

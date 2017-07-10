@@ -44,7 +44,7 @@ We will create a very basic container that only mount the root filesystem. We us
 ```python
 flist = 'https://stor.jumpscale.org/stor2/flist/ubuntu-g8os-flist/ubuntu-g8os.flist'
 
-container_id = cl.container.create(flist, mount=mount)
+container_id = cl.container.create(flist, mount=mount).get()
 container = cl.container.client(container_id)
 
 print(container.system('ls -l /opt').get())

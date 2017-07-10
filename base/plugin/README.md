@@ -54,8 +54,8 @@ exports = ["version"]
 
 Calling the plugin method.
 ```python
-cl = g8core.Client("hostname")
-id = cl.container.create('url to image that has the plugin')
+cl = Client("hostname")
+id = cl.container.create('url to image that has the plugin').get()
 container = cl.container.client(id)
 
 container.raw("ovs.version", {}) ### returns "1.0alpha"

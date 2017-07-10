@@ -1,6 +1,6 @@
 #!/bin/python
 
-from core0 import Client
+from zeroos.core0.client import Client
 import sys
 import time
 
@@ -43,7 +43,7 @@ def main(init=False):
         print("[+] create container")
         container_id = cl.container.create('https://stor.jumpscale.org/stor2/flist/ubuntu-g8os-flist/mongodb-g8os.flist',
                                            mount={"/dev/mongodb_storage": "/mnt/data"},
-                                           zerotier=ZEROTIER)
+                                           zerotier=ZEROTIER).get()
         print("[+] container created, ID: %s" % container_id)
     except Exception as e:
         print("[-] error during container creation: %s" % e)

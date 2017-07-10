@@ -1,6 +1,6 @@
 #!/bin/python
 
-from core0 import Client
+from zeroos.core0.client import Client
 import sys
 import time
 
@@ -26,7 +26,7 @@ def main():
 
     try:
         print("[+] create container")
-        container_id = cl.container.create('https://stor.jumpscale.org/stor2/flist/ubuntu-g8os-flist/ubuntu-g8os.flist', zerotier=ZEROTIER)
+        container_id = cl.container.create('https://stor.jumpscale.org/stor2/flist/ubuntu-g8os-flist/ubuntu-g8os.flist', zerotier=ZEROTIER).get()
         print("[+] container created, ID: %s" % container_id)
     except Exception as e:
         print("[-] error during container creation: %s" % e)

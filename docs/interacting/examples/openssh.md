@@ -31,15 +31,14 @@ nic = [{'type':'default'}, {'type': 'zerotier', 'id': ZEROTIER}]
 
 Create the container:
 ```python
-job = cl.container.create('https://hub.gig.tech/gig-official-apps/ubuntu1604.flist', nics=nic, storage='ardb://hub.gig.tech:16379')
+response = cl.container.create('https://hub.gig.tech/gig-official-apps/ubuntu1604.flist', nics=nic, storage='ardb://hub.gig.tech:16379')
 ```
 
 You will again need to go to `https://my.zerotier.com/network/$ZEROTIER_NETWORK_ID` in order to authorize the join request, this time of your container.
 
 Check the result:
 ```python
-response= job.get(timeout=3660)
-container_id = int(response.data)
+container_id = response.get(timeout=3600)
 ```
 
 List all containers:
@@ -106,13 +105,7 @@ def main():
     try:
         print("[+] Create container")
         nic = [{'type':'default'}, {'type': 'zerotier', 'id': ZEROTIER}]
-        job = cl.container.create('https://hub.gig.tech/gig-official-apps/ubuntu1604.flist', nics=nic, storage='ardb://hub.gig.tech:16379')
-
-        result = job.get(60)
-        if result.state != 'SUCCESS':
-            raise RuntimeError('failed to create container %s' % result.data)
-
-        container_id = json.loads(result.data)
+        container_id = cl.container.create('https://hub.gig.tech/gig-official-apps/ubuntu1604.flist', nics=nic, storage='ardb://hub.gig.tech:16379').get(60)
         print("[+] container created, ID: %s" % container_id)
     except Exception as e:
         print("[-] Error during container creation: %s" % e)
