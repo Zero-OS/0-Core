@@ -133,6 +133,9 @@ func (r *redisStatsBuffer) query(cmd *core.Command) (interface{}, error) {
 					break
 				}
 			}
+			if !m {
+				break
+			}
 		}
 
 		if !m {
