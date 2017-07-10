@@ -5,11 +5,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"net/url"
-	"time"
-	//"os"
 	"regexp"
 	"strings"
-
 	"sync"
 
 	"github.com/libvirt/libvirt-go"
@@ -1352,7 +1349,9 @@ func (m *kvmManager) infops(cmd *core.Command) (interface{}, error) {
 		Command: "aggregator.query",
 		Arguments: core.MustArguments(core.M{
 			//todo: add support to partial key match maybe so we can do 'kvm.*'?
-			"id": params.UUID,
+			"tags": core.M{
+				"id": params.UUID,
+			},
 		}),
 	})
 	if err != nil {
@@ -1364,40 +1363,10 @@ func (m *kvmManager) infops(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	var data map[string]LastStatistics
+	var data interface{}
 	if err := json.Unmarshal([]byte(result.Data), &data); err != nil {
 		return nil, err
 	}
 
-	response := make(map[string]interface{})
-
-	for key, stat := range data {
-		key = strings.Split(key, "/")[0] //drop the ID part
-		m.statToMap(response, key, stat)
-	}
-
-	return response, nil
-}
-
-func (m *kvmManager) statToMap(parent map[string]interface{}, key string, stat LastStatistics) error {
-	path := strings.Split(key, ".")
-	elem := parent
-	for j, l := range path[1:] { //drop prefix 'kvm' is redundant
-		if j != len(path)-1 {
-			var x map[string]interface{}
-			y, ok := elem[l]
-			if !ok {
-				x = make(map[string]interface{})
-				elem[l] = x
-			} else {
-				x = y.(map[string]interface{})
-			}
-			elem = x
-		}
-	}
-
-	if stat.Epoch > time.Now().Unix()-60*5 {
-		elem[path[len(path)-1]] = stat.Last
-	}
-	return nil
+	return data, nil
 }

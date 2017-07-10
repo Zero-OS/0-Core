@@ -135,16 +135,16 @@ func (r *redisStatsBuffer) query(cmd *core.Command) (interface{}, error) {
 			}
 		}
 
+		if !m {
+			continue
+		}
+
 		//get ID if set
 		for _, t := range state.Tags {
 			if t.Key == IDTag {
 				metric = fmt.Sprintf("%s/%s", metric, t.Value)
 				break
 			}
-		}
-
-		if !m {
-			continue
 		}
 
 		result[metric] = state
