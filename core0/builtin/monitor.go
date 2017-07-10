@@ -270,25 +270,29 @@ func (m *monitor) network() error {
 		p.Aggregate(pm.AggreagteDifference,
 			"network.throughput.outgoing",
 			float64(counter.BytesSent)/(1024.*1024.),
-			counter.Name, pm.Tag{"type", link.Type()},
+			counter.Name,
+			pm.Tag{"type", "phys"}, pm.Tag{"kind", link.Type()},
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
 			"network.throughput.incoming",
 			float64(counter.BytesRecv)/(1024.*1024.),
-			counter.Name, pm.Tag{"type", link.Type()},
+			counter.Name,
+			pm.Tag{"type", "phys"}, pm.Tag{"kind", link.Type()},
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
 			"network.packets.tx",
 			float64(counter.PacketsSent),
-			counter.Name, pm.Tag{"type", link.Type()},
+			counter.Name,
+			pm.Tag{"type", "phys"}, pm.Tag{"kind", link.Type()},
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
 			"network.packets.rx",
 			float64(counter.PacketsRecv),
-			counter.Name, pm.Tag{"type", link.Type()},
+			counter.Name,
+			pm.Tag{"type", "phys"}, pm.Tag{"kind", link.Type()},
 		)
 	}
 
