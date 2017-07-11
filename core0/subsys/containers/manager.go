@@ -71,7 +71,8 @@ type ContainerCreateArguments struct {
 	Privileged  bool              `json:"privileged"`   //Apply cgroups and capabilities limitations on the container
 	Hostname    string            `json:"hostname"`     //hostname
 	Storage     string            `json:"storage"`      //ardb storage needed for g8ufs mounts.
-	Tags        []string          `json:"tags"`         //for searching containers
+	Tags        core.Tags         `json:"tags"`         //for searching containers
+	Name        string            `json:"name"`         //for searching containers
 }
 
 type ContainerDispatchArguments struct {

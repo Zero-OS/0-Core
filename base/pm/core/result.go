@@ -42,7 +42,7 @@ type JobResult struct {
 	State     string  `json:"state"`
 	StartTime int64   `json:"starttime"`
 	Time      int64   `json:"time"`
-	Tags      string  `json:"tags"`
+	Tags      Tags    `json:"tags"`
 	Container uint64  `json:"container"`
 }
 

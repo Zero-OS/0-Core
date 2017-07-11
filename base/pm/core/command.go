@@ -6,6 +6,7 @@ import (
 )
 
 type Route string
+type Tags []string
 
 //Cmd is an executable command
 type Command struct {
@@ -16,10 +17,11 @@ type Command struct {
 	StatsInterval   int              `json:"stats_interval,omitempty"`
 	MaxTime         int              `json:"max_time,omitempty"`
 	MaxRestart      int              `json:"max_restart,omitempty"`
+	Name            string           `json:"name"`
 	RecurringPeriod int              `json:"recurring_period,omitempty"`
 	Stream          bool             `json:"stream"`
 	LogLevels       []int            `json:"log_levels,omitempty"`
-	Tags            string           `json:"tags"`
+	Tags            Tags           `json:"tags"`
 
 	Route     Route `json:"-"`
 	Protected bool  `json:"-"`

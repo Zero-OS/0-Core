@@ -658,7 +658,7 @@ class BaseClient:
         """
         return self._ip
 
-    def raw(self, command, arguments, queue=None, max_time=None, stream=False):
+    def raw(self, command, arguments, queue=None, max_time=None, stream=False, tags=None, name=None):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -674,13 +674,13 @@ class BaseClient:
         """
         raise NotImplemented()
 
-    def sync(self, command, arguments):
+    def sync(self, command, arguments, tags=None, name=None):
         """
         Same as self.raw except it do a response.get() waiting for the command execution to finish and reads the result
 
         :return: Result object
         """
-        response = self.raw(command, arguments)
+        response = self.raw(command, arguments, tags=tags, name=name)
 
         result = response.get()
         if result.state != 'SUCCESS':
@@ -688,13 +688,13 @@ class BaseClient:
 
         return result
 
-    def json(self, command, arguments):
+    def json(self, command, arguments, tags=None, name=None):
         """
         Same as self.sync except it assumes the returned result is json, and loads the payload of the return object
         if the returned (data) is not of level (20) an error is raised.
         :Return: Data
         """
-        result = self.sync(command, arguments)
+        result = self.sync(command, arguments, tags=tags, name=name)
         if result.level != 20:
             raise RuntimeError('invalid result level, expecting json(20) got (%d)' % result.level)
 
@@ -714,7 +714,7 @@ class BaseClient:
 
         return json.loads(result.data)
 
-    def system(self, command, dir='', stdin='', env=None, queue=None, max_time=None, stream=False):
+    def system(self, command, dir='', stdin='', env=None, queue=None, max_time=None, stream=False, job_tags=None, job_name=None):
         """
         Execute a command
 
@@ -738,11 +738,11 @@ class BaseClient:
 
         self._system_chk.check(args)
         response = self.raw(command='core.system', arguments=args,
-                            queue=queue, max_time=max_time, stream=stream)
+                            queue=queue, max_time=max_time, stream=stream, tags=job_tags, name=job_name)
 
         return response
 
-    def bash(self, script, stdin='', queue=None, max_time=None, stream=False):
+    def bash(self, script, stdin='', queue=None, max_time=None, stream=False, job_tags=None, job_name=None):
         """
         Execute a bash script, or run a process inside a bash shell.
 
@@ -756,7 +756,7 @@ class BaseClient:
         }
         self._bash_chk.check(args)
         response = self.raw(command='bash', arguments=args,
-                            queue=queue, max_time=max_time, stream=stream)
+                            queue=queue, max_time=max_time, stream=stream, tags=job_tags, name=job_name)
 
         return response
 
@@ -780,7 +780,9 @@ class ContainerClient(BaseClient):
             'arguments': typchk.Any(),
             'queue': typchk.Or(str, typchk.IsNone()),
             'max_time': typchk.Or(int, typchk.IsNone()),
-            'stream': bool
+            'stream': bool,
+            'name': typchk.Or(str, typchk.IsNone()),
+            'tags': typchk.Or([str], typchk.IsNone()),
         }
     })
 
@@ -806,7 +808,7 @@ class ContainerClient(BaseClient):
         """
         return self._zerotier
 
-    def raw(self, command, arguments, queue=None, max_time=None, stream=False):
+    def raw(self, command, arguments, queue=None, max_time=None, stream=False, tags=None, name=None):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -828,6 +830,8 @@ class ContainerClient(BaseClient):
                 'queue': queue,
                 'max_time': max_time,
                 'stream': stream,
+                'tags': tags,
+                'name': name,
             },
         }
 
@@ -877,7 +881,8 @@ class ContainerManager:
             typchk.IsNone()
         ),
         'storage': typchk.Or(str, typchk.IsNone()),
-        'tags': typchk.Or([str], typchk.IsNone())
+        'name': typchk.Or(str, typchk.IsNone()),
+        'tags': typchk.Or([str], typchk.IsNone()),
     })
 
     _client_chk = typchk.Checker(
@@ -902,7 +907,7 @@ class ContainerManager:
     def __init__(self, client):
         self._client = client
 
-    def create(self, root_url, mount=None, host_network=False, nics=DefaultNetworking, port=None, hostname=None, privileged=True, storage=None, tags=None):
+    def create(self, root_url, mount=None, host_network=False, nics=DefaultNetworking, port=None, hostname=None, privileged=True, storage=None, name=None, tags=None):
         """
         Creater a new container with the given root flist, mount points and
         zerotier id, and connected to the given bridges
@@ -953,6 +958,7 @@ class ContainerManager:
             'privileged': privileged,
             'storage': storage,
             'tags': tags,
+            'name': name,
         }
 
         # validate input
@@ -1821,6 +1827,7 @@ class KvmManager:
             typchk.Map(int, int),
             typchk.IsNone()
         ),
+        'tags': typchk.Or([str], typchk.IsNone()),
     })
 
     _domain_action_chk = typchk.Checker({
@@ -1856,7 +1863,7 @@ class KvmManager:
     def __init__(self, client):
         self._client = client
 
-    def create(self, name, media, cpu=2, memory=512, nics=None, port=None):
+    def create(self, name, media, cpu=2, memory=512, nics=None, port=None, tags=None):
         """
         :param name: Name of the kvm domain
         :param media: array of media objects to attach to the machine, where the first object is the boot device
@@ -1887,10 +1894,11 @@ class KvmManager:
             'memory': memory,
             'nics': nics,
             'port': port,
+            'tags': tags,
         }
         self._create_chk.check(args)
 
-        return self._client.sync('kvm.create', args)
+        return self._client.sync('kvm.create', args, tags=tags, name=name)
 
     def destroy(self, uuid):
         """
@@ -2259,6 +2267,16 @@ class Config:
 
 
 class Client(BaseClient):
+    _raw_chk = typchk.Checker({
+        'id': str,
+        'command': str,
+        'arguments': typchk.Any(),
+        'queue': typchk.Or(str, typchk.IsNone()),
+        'max_time': typchk.Or(int, typchk.IsNone()),
+        'stream': bool,
+        'name': typchk.Or(str, typchk.IsNone()),
+        'tags': typchk.Or([str], typchk.IsNone()),
+    })
 
     def __init__(self, host, port=6379, password="", db=0, ssl=True, timeout=None, testConnectionAttempts=3):
         super().__init__(timeout=timeout)
@@ -2366,7 +2384,7 @@ class Client(BaseClient):
         """
         return self._config
 
-    def raw(self, command, arguments, queue=None, max_time=None, stream=False):
+    def raw(self, command, arguments, queue=None, max_time=None, stream=False, tags=None, name=None):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -2389,8 +2407,11 @@ class Client(BaseClient):
             'queue': queue,
             'max_time': max_time,
             'stream': stream,
+            'tags': tags,
+            'name': name,
         }
 
+        self._raw_chk.check(payload)
         flag = 'result:{}:flag'.format(id)
         self._redis.rpush('core:default', json.dumps(payload))
         if self._redis.brpoplpush(flag, flag, DefaultTimeout) is None:

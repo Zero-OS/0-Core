@@ -143,6 +143,7 @@ type CreateParams struct {
 	Media  []Media     `json:"media"`
 	Nics   []Nic       `json:"nics"`
 	Port   map[int]int `json:"port"`
+	Tags   core.Tags   `json:"tags"`
 }
 
 func (c *CreateParams) Valid() error {
