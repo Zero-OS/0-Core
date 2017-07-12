@@ -155,8 +155,8 @@ class BaseTest(unittest.TestCase):
             self.client.bash('rm -rf {}{}'.format(files_loc, f))
         return loop_devs
 
-    def create_container(self, root_url, storage=None, nics=[], host_network=False, tags=None):
-        container = self.client.container.create(root_url=root_url, storage=storage, host_network=host_network, nics=nics, tags=tags)
+    def create_container(self, root_url, storage=None, nics=[], host_network=False, tags=None, privileged=False):
+        container = self.client.container.create(root_url=root_url, storage=storage, host_network=host_network, nics=nics, tags=tags, privileged=privileged)
         return container.get(30)
 
     def get_vm_uuid(self, vm_name):

@@ -13,7 +13,7 @@ class AdvancedNetworking(BaseTest):
         containers = self.client.container.find('ovs')
         ovs_exist = [key for key, value in containers.items()]
         if not ovs_exist:
-            ovs = self.create_container(self.ovs_flist, host_network=True, storage=self.storage, tags=['ovs'])
+            ovs = self.create_container(self.ovs_flist, host_network=True, storage=self.storage, tags=['ovs'], privileged=True)
             self.ovscl = self.client.container.client(ovs)
             time.sleep(2)
             self.ovscl.json('ovs.bridge-add', {"bridge": "backplane"})
