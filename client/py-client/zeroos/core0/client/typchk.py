@@ -6,11 +6,11 @@ def primitive(typ):
     return typ in [str, int, float, bool]
 
 
-class CheckerException(BaseException):
+class CheckerException(Exception):
     pass
 
 
-class Tracker(BaseException):
+class Tracker(Exception):
     def __init__(self, base):
         self._base = base
         self._reason = None

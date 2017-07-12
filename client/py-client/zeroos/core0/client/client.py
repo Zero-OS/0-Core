@@ -907,7 +907,9 @@ class ContainerManager:
     def __init__(self, client):
         self._client = client
 
-    def create(self, root_url, mount=None, host_network=False, nics=DefaultNetworking, port=None, hostname=None, privileged=True, storage=None, name=None, tags=None):
+==== BASE ====
+    def create(self, root_url, mount=None, host_network=False, nics=DefaultNetworking, port=None, hostname=None, privileged=True, storage=None, tags=None):
+==== BASE ====
         """
         Creater a new container with the given root flist, mount points and
         zerotier id, and connected to the given bridges
@@ -2264,6 +2266,42 @@ class Config:
         return self._client.json('config.get', {})
 
 
+class AggregatorManager:
+    _query_chk = typchk.Checker({
+        'key': typchk.Or(str, typchk.IsNone()),
+        'tags': typchk.Map(str, str),
+    })
+
+    def __init__(self, client):
+        self._client = client
+
+    def query(self, key=None, **tags):
+        """
+        Query zero-os aggregator for current state object of monitored metrics.
+        
+        Note: ID is returned as part of the key (if set) to avoid conflict with similar metrics that
+        has same key. For example, a cpu core nr can be the id associated with 'machine.CPU.percent' 
+        so we can return all values for all the core numbers in the same dict.
+        
+        U can filter on the ID as a tag
+        :example:
+            self.query(key=key, id=value)
+            
+        :param key: metric key (ex: machine.memory.ram.available) 
+        :param tags: optional tags filter
+        :return: dict of {
+            'key[/id]': state object
+        }
+        """
+        args = {
+            'key': key,
+            'tags': tags,
+        }
+        self._query_chk.check(args)
+
+        return self._client.json('aggregator.query', args)
+
+
 class Client(BaseClient):
     _raw_chk = typchk.Checker({
         'id': str,
@@ -2298,6 +2336,7 @@ class Client(BaseClient):
         self._logger = Logger(self)
         self._nft = Nft(self)
         self._config = Config(self)
+        self._aggregator = AggregatorManager(self)
 
         if testConnectionAttempts:
             for _ in range(testConnectionAttempts):
@@ -2380,6 +2419,14 @@ class Client(BaseClient):
         :return:
         """
         return self._config
+
+    @property
+    def aggregator(self):
+        """
+        Aggregator manager
+        :return: 
+        """
+        return self._aggregator
 
     def raw(self, command, arguments, queue=None, max_time=None, stream=False, tags=None, id=None):
         """

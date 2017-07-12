@@ -159,7 +159,7 @@ func main() {
 		log.Fatal("failed to intialize container subsystem", err)
 	}
 
-	if err := kvm.KVMSubsystem(sink, contMgr, &row.Cells[1]); err != nil {
+	if err := kvm.KVMSubsystem(contMgr, &row.Cells[1]); err != nil {
 		log.Errorf("failed to initialize kvm subsystem", err)
 	}
 
