@@ -26,6 +26,7 @@ type Runner interface {
 	Process() process.Process
 	Wait() *core.JobResult
 	StartTime() int64
+	Subscribe(stream.MessageHandler)
 
 	start(unprivileged bool)
 }
@@ -36,9 +37,10 @@ type runnerImpl struct {
 	factory process.ProcessFactory
 	kill    chan int
 
-	process   process.Process
-	hooks     []RunnerHook
-	startTime time.Time
+	process     process.Process
+	hooks       []RunnerHook
+	startTime   time.Time
+	subscribers []stream.MessageHandler
 
 	waitOnce sync.Once
 	result   *core.JobResult
@@ -121,6 +123,25 @@ func (process *runnerImpl) setUnprivileged() {
 	for _, c := range bound {
 		syscall.Syscall6(syscall.SYS_PRCTL, syscall.PR_CAPBSET_DROP,
 			c, 0, 0, 0, 0)
+	}
+}
+
+func (runner *runnerImpl) Subscribe(listener stream.MessageHandler) {
+	runner.subscribers = append(runner.subscribers, listener)
+}
+
+func (runner *runnerImpl) callback(msg *stream.Message) {
+	defer func() {
+		//protection against subscriber crashes.
+		if err := recover(); err != nil {
+			log.Warningf("error in subsciber: %v", err)
+		}
+	}()
+
+	//check subscribers here.
+	runner.manager.msgCallback(runner.command, msg)
+	for _, sub := range runner.subscribers {
+		sub(msg)
 	}
 }
 
@@ -211,7 +232,7 @@ loop:
 			}
 
 			//by default, all messages are forwarded to the manager for further processing.
-			runner.manager.msgCallback(runner.command, message)
+			runner.callback(message)
 			if message.Meta.Is(stream.ExitSuccessFlag | stream.ExitErrorFlag) {
 				break loop
 			}
