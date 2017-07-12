@@ -907,9 +907,7 @@ class ContainerManager:
     def __init__(self, client):
         self._client = client
 
-==== BASE ====
-    def create(self, root_url, mount=None, host_network=False, nics=DefaultNetworking, port=None, hostname=None, privileged=True, storage=None, tags=None):
-==== BASE ====
+    def create(self, root_url, mount=None, host_network=False, nics=DefaultNetworking, port=None, hostname=None, privileged=True, storage=None, name=None, tags=None):
         """
         Creater a new container with the given root flist, mount points and
         zerotier id, and connected to the given bridges
