@@ -33,7 +33,7 @@ class Return:
     @property
     def payload(self):
         """
-        Raw return object data  
+        Raw return object data
         :return: dict
         """
         return self._payload
@@ -42,7 +42,7 @@ class Return:
     def id(self):
         """
         Job ID
-        :return: string 
+        :return: string
         """
         return self._payload['id']
 
@@ -51,7 +51,7 @@ class Return:
         """
         Data returned by the process. Only available if process
         output data with the correct core level
-        
+
         For example, if a job returns a json object the self.level will be 20 and the data will contain the serialized
         json object, other levels exists for yaml, toml, etc... it really depends on the running job
         return: python primitive (str, number, dict or array)
@@ -133,7 +133,7 @@ class Response:
     def id(self):
         """
         Job ID
-        :return: string 
+        :return: string
         """
         return self._id
 
@@ -141,7 +141,7 @@ class Response:
     def exists(self):
         """
         Returns true if the job is still running or zero-os still knows about this job ID
-        
+
         After a job is finished, a job remains on zero-os for max of 5min where you still can read the job result
         after the 5 min is gone, the job result is no more fetchable
         :return: bool
@@ -154,7 +154,7 @@ class Response:
     def running(self):
         """
         Returns true if job still in running state
-        :return: 
+        :return:
         """
         r = self._client._redis
         flag = '{}:flag'.format(self._queue)
@@ -207,10 +207,10 @@ class Response:
         """
         Waits for a job to finish (max of given timeout seconds) and return job results. When a job exits get() will
         keep returning the same result until zero-os doesn't remember the job anymore (self.exists == False)
-        
+
         :notes: the timeout here is a client side timeout, it's different than the timeout given to the job on start
         (like in system method) witch will cause the job to be killed if it exceeded this timeout.
-        
+
         :param timeout: max time to wait for the job to finish in seconds
         :return: Return object
         """
@@ -242,49 +242,49 @@ class InfoManager:
     def cpu(self):
         """
         CPU information
-        :return: 
+        :return:
         """
         return self._client.json('info.cpu', {})
 
     def nic(self):
         """
         Return (physical) network devices information including IPs
-        :return: 
+        :return:
         """
         return self._client.json('info.nic', {})
 
     def mem(self):
         """
         Memory information
-        :return: 
+        :return:
         """
         return self._client.json('info.mem', {})
 
     def disk(self):
         """
         Disk information
-        :return: 
+        :return:
         """
         return self._client.json('info.disk', {})
 
     def os(self):
         """
         Operating system info
-        :return: 
+        :return:
         """
         return self._client.json('info.os', {})
 
     def port(self):
         """
         Return information about open ports on the system (similar to netstat)
-        :return: 
+        :return:
         """
         return self._client.json('info.port', {})
 
     def version(self):
         """
         Return OS version
-        :return: 
+        :return:
         """
         return self._client.json('info.version', {})
 
@@ -622,7 +622,7 @@ class BaseClient:
     def info(self):
         """
         info manager
-        :return: 
+        :return:
         """
         return self._info
 
@@ -630,7 +630,7 @@ class BaseClient:
     def job(self):
         """
         job manager
-        :return: 
+        :return:
         """
         return self._job
 
@@ -638,7 +638,7 @@ class BaseClient:
     def process(self):
         """
         process manager
-        :return: 
+        :return:
         """
         return self._process
 
@@ -646,7 +646,7 @@ class BaseClient:
     def filesystem(self):
         """
         filesystem manager
-        :return: 
+        :return:
         """
         return self._filesystem
 
@@ -654,7 +654,7 @@ class BaseClient:
     def ip(self):
         """
         ip manager
-        :return: 
+        :return:
         """
         return self._ip
 
@@ -794,7 +794,7 @@ class ContainerClient(BaseClient):
     @property
     def container(self):
         """
-        :return: container id 
+        :return: container id
         """
         return self._container
 
@@ -802,7 +802,7 @@ class ContainerClient(BaseClient):
     def zerotier(self):
         """
         information about zerotier id
-        :return: 
+        :return:
         """
         return self._zerotier
 
@@ -1016,11 +1016,11 @@ class IPManager:
         def add(self, name, hwaddr=None):
             """
             Add bridge with given name and optional hardware address
-            
+
             For more advanced bridge options please check the `bridge` manager.
             :param name: bridge name
             :param hwaddr: mac address (str)
-            :return: 
+            :return:
             """
             args = {
                 'name': name,
@@ -1031,9 +1031,9 @@ class IPManager:
 
         def delete(self, name):
             """
-            Delete bridge with given name 
+            Delete bridge with given name
             :param name: bridge name to delete
-            :return: 
+            :return:
             """
             args = {
                 'name': name,
@@ -1046,7 +1046,7 @@ class IPManager:
             Add interface to bridge
             :param name: bridge name
             :param inf: interface name to add
-            :return: 
+            :return:
             """
             args = {
                 'name': name,
@@ -1060,7 +1060,7 @@ class IPManager:
             Delete interface from bridge
             :param name: bridge name
             :param inf: interface to remove
-            :return: 
+            :return:
             """
             args = {
                 'name': name,
@@ -1076,9 +1076,9 @@ class IPManager:
         def up(self, link):
             """
             Set interface state to UP
-            
+
             :param link: link/interface name
-            :return: 
+            :return:
             """
             args = {
                 'name': link,
@@ -1088,9 +1088,9 @@ class IPManager:
         def down(self, link):
             """
             Set link/interface state to DOWN
-            
+
             :param link: link/interface name
-            :return: 
+            :return:
             """
             args = {
                 'name': link,
@@ -1100,10 +1100,10 @@ class IPManager:
         def name(self, link, name):
             """
             Rename link
-            
+
             :param link: link to rename
             :param name: new name
-            :return: 
+            :return:
             """
             args = {
                 'name': link,
@@ -1121,10 +1121,10 @@ class IPManager:
         def add(self, link, ip):
             """
             Add IP to link
-            
+
             :param link: link
             :param ip: ip address to add
-            :return: 
+            :return:
             """
             args = {
                 'name': link,
@@ -1135,10 +1135,10 @@ class IPManager:
         def delete(self, link, ip):
             """
             Delete IP from link
-            
+
             :param link: link
             :param ip: ip address to remove
-            :return: 
+            :return:
             """
             args = {
                 'name': link,
@@ -1149,9 +1149,9 @@ class IPManager:
         def list(self, link):
             """
             List IPs of a link
-            
+
             :param link: link name
-            :return: 
+            :return:
             """
             args = {
                 'name': link,
@@ -1165,11 +1165,11 @@ class IPManager:
         def add(self, dev, dst, gw=None):
             """
             Add a route
-            
+
             :param dev: device name
             :param dst: destination network
             :param gw: optional gateway
-            :return: 
+            :return:
             """
             args = {
                 'dev': dev,
@@ -1181,11 +1181,11 @@ class IPManager:
         def delete(self, dev, dst, gw=None):
             """
             Delete a route
-            
+
             :param dev: device name
             :param dst: destination network
             :param gw: optional gateway
-            :return: 
+            :return:
             """
             args = {
                 'dev': dev,
@@ -1208,7 +1208,7 @@ class IPManager:
     def bridge(self):
         """
         Bridge manager
-        :return: 
+        :return:
         """
         return self._bridge
 
@@ -1216,7 +1216,7 @@ class IPManager:
     def link(self):
         """
         Link manager
-        :return: 
+        :return:
         """
         return self._link
 
@@ -1224,7 +1224,7 @@ class IPManager:
     def addr(self):
         """
         Address manager
-        :return: 
+        :return:
         """
         return self._addr
 
@@ -1232,7 +1232,7 @@ class IPManager:
     def route(self):
         """
         Route manager
-        :return: 
+        :return:
         """
         return self._route
 
@@ -1755,46 +1755,46 @@ class ZerotierManager:
 
 class KvmManager:
     _iotune_dict = {
-        'totalbytessecset': bool,
-        'totalbytessec': int,
-        'readbytessecset': bool,
-        'readbytessec': int,
-        'writebytessecset': bool,
-        'writebytessec': int,
-        'totaliopssecset': bool,
-        'totaliopssec': int,
-        'readiopssecset': bool,
-        'readiopssec': int,
-        'writeiopssecset': bool,
-        'writeiopssec': int,
-        'totalbytessecmaxset': bool,
-        'totalbytessecmax': int,
-        'readbytessecmaxset': bool,
-        'readbytessecmax': int,
-        'writebytessecmaxset': bool,
-        'writebytessecmax': int,
-        'totaliopssecmaxset': bool,
-        'totaliopssecmax': int,
-        'readiopssecmaxset': bool,
-        'readiopssecmax': int,
-        'writeiopssecmaxset': bool,
-        'writeiopssecmax': int,
-        'totalbytessecmaxlengthset': bool,
-        'totalbytessecmaxlength': int,
-        'readbytessecmaxlengthset': bool,
-        'readbytessecmaxlength': int,
-        'writebytessecmaxlengthset': bool,
-        'writebytessecmaxlength': int,
-        'totaliopssecmaxlengthset': bool,
-        'totaliopssecmaxlength': int,
-        'readiopssecmaxlengthset': bool,
-        'readiopssecmaxlength': int,
-        'writeiopssecmaxlengthset': bool,
-        'writeiopssecmaxlength': int,
-        'sizeiopssecset': bool,
-        'sizeiopssec': int,
-        'groupnameset': bool,
-        'groupname': str,
+        'totalbytessecset': typchk.Or(bool, typchk.Missing()),
+        'totalbytessec': typchk.Or(int, typchk.Missing()),
+        'readbytessecset': typchk.Or(bool, typchk.Missing()),
+        'readbytessec': typchk.Or(int, typchk.Missing()),
+        'writebytessecset': typchk.Or(bool, typchk.Missing()),
+        'writebytessec': typchk.Or(int, typchk.Missing()),
+        'totaliopssecset': typchk.Or(bool, typchk.Missing()),
+        'totaliopssec': typchk.Or(int, typchk.Missing()),
+        'readiopssecset': typchk.Or(bool, typchk.Missing()),
+        'readiopssec': typchk.Or(int, typchk.Missing()),
+        'writeiopssecset': typchk.Or(bool, typchk.Missing()),
+        'writeiopssec': typchk.Or(int, typchk.Missing()),
+        'totalbytessecmaxset': typchk.Or(bool, typchk.Missing()),
+        'totalbytessecmax': typchk.Or(int, typchk.Missing()),
+        'readbytessecmaxset': typchk.Or(bool, typchk.Missing()),
+        'readbytessecmax': typchk.Or(int, typchk.Missing()),
+        'writebytessecmaxset': typchk.Or(bool, typchk.Missing()),
+        'writebytessecmax': typchk.Or(int, typchk.Missing()),
+        'totaliopssecmaxset': typchk.Or(bool, typchk.Missing()),
+        'totaliopssecmax': typchk.Or(int, typchk.Missing()),
+        'readiopssecmaxset': typchk.Or(bool, typchk.Missing()),
+        'readiopssecmax': typchk.Or(int, typchk.Missing()),
+        'writeiopssecmaxset': typchk.Or(bool, typchk.Missing()),
+        'writeiopssecmax': typchk.Or(int, typchk.Missing()),
+        'totalbytessecmaxlengthset': typchk.Or(bool, typchk.Missing()),
+        'totalbytessecmaxlength': typchk.Or(int, typchk.Missing()),
+        'readbytessecmaxlengthset': typchk.Or(bool, typchk.Missing()),
+        'readbytessecmaxlength': typchk.Or(int, typchk.Missing()),
+        'writebytessecmaxlengthset': typchk.Or(bool, typchk.Missing()),
+        'writebytessecmaxlength': typchk.Or(int, typchk.Missing()),
+        'totaliopssecmaxlengthset': typchk.Or(bool, typchk.Missing()),
+        'totaliopssecmaxlength': typchk.Or(int, typchk.Missing()),
+        'readiopssecmaxlengthset': typchk.Or(bool, typchk.Missing()),
+        'readiopssecmaxlength': typchk.Or(int, typchk.Missing()),
+        'writeiopssecmaxlengthset': typchk.Or(bool, typchk.Missing()),
+        'writeiopssecmaxlength': typchk.Or(int, typchk.Missing()),
+        'sizeiopssecset': typchk.Or(bool, typchk.Missing()),
+        'sizeiopssec': typchk.Or(int, typchk.Missing()),
+        'groupnameset': typchk.Or(bool, typchk.Missing()),
+        'groupname': typchk.Or(str, typchk.Missing()),
     }
     _media_dict = {
         'type': typchk.Or(
@@ -2335,7 +2335,7 @@ class Client(BaseClient):
     def container(self):
         """
         Container manager
-        :return: 
+        :return:
         """
         return self._container_manager
 
@@ -2343,7 +2343,7 @@ class Client(BaseClient):
     def bridge(self):
         """
         Bridge manager
-        :return: 
+        :return:
         """
         return self._bridge_manager
 
@@ -2351,7 +2351,7 @@ class Client(BaseClient):
     def disk(self):
         """
         Disk manager
-        :return: 
+        :return:
         """
         return self._disk_manager
 
@@ -2359,7 +2359,7 @@ class Client(BaseClient):
     def btrfs(self):
         """
         Btrfs manager
-        :return: 
+        :return:
         """
         return self._btrfs_manager
 
@@ -2367,7 +2367,7 @@ class Client(BaseClient):
     def zerotier(self):
         """
         Zerotier manager
-        :return: 
+        :return:
         """
         return self._zerotier
 
@@ -2375,7 +2375,7 @@ class Client(BaseClient):
     def kvm(self):
         """
         KVM manager
-        :return: 
+        :return:
         """
         return self._kvm
 
@@ -2383,7 +2383,7 @@ class Client(BaseClient):
     def logger(self):
         """
         Logger manager
-        :return: 
+        :return:
         """
         return self._logger
 
@@ -2391,7 +2391,7 @@ class Client(BaseClient):
     def nft(self):
         """
         NFT manager
-        :return: 
+        :return:
         """
         return self._nft
 
@@ -2399,7 +2399,7 @@ class Client(BaseClient):
     def config(self):
         """
         Config manager
-        :return: 
+        :return:
         """
         return self._config
 
