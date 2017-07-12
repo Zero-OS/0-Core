@@ -3,39 +3,39 @@ package stream
 import (
 	"bytes"
 	"container/list"
+	"fmt"
 )
 
-type Buffer interface {
-	Append(string)
-	String() string
+type Buffer struct {
+	*list.List
+	size int
 }
 
-type limitedBufferImpl struct {
-	size   int
-	buffer *list.List
-}
-
-func NewBuffer(size int) Buffer {
-	return &limitedBufferImpl{
-		size:   size,
-		buffer: list.New(),
+func NewBuffer(size int) *Buffer {
+	return &Buffer{
+		List: list.New(),
+		size: size,
 	}
 }
 
-func (buffer *limitedBufferImpl) String() string {
+func (b *Buffer) String() string {
 	var strbuf bytes.Buffer
-	for l := buffer.buffer.Front(); l != nil; l = l.Next() {
-		strbuf.WriteString(l.Value.(string))
+	for l := b.Front(); l != nil; l = l.Next() {
+		switch v := l.Value.(type) {
+		case string:
+			strbuf.WriteString(v)
+		default:
+			strbuf.WriteString(fmt.Sprintf("%v", l))
+		}
 		strbuf.WriteString("\n")
 	}
 
 	return strbuf.String()
 }
 
-func (buffer *limitedBufferImpl) Append(line string) {
-	list := buffer.buffer
-	list.PushBack(line)
-	if list.Len() > buffer.size {
-		list.Remove(list.Front())
+func (b *Buffer) Append(o interface{}) {
+	b.PushBack(o)
+	if b.Len() > b.size {
+		b.Remove(b.Front())
 	}
 }
