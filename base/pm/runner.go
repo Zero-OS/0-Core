@@ -209,12 +209,14 @@ loop:
 				ps.Signal(syscall.SIGTERM)
 			}
 			jobresult.State = core.StateKilled
+			runner.callback(stream.MessageExitError)
 			break loop
 		case <-timeout:
 			if ps, ok := ps.(process.Signaler); ok {
 				ps.Signal(syscall.SIGKILL)
 			}
 			jobresult.State = core.StateTimeout
+			runner.callback(stream.MessageExitError)
 			break loop
 		case <-handlersTicker.C:
 			d := time.Now().Sub(runner.startTime)

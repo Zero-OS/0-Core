@@ -123,7 +123,6 @@ class Return:
 
 
 class Response:
-
     def __init__(self, client, id):
         self._client = client
         self._id = id
@@ -163,18 +162,35 @@ class Response:
 
         return False
 
-    def stream(self, out=sys.stdout, err=sys.stderr):
+    def stream(self, callback=None):
         """
-        Runtime copy of job stdout and stderr. This required the 'stream` flag to be set to True otherwise it will
+        Runtime copy of job messages. This required the 'stream` flag to be set to True otherwise it will
         not be able to copy any output, while it will block until the process exits.
 
         :note: This function will block until it reaches end of stream or the process is no longer running.
-
-        :param out: Output stream
-        :param err: Error stream
-
+        
+        :param callback: callback method that will get called for each received message
+                         callback accepts 3 arguments
+                         - level int: the log message levels, refer to the docs for available levels
+                                      and their meanings
+                         - message str: the actual output message
+                         - flags int: flags associated with this message
+                                      - 0x2 means EOF with success exit status
+                                      - 0x4 means EOF with error
+                                      
+                                      for example (eof = flag & 0x6) eof will be true for last message u will ever
+                                      receive on this callback.
+                        
+                         Note: if callback is none, a default callback will be used that prints output on stdout/stderr
+                         based on level.
         :return: None
         """
+        if callback is None:
+            callback = Response.__default
+
+        if not callable(callback):
+            raise Exception('callback must be callable')
+
         queue = 'stream:%s' % self.id
         r = self._client._redis
 
@@ -193,15 +209,16 @@ class Response:
             message = payload['message']
             line = message['message']
             meta = message['meta']
-            if meta & 0x0006 != 0:
-                #eof flags are 0x2 (success) or 0x4 error
-                break
-            level = meta >> 16
-            w = out if level == 1 else err
+            callback(meta >> 16, line, meta & 0xff)
 
-            if w is not None:
-                w.write(line)
-                w.write('\n')
+            if meta & 0x6 != 0:
+                break
+
+    @staticmethod
+    def __default(level, line, meta):
+        w = sys.stdout if level == 1 else sys.stderr
+        w.write(line)
+        w.write('\n')
 
     def get(self, timeout=None):
         """
@@ -759,6 +776,28 @@ class BaseClient:
                             queue=queue, max_time=max_time, stream=stream, tags=tags, id=id)
 
         return response
+
+    def subscribe(self, id):
+        """
+        Subscribes to job logs. It return the subscribe Response object which you will need to call .stream() on
+        to read the output stream of this job.
+        
+        Calling subscribe multiple times will cause different subscriptions on the same job, each subscription will
+        have a copy of this job streams.
+        
+        Note: killing the subscription job will not affect this job, it will also not cause unsubscripe from this stream
+        the subscriptions will die automatically once this job exits.
+        
+        example:
+            job = client.system('long running job')
+            subscription = job.subscribe()
+            
+            subscription.stream() # this will print directly on stdout/stderr check stream docs for more details.
+            
+        :param id: the job ID to subscribe to
+        :return: the subscribe Job object
+        """
+        return self.raw('core.subscribe', {'id': id}, stream=True)
 
 
 class ContainerClient(BaseClient):
