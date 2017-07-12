@@ -687,6 +687,8 @@ class BaseClient:
         :param max_time: kill job server side if it exceeded this amount of seconds
         :param stream: If True, process stdout and stderr are pushed to a special queue (stream:<id>) so
             client can stream output
+        :param tags: job tags
+        :param id: job id. Generated if not supplied
         :return: Response object
         """
         raise NotImplemented()
@@ -694,7 +696,11 @@ class BaseClient:
     def sync(self, command, arguments, tags=None, id=None):
         """
         Same as self.raw except it do a response.get() waiting for the command execution to finish and reads the result
-
+        :param command: Command name to execute supported by the node (ex: core.system, info.cpu, etc...)
+                        check documentation for list of built in commands
+        :param arguments: A dict of required command arguments depends on the command name.
+        :param tags: job tags
+        :param id: job id. Generated if not supplied
         :return: Result object
         """
         response = self.raw(command, arguments, tags=tags, id=id)
@@ -739,6 +745,7 @@ class BaseClient:
         :param dir: CWD of command
         :param stdin: Stdin data to feed to the command stdin
         :param env: dict with ENV variables that will be exported to the command
+        :param id: job id. Auto generated if not defined.
         :return:
         """
         parts = shlex.split(command)
@@ -765,6 +772,7 @@ class BaseClient:
 
         :param script: Script to execute (can be multiline script)
         :param stdin: Stdin data to feed to the script
+        :param id: job id. Auto generated if not defined.
         :return:
         """
         args = {
@@ -860,6 +868,8 @@ class ContainerClient(BaseClient):
         :param max_time: kill job server side if it exceeded this amount of seconds
         :param stream: If True, process stdout and stderr are pushed to a special queue (stream:<id>) so
             client can stream output
+        :param tags: job tags
+        :param id: job id. Generated if not supplied
         :return: Response object
         """
         args = {
@@ -2476,6 +2486,8 @@ class Client(BaseClient):
         :param max_time: kill job server side if it exceeded this amount of seconds
         :param stream: If True, process stdout and stderr are pushed to a special queue (stream:<id>) so
             client can stream output
+        :param tags: job tags
+        :param id: job id. Generated if not supplied
         :return: Response object
         """
         if not id:
