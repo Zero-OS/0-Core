@@ -782,6 +782,8 @@ class ContainerClient(BaseClient):
             'max_time': typchk.Or(int, typchk.IsNone()),
             'stream': bool,
             'tags': typchk.Or([str], typchk.IsNone()),
+            'id': typchk.Or(str, typchk.IsNone()),
+
         }
     })
 

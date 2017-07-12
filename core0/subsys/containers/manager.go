@@ -410,7 +410,9 @@ func (m *containerManager) dispatch(cmd *core.Command) (interface{}, error) {
 		return nil, fmt.Errorf("container does not exist")
 	}
 
-	args.Command.ID = uuid.New()
+	if args.Command.ID == "" {
+		args.Command.ID = uuid.New()
+	}
 
 	if err := m.pushToContainer(cont, &args.Command); err != nil {
 		return nil, err
