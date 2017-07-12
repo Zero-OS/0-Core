@@ -1181,20 +1181,11 @@ func (m *kvmManager) migrate(cmd *core.Command) (interface{}, error) {
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
-	dconn, err := libvirt.NewConnect(params.DestURI)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
-	}
-	defer dconn.Close()
-	dxml, err := domain.GetXMLDesc(libvirt.DOMAIN_XML_MIGRATABLE)
-	if err != nil {
-		return nil, err
-	}
 	name, err := domain.GetName()
 	if err != nil {
 		return nil, err
 	}
-	if _, err = domain.Migrate2(dconn, dxml, libvirt.MIGRATE_LIVE|libvirt.MIGRATE_UNDEFINE_SOURCE, name, "", 10000000000); err != nil {
+	if err = domain.MigrateToURI(params.DestURI, libvirt.MIGRATE_LIVE|libvirt.MIGRATE_UNDEFINE_SOURCE|libvirt.MIGRATE_PEER2PEER|libvirt.MIGRATE_TUNNELLED, name, 10000000000); err != nil {
 		return nil, err
 	}
 	return nil, nil
