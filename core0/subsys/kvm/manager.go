@@ -5,11 +5,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"net/url"
-	"time"
-	//"os"
 	"regexp"
 	"strings"
-
 	"sync"
 
 	"github.com/libvirt/libvirt-go"
@@ -19,7 +16,6 @@ import (
 	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/zero-os/0-core/core0/screen"
 	"github.com/zero-os/0-core/core0/subsys/containers"
-	"github.com/zero-os/0-core/core0/transport"
 )
 
 const (
@@ -38,7 +34,6 @@ type kvmManager struct {
 	m        sync.Mutex
 	libvirt  LibvirtConnection
 
-	sink   *transport.Sink
 	conmgr containers.ContainerManager
 
 	cell *screen.RowCell
@@ -77,10 +72,9 @@ const (
 	DefaultBridgeName = "kvm0"
 )
 
-func KVMSubsystem(sink *transport.Sink, conmgr containers.ContainerManager, cell *screen.RowCell) error {
+func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) error {
 	mgr := &kvmManager{
 		conmgr: conmgr,
-		sink:   sink,
 		cell:   cell,
 	}
 	cell.Text = "Virtual Machines: 0"
@@ -274,8 +268,8 @@ type DomainStatsBlock struct {
 }
 
 type LastStatistics struct {
-	Last  float64 `json:"m_last"`
-	Epoch int64   `json:"m_epoch"`
+	Last  float64 `json:"last_value"`
+	Epoch int64   `json:"last_time"`
 }
 
 type QemuImgInfoResult struct {
@@ -761,9 +755,6 @@ func (m *kvmManager) destroy(cmd *core.Command) (interface{}, error) {
 		return nil, fmt.Errorf("failed to destroy machine: %s", err)
 	}
 	m.unPortForward(uuid)
-	db := m.sink.DB()
-	key := fmt.Sprintf("vm.%s", uuid)
-	db.SClear([]byte(key))
 
 	return nil, nil
 }
@@ -1179,20 +1170,11 @@ func (m *kvmManager) migrate(cmd *core.Command) (interface{}, error) {
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
-	dconn, err := libvirt.NewConnect(params.DestURI)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start a qemu connection: %s", err)
-	}
-	defer dconn.Close()
-	dxml, err := domain.GetXMLDesc(libvirt.DOMAIN_XML_MIGRATABLE)
-	if err != nil {
-		return nil, err
-	}
 	name, err := domain.GetName()
 	if err != nil {
 		return nil, err
 	}
-	if _, err = domain.Migrate2(dconn, dxml, libvirt.MIGRATE_LIVE|libvirt.MIGRATE_UNDEFINE_SOURCE, name, "", 10000000000); err != nil {
+	if err = domain.MigrateToURI(params.DestURI, libvirt.MIGRATE_LIVE|libvirt.MIGRATE_UNDEFINE_SOURCE|libvirt.MIGRATE_PEER2PEER|libvirt.MIGRATE_TUNNELLED, name, 10000000000); err != nil {
 		return nil, err
 	}
 	return nil, nil
@@ -1268,7 +1250,6 @@ func (m *kvmManager) monitor(cmd *core.Command) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	db := m.sink.DB()
 
 	p := pm.GetManager()
 	for _, info := range infos {
@@ -1276,47 +1257,72 @@ func (m *kvmManager) monitor(cmd *core.Command) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		key := fmt.Sprintf("%%s@vm.%s", uuid)
-		domainkey := []byte(fmt.Sprintf("vm.%s", uuid))
-		var toadd string
 
 		for i, vcpu := range info.Vcpu {
-			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.state", i))
-			db.SAdd(domainkey, []byte(toadd))
-			p.Aggregate(pm.AggreagteAverage, toadd, float64(vcpu.State), "")
-			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%d.time", i))
-			db.SAdd(domainkey, []byte(toadd))
-			p.Aggregate(pm.AggreagteDifference, toadd, float64(vcpu.Time)/1000000000, "")
+			nr := fmt.Sprintf("%d", i)
+			p.Aggregate(
+				pm.AggreagteAverage,
+				"kvm.vcpu.state", float64(vcpu.State), uuid,
+				pm.Tag{"type", "virt"}, pm.Tag{"nr", nr},
+			)
+
+			p.Aggregate(
+				pm.AggreagteAverage,
+				"kvm.vcpu.time", float64(vcpu.Time)/1000000000., uuid,
+				pm.Tag{"type", "virt"}, pm.Tag{"nr", nr},
+			)
 		}
 
 		for _, net := range info.Net {
-			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%s.rxbytes", net.Name))
-			db.SAdd(domainkey, []byte(toadd))
-			p.Aggregate(pm.AggreagteDifference, toadd, float64(net.RxBytes), "")
-			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%s.rxpkts", net.Name))
-			db.SAdd(domainkey, []byte(toadd))
-			p.Aggregate(pm.AggreagteDifference, toadd, float64(net.RxPkts), "")
-			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%s.txbytes", net.Name))
-			db.SAdd(domainkey, []byte(toadd))
-			p.Aggregate(pm.AggreagteDifference, toadd, float64(net.TxBytes), "")
-			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%s.txpkts", net.Name))
-			db.SAdd(domainkey, []byte(toadd))
-			p.Aggregate(pm.AggreagteDifference, toadd, float64(net.TxPkts), "")
+			p.Aggregate(
+				pm.AggreagteDifference,
+				"kvm.net.rxbytes", float64(net.RxBytes), uuid,
+				pm.Tag{"type", "virt"}, pm.Tag{"name", net.Name},
+			)
+
+			p.Aggregate(
+				pm.AggreagteDifference,
+				"kvm.net.rxpackets", float64(net.RxPkts), uuid,
+				pm.Tag{"type", "virt"}, pm.Tag{"name", net.Name},
+			)
+
+			p.Aggregate(
+				pm.AggreagteDifference,
+				"kvm.net.txbytes", float64(net.TxBytes), uuid,
+				pm.Tag{"type", "virt"}, pm.Tag{"name", net.Name},
+			)
+
+			p.Aggregate(
+				pm.AggreagteDifference,
+				"kvm.net.txpackets", float64(net.TxPkts), uuid,
+				pm.Tag{"type", "virt"}, pm.Tag{"name", net.Name},
+			)
 		}
 
 		for _, block := range info.Block {
-			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%s.rdbytes", block.Name))
-			db.SAdd(domainkey, []byte(toadd))
-			p.Aggregate(pm.AggreagteDifference, toadd, float64(block.RdBytes), "")
-			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%s.rdtimes", block.Name))
-			db.SAdd(domainkey, []byte(toadd))
-			p.Aggregate(pm.AggreagteDifference, toadd, float64(block.RdTimes), "")
-			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%s.wrbytes", block.Name))
-			db.SAdd(domainkey, []byte(toadd))
-			p.Aggregate(pm.AggreagteDifference, toadd, float64(block.WrBytes), "")
-			toadd = fmt.Sprintf(key, fmt.Sprintf("vcpu.%s.wrtimes", block.Name))
-			db.SAdd(domainkey, []byte(toadd))
-			p.Aggregate(pm.AggreagteDifference, toadd, float64(block.WrTimes), "")
+			p.Aggregate(
+				pm.AggreagteDifference,
+				"kvm.disk.rdbytes", float64(block.RdBytes), block.Name,
+				pm.Tag{"type", "virt"}, pm.Tag{"name", block.Name},
+			)
+
+			p.Aggregate(
+				pm.AggreagteDifference,
+				"kvm.disk.rdtimes", float64(block.RdTimes), block.Name,
+				pm.Tag{"type", "virt"}, pm.Tag{"name", block.Name},
+			)
+
+			p.Aggregate(
+				pm.AggreagteDifference,
+				"kvm.disk.wrbytes", float64(block.WrBytes), block.Name,
+				pm.Tag{"type", "virt"}, pm.Tag{"name", block.Name},
+			)
+
+			p.Aggregate(
+				pm.AggreagteDifference,
+				"kvm.disk.wrtimes", float64(block.WrTimes), block.Name,
+				pm.Tag{"type", "virt"}, pm.Tag{"name", block.Name},
+			)
 		}
 	}
 
@@ -1328,50 +1334,30 @@ func (m *kvmManager) infops(cmd *core.Command) (interface{}, error) {
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
-	db := m.sink.DB()
-	key := fmt.Sprintf("vm.%s", params.UUID)
-	keys, err := db.SMembers([]byte(key))
+
+	runner, err := pm.GetManager().RunCmd(&core.Command{
+		ID:      uuid.New(),
+		Command: "aggregator.query",
+		Arguments: core.MustArguments(core.M{
+			//todo: add support to partial key match maybe so we can do 'kvm.*'?
+			"tags": core.M{
+				"id": params.UUID,
+			},
+		}),
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	response := make(map[string]interface{})
-	for _, bytekey := range keys {
-		rediskey := string(bytekey)
-		key := strings.Split(rediskey, "@")[0]
-		res, err := db.Get([]byte("stats::" + rediskey))
-		if err != nil {
-			return nil, err
-		}
-		if err := redis_stat_to_map(response, key, res); err != nil {
-			return nil, err
-		}
+	result := runner.Wait()
+	if result.State != core.StateSuccess {
+		return nil, err
 	}
-	return response, nil
-}
 
-func redis_stat_to_map(parent map[string]interface{}, key string, val []byte) error {
-	path := strings.Split(key, ".")
-	elem := parent
-	for j, l := range path {
-		if j != len(path)-1 {
-			var x map[string]interface{}
-			y, ok := elem[l]
-			if !ok {
-				x = make(map[string]interface{})
-				elem[l] = x
-			} else {
-				x = y.(map[string]interface{})
-			}
-			elem = x
-		}
+	var data interface{}
+	if err := json.Unmarshal([]byte(result.Data), &data); err != nil {
+		return nil, err
 	}
-	var obj LastStatistics
-	if err := json.Unmarshal(val, &obj); err != nil {
-		return err
-	}
-	if obj.Epoch > time.Now().Unix()-60*5 {
-		elem[path[len(path)-1]] = obj.Last
-	}
-	return nil
+
+	return data, nil
 }

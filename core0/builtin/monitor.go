@@ -11,6 +11,7 @@ import (
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/process"
+	"github.com/zero-os/0-core/base/utils"
 	"io/ioutil"
 	"path"
 	"strconv"
@@ -25,10 +26,26 @@ const (
 	monitorMemory  = "memory"
 )
 
+var (
+	networkMonitorTypes = []string{
+		"device",
+		"bridge",
+		"openvswitch",
+	}
+
+	networkMonitorIgnoreNames = []string{
+		"lo",
+		"ovs-system",
+	}
+)
+
+type Pair [2]string
+
 type monitor struct{}
 
 func init() {
 	m := (*monitor)(nil)
+
 	pm.CmdMap["monitor"] = process.NewInternalProcessFactory(m.monitor)
 }
 
@@ -136,6 +153,7 @@ func (m *monitor) cpu() error {
 	}
 
 	p := pm.GetManager()
+
 	for nr, t := range times {
 		p.Aggregate(pm.AggreagteDifference,
 			"machine.CPU.utilisation",
@@ -233,39 +251,48 @@ func (m *monitor) network() error {
 	}
 
 	p := pm.GetManager()
+
 	for _, counter := range counters {
 		link, err := netlink.LinkByName(counter.Name)
 		if err != nil {
 			continue
 		}
 
-		//only physical devices !
-		if link.Type() != "device" {
+		if utils.InString(networkMonitorIgnoreNames, counter.Name) {
+			continue
+		}
+
+		//only required devices
+		if !utils.InString(networkMonitorTypes, link.Type()) {
 			continue
 		}
 
 		p.Aggregate(pm.AggreagteDifference,
 			"network.throughput.outgoing",
 			float64(counter.BytesSent)/(1024.*1024.),
-			counter.Name, pm.Tag{"type", "phys"},
+			counter.Name,
+			pm.Tag{"type", "phys"}, pm.Tag{"kind", link.Type()},
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
 			"network.throughput.incoming",
 			float64(counter.BytesRecv)/(1024.*1024.),
-			counter.Name, pm.Tag{"type", "phys"},
+			counter.Name,
+			pm.Tag{"type", "phys"}, pm.Tag{"kind", link.Type()},
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
 			"network.packets.tx",
 			float64(counter.PacketsSent),
-			counter.Name, pm.Tag{"type", "phys"},
+			counter.Name,
+			pm.Tag{"type", "phys"}, pm.Tag{"kind", link.Type()},
 		)
 
 		p.Aggregate(pm.AggreagteDifference,
 			"network.packets.rx",
 			float64(counter.PacketsRecv),
-			counter.Name, pm.Tag{"type", "phys"},
+			counter.Name,
+			pm.Tag{"type", "phys"}, pm.Tag{"kind", link.Type()},
 		)
 	}
 
