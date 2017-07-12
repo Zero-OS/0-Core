@@ -1826,7 +1826,6 @@ class KvmManager:
             typchk.Map(int, int),
             typchk.IsNone()
         ),
-        'tags': typchk.Or([str], typchk.IsNone()),
     })
 
     _domain_action_chk = typchk.Checker({

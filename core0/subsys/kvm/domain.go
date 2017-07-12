@@ -87,6 +87,11 @@ const (
 	DiskDeviceTypeCDROM DiskDeviceType = "cdrom"
 )
 
+type MetaData struct {
+	XMLName xml.Name `xml:"tags"`
+	Value   string   `xml:",chardata"`
+}
+
 type Devices struct {
 	Emulator   string            `xml:"emulator"`
 	Graphics   []GraphicsDevice  `xml:"graphics"`
