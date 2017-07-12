@@ -102,8 +102,6 @@ func (r *redisStatsBuffer) query(cmd *core.Command) (interface{}, error) {
 	result := make(map[string]*State)
 
 	for key := range r.cache.Items() {
-		//split into paris
-
 		parts := strings.SplitN(key, KeyIdSep, 3) //formated as `StateKey`
 		metric := parts[1]
 		if len(filter.Key) != 0 {
