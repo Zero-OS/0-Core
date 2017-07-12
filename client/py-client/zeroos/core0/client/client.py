@@ -658,7 +658,7 @@ class BaseClient:
         """
         return self._ip
 
-    def raw(self, command, arguments, queue=None, max_time=None, stream=False, tags=None, name=None):
+    def raw(self, command, arguments, queue=None, max_time=None, stream=False, tags=None, id=None):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -674,13 +674,13 @@ class BaseClient:
         """
         raise NotImplemented()
 
-    def sync(self, command, arguments, tags=None, name=None):
+    def sync(self, command, arguments, tags=None, id=None):
         """
         Same as self.raw except it do a response.get() waiting for the command execution to finish and reads the result
 
         :return: Result object
         """
-        response = self.raw(command, arguments, tags=tags, name=name)
+        response = self.raw(command, arguments, tags=tags, id=id)
 
         result = response.get()
         if result.state != 'SUCCESS':
@@ -688,13 +688,13 @@ class BaseClient:
 
         return result
 
-    def json(self, command, arguments, tags=None, name=None):
+    def json(self, command, arguments, tags=None, id=None):
         """
         Same as self.sync except it assumes the returned result is json, and loads the payload of the return object
         if the returned (data) is not of level (20) an error is raised.
         :Return: Data
         """
-        result = self.sync(command, arguments, tags=tags, name=name)
+        result = self.sync(command, arguments, tags=tags, id=id)
         if result.level != 20:
             raise RuntimeError('invalid result level, expecting json(20) got (%d)' % result.level)
 
@@ -714,7 +714,7 @@ class BaseClient:
 
         return json.loads(result.data)
 
-    def system(self, command, dir='', stdin='', env=None, queue=None, max_time=None, stream=False, job_tags=None, job_name=None):
+    def system(self, command, dir='', stdin='', env=None, queue=None, max_time=None, stream=False, tags=None, id=None):
         """
         Execute a command
 
@@ -738,11 +738,11 @@ class BaseClient:
 
         self._system_chk.check(args)
         response = self.raw(command='core.system', arguments=args,
-                            queue=queue, max_time=max_time, stream=stream, tags=job_tags, name=job_name)
+                            queue=queue, max_time=max_time, stream=stream, tags=tags, id=id)
 
         return response
 
-    def bash(self, script, stdin='', queue=None, max_time=None, stream=False, job_tags=None, job_name=None):
+    def bash(self, script, stdin='', queue=None, max_time=None, stream=False, tags=None, id=None):
         """
         Execute a bash script, or run a process inside a bash shell.
 
@@ -756,7 +756,7 @@ class BaseClient:
         }
         self._bash_chk.check(args)
         response = self.raw(command='bash', arguments=args,
-                            queue=queue, max_time=max_time, stream=stream, tags=job_tags, name=job_name)
+                            queue=queue, max_time=max_time, stream=stream, tags=tags, id=id)
 
         return response
 
@@ -781,7 +781,6 @@ class ContainerClient(BaseClient):
             'queue': typchk.Or(str, typchk.IsNone()),
             'max_time': typchk.Or(int, typchk.IsNone()),
             'stream': bool,
-            'name': typchk.Or(str, typchk.IsNone()),
             'tags': typchk.Or([str], typchk.IsNone()),
         }
     })
@@ -808,7 +807,7 @@ class ContainerClient(BaseClient):
         """
         return self._zerotier
 
-    def raw(self, command, arguments, queue=None, max_time=None, stream=False, tags=None, name=None):
+    def raw(self, command, arguments, queue=None, max_time=None, stream=False, tags=None, id=None):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -831,7 +830,7 @@ class ContainerClient(BaseClient):
                 'max_time': max_time,
                 'stream': stream,
                 'tags': tags,
-                'name': name,
+                'id': id,
             },
         }
 
@@ -882,7 +881,6 @@ class ContainerManager:
         ),
         'storage': typchk.Or(str, typchk.IsNone()),
         'name': typchk.Or(str, typchk.IsNone()),
-        'tags': typchk.Or([str], typchk.IsNone()),
     })
 
     _client_chk = typchk.Checker(
@@ -957,14 +955,13 @@ class ContainerManager:
             'hostname': hostname,
             'privileged': privileged,
             'storage': storage,
-            'tags': tags,
             'name': name,
         }
 
         # validate input
         self._create_chk.check(args)
 
-        response = self._client.raw('corex.create', args)
+        response = self._client.raw('corex.create', args, tags=tags)
 
         return self.ContainerResponse(self._client, response.id)
 
@@ -1894,11 +1891,10 @@ class KvmManager:
             'memory': memory,
             'nics': nics,
             'port': port,
-            'tags': tags,
         }
         self._create_chk.check(args)
 
-        return self._client.sync('kvm.create', args, tags=tags, name=name)
+        return self._client.sync('kvm.create', args, tags=tags)
 
     def destroy(self, uuid):
         """
@@ -2274,7 +2270,6 @@ class Client(BaseClient):
         'queue': typchk.Or(str, typchk.IsNone()),
         'max_time': typchk.Or(int, typchk.IsNone()),
         'stream': bool,
-        'name': typchk.Or(str, typchk.IsNone()),
         'tags': typchk.Or([str], typchk.IsNone()),
     })
 
@@ -2384,7 +2379,7 @@ class Client(BaseClient):
         """
         return self._config
 
-    def raw(self, command, arguments, queue=None, max_time=None, stream=False, tags=None, name=None):
+    def raw(self, command, arguments, queue=None, max_time=None, stream=False, tags=None, id=None):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -2398,7 +2393,8 @@ class Client(BaseClient):
             client can stream output
         :return: Response object
         """
-        id = str(uuid.uuid4())
+        if not id:
+            id = str(uuid.uuid4())
 
         payload = {
             'id': id,
@@ -2408,7 +2404,6 @@ class Client(BaseClient):
             'max_time': max_time,
             'stream': stream,
             'tags': tags,
-            'name': name,
         }
 
         self._raw_chk.check(payload)

@@ -702,6 +702,7 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
+	params.Tags = cmd.Tags
 	if err := params.Valid(); err != nil {
 		return nil, err
 	}

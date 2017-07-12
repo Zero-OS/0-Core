@@ -323,6 +323,7 @@ func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
+	args.Tags = cmd.Tags
 	if err := args.Validate(); err != nil {
 		return nil, err
 	}
