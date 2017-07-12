@@ -38,7 +38,6 @@ func (b *Bootstrap) pluginFactory(plugin *Plugin, fn string) process.ProcessFact
 			StatsInterval:   srcCmd.StatsInterval,
 			MaxTime:         srcCmd.MaxTime,
 			MaxRestart:      srcCmd.MaxRestart,
-			Name:            srcCmd.Name,
 			RecurringPeriod: srcCmd.RecurringPeriod,
 			LogLevels:       srcCmd.LogLevels,
 			Tags:            srcCmd.Tags,
