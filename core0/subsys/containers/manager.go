@@ -39,6 +39,13 @@ const (
 	ContainersHardLimit = 1000
 )
 
+const (
+	NicStateConfigured = NicState("configured")
+	NicStateDestroyed  = NicState("destroyed")
+	NicStateUnknown    = NicState("unknown")
+	NicStateError      = NicState("error")
+)
+
 var (
 	BridgeIP          = []byte{172, 18, 0, 1}
 	DefaultBridgeIP   = fmt.Sprintf("%d.%d.%d.%d", BridgeIP[0], BridgeIP[1], BridgeIP[2], BridgeIP[3])
@@ -56,25 +63,30 @@ type NetworkConfig struct {
 	DNS     []string `json:"dns"`
 }
 
+type NicState string
+
 type Nic struct {
 	Type      string        `json:"type"`
 	ID        string        `json:"id"`
 	HWAddress string        `json:"hwaddr"`
 	Name      string        `json:"name,omitempty"`
 	Config    NetworkConfig `json:"config"`
+
+	State NicState `json:"state"`
 }
 
 type ContainerCreateArguments struct {
 	Root        string            `json:"root"`         //Root plist
 	Mount       map[string]string `json:"mount"`        //data disk mounts.
 	HostNetwork bool              `json:"host_network"` //share host networking stack
-	Nics        []Nic             `json:"nics"`         //network setup (only respected if HostNetwork is false)
+	Nics        []*Nic            `json:"nics"`         //network setup (only respected if HostNetwork is false)
 	Port        map[int]int       `json:"port"`         //port forwards (only if default networking is enabled)
 	Privileged  bool              `json:"privileged"`   //Apply cgroups and capabilities limitations on the container
 	Hostname    string            `json:"hostname"`     //hostname
 	Storage     string            `json:"storage"`      //ardb storage needed for g8ufs mounts.
-	Tags        core.Tags         `json:"tags"`         //for searching containers
 	Name        string            `json:"name"`         //for searching containers
+
+	Tags core.Tags `json:"-"` //for searching containers
 }
 
 type ContainerDispatchArguments struct {
@@ -304,7 +316,7 @@ func (m *containerManager) getNextSequence() uint16 {
 	return m.sequence
 }
 
-func (m *containerManager) set_container(id uint16, c *container) {
+func (m *containerManager) setContainer(id uint16, c *container) {
 	m.conM.Lock()
 	defer m.conM.Unlock()
 	m.containers[id] = c
@@ -313,7 +325,7 @@ func (m *containerManager) set_container(id uint16, c *container) {
 }
 
 //cleanup is called when a container terminates.
-func (m *containerManager) unset_container(id uint16) {
+func (m *containerManager) unsetContainer(id uint16) {
 	m.conM.Lock()
 	defer m.conM.Unlock()
 	delete(m.containers, id)
@@ -341,15 +353,14 @@ func (m *containerManager) nicAdd(cmd *core.Command) (interface{}, error) {
 		return nil, fmt.Errorf("cannot add a nic in host network mode")
 	}
 
-	creationArgs := container.Args
-	creationArgs.Nics = append(creationArgs.Nics, args.Nic)
-
-	if err := creationArgs.Validate(); err != nil {
-		return nil, err
-	}
+	args.Nic.State = NicStateUnknown
 
 	idx := len(container.Args.Nics)
-	container.Args.Nics = creationArgs.Nics
+	container.Args.Nics = append(container.Args.Nics, &args.Nic)
+
+	if err := container.Args.Validate(); err != nil {
+		return nil, err
+	}
 
 	if err := container.preStartNetwork(idx, &args.Nic); err != nil {
 		return nil, err
@@ -363,7 +374,33 @@ func (m *containerManager) nicAdd(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *containerManager) nicRemove(cmd *core.Command) (interface{}, error) {
-	return nil, nil
+	var args struct {
+		Container uint16 `json:"container"`
+		Index     int    `json:"index"`
+	}
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, err
+	}
+
+	m.conM.RLock()
+	defer m.conM.RUnlock()
+	container, ok := m.containers[args.Container]
+	if !ok {
+		return nil, fmt.Errorf("container does not exist")
+	}
+
+	if args.Index < 0 || args.Index >= len(container.Args.Nics) {
+		return nil, fmt.Errorf("nic index out of range")
+	}
+
+	var ovs Container
+	nic := container.Args.Nics[args.Index]
+	if nic.Type == "vlan" || nic.Type == "vxlan" {
+		ovs = m.GetOneWithTags("ovs")
+	}
+
+	return nil, container.unBridge(args.Index, container.Args.Nics[args.Index], ovs)
 }
 
 func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
@@ -390,8 +427,9 @@ func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
 	}
 
 	id := m.getNextSequence()
+	log.Warningf("TAGS: %v (Args: %v)", cmd.Tags, args.Tags)
 	c := newContainer(m, id, cmd.Route, args)
-	m.set_container(id, c)
+	m.setContainer(id, c)
 
 	if err := c.Start(); err != nil {
 		return nil, err

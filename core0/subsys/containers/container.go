@@ -185,7 +185,7 @@ func (c *container) onExit(state bool) {
 
 func (c *container) cleanup() {
 	log.Debugf("cleaning up container-%d", c.id)
-	defer c.mgr.unset_container(c.id)
+	defer c.mgr.unsetContainer(c.id)
 
 	close(c.forwardChan)
 	if c.channel != nil {
