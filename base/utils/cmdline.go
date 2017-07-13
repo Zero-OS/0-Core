@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"github.com/google/shlex"
 	"io/ioutil"
 	"strings"
@@ -25,6 +26,26 @@ func (k KernelOptions) GetLast() map[string]interface{} {
 	}
 
 	return r
+}
+
+func (k KernelOptions) String(keys ...string) string {
+	var s []string
+	for _, key := range keys {
+		values, ok := k[key]
+		if !ok {
+			continue
+		}
+
+		for _, v := range values {
+			if len(v) != 0 {
+				s = append(s, fmt.Sprintf("%s=%s", key, v))
+			} else {
+				s = append(s, key)
+			}
+		}
+	}
+
+	return strings.Join(s, ", ")
 }
 
 func parseKerenlOptions(content string) KernelOptions {

@@ -1,9 +1,10 @@
 package bootstrap
 
 import (
+	"io/ioutil"
+
 	"github.com/zero-os/0-core/base/nft"
 	"github.com/zero-os/0-core/core0/options"
-	"io/ioutil"
 )
 
 var (
@@ -26,7 +27,7 @@ var (
 			},
 		},
 		"filter": nft.Table{
-			Family: nft.FamilyIP,
+			Family: nft.FamilyINET,
 			Chains: nft.Chains{
 				"input": nft.Chain{
 					Type:     nft.TypeFilter,
@@ -36,6 +37,7 @@ var (
 					Rules: []nft.Rule{
 						{Body: "ct state {established, related} accept"},
 						{Body: "iifname lo accept"},
+						{Body: "iifname vxbackend accept"},
 						{Body: "ip protocol icmp accept"},
 					},
 				},
@@ -57,7 +59,7 @@ var (
 
 	zt = nft.Nft{
 		"filter": nft.Table{
-			Family: nft.FamilyIP,
+			Family: nft.FamilyINET,
 			Chains: nft.Chains{
 				"input": nft.Chain{
 					Rules: []nft.Rule{
@@ -71,7 +73,7 @@ var (
 
 	pub = nft.Nft{
 		"filter": nft.Table{
-			Family: nft.FamilyIP,
+			Family: nft.FamilyINET,
 			Chains: nft.Chains{
 				"input": nft.Chain{
 					Rules: []nft.Rule{

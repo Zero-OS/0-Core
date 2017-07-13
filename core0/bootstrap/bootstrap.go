@@ -165,6 +165,35 @@ func (b *Bootstrap) screen() {
 	}
 }
 
+func (b *Bootstrap) watchers() {
+	screen.Push(&screen.SplitterSection{
+		Title: "Zerotier Info",
+	})
+	section := screen.TextSection{}
+	screen.Push(&section)
+
+	go func() {
+		for {
+			result, err := pm.GetManager().System("zerotier-cli", "-D/tmp/zt", "info")
+			var current string
+			if err != nil {
+				current = fmt.Sprintf("Cannot show zerotier info due too error: %s",
+					strings.TrimSpace(result.Streams.Stderr()),
+				)
+			}
+
+			current = strings.TrimSpace(result.Streams.Stdout())
+
+			if current != section.Text {
+				section.Text = current
+				screen.Refresh()
+			}
+
+			<-time.After(30 * time.Second)
+		}
+	}()
+}
+
 //Bootstrap registers extensions and startup system services.
 func (b *Bootstrap) Bootstrap() {
 	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &syscall.Rlimit{65536, 65536}); err != nil {
@@ -221,5 +250,8 @@ func (b *Bootstrap) Bootstrap() {
 
 	progress.Text = "Bootstrapping: Done"
 	progress.Stop(true)
+
+	b.watchers()
+
 	screen.Refresh()
 }

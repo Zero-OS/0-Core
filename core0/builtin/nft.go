@@ -88,7 +88,7 @@ func (b *nftMgr) openPort(cmd *core.Command) (interface{}, error) {
 
 	n := nft.Nft{
 		"filter": nft.Table{
-			Family: nft.FamilyIP,
+			Family: nft.FamilyINET,
 			Chains: nft.Chains{
 				"input": nft.Chain{
 					Rules: []nft.Rule{
@@ -117,7 +117,7 @@ func (b *nftMgr) dropPort(cmd *core.Command) (interface{}, error) {
 
 	n := nft.Nft{
 		"filter": nft.Table{
-			Family: nft.FamilyIP,
+			Family: nft.FamilyINET,
 			Chains: nft.Chains{
 				"input": nft.Chain{
 					Rules: []nft.Rule{
@@ -141,7 +141,7 @@ func (b *nftMgr) listPorts(cmd *core.Command) (interface{}, error) {
 	defer b.m.RUnlock()
 
 	ports := make([]string, 0, len(b.rules))
-	for port, _ := range b.rules {
+	for port := range b.rules {
 		ports = append(ports, port)
 	}
 	return ports, nil
