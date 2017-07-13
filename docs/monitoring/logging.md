@@ -93,9 +93,11 @@ job = client.system('ping google.com', stream=True)
 job.stream() # this will start printing ping output in real time on screen. Check stream docstr
 ```
 
+Check [Streaming docs](../interacting/streaming.md) for more details
+ 
 ## Subscribers
 Although streams is useful in most cases, sometimes we need to process the output stream of a job
-by multiple `subscribers`, streams support described above has the following pros:
+by multiple `subscribers`, streams support described above has the following cons:
 
 - Only one receiver can listen to job output stream
 - Enabling streams has to be planned a head starting the job with the stream flags, once started
