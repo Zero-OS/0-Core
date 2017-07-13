@@ -16,6 +16,7 @@ const (
 	FamilyIP     = Family("ip")
 	FamilyIP6    = Family("ip6")
 	FamilyNET    = Family("net")
+	FamilyINET   = Family("inet")
 	FamilyARP    = Family("arp")
 	FamilyBridge = Family("bridge")
 

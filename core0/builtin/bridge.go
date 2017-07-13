@@ -3,12 +3,6 @@ package builtin
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/vishvananda/netlink"
-	"github.com/zero-os/0-core/base/nft"
-	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
-	"github.com/zero-os/0-core/base/utils"
 	"io/ioutil"
 	"net"
 	"os"
@@ -16,6 +10,13 @@ import (
 	"regexp"
 	"sync"
 	"syscall"
+
+	"github.com/vishvananda/netlink"
+	"github.com/zero-os/0-core/base/nft"
+	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm/process"
+	"github.com/zero-os/0-core/base/utils"
 )
 
 type bridgeMgr struct {
@@ -478,7 +479,7 @@ func (b *bridgeMgr) nft(br string) error {
 			},
 		},
 		"filter": nft.Table{
-			Family: nft.FamilyIP,
+			Family: nft.FamilyINET,
 			Chains: nft.Chains{
 				"input": nft.Chain{
 					Rules: []nft.Rule{
