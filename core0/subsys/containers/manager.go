@@ -71,7 +71,8 @@ type ContainerCreateArguments struct {
 	Privileged  bool              `json:"privileged"`   //Apply cgroups and capabilities limitations on the container
 	Hostname    string            `json:"hostname"`     //hostname
 	Storage     string            `json:"storage"`      //ardb storage needed for g8ufs mounts.
-	Tags        []string          `json:"tags"`         //for searching containers
+	Tags        core.Tags         `json:"tags"`         //for searching containers
+	Name        string            `json:"name"`         //for searching containers
 }
 
 type ContainerDispatchArguments struct {
@@ -322,6 +323,7 @@ func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
+	args.Tags = cmd.Tags
 	if err := args.Validate(); err != nil {
 		return nil, err
 	}
@@ -408,7 +410,9 @@ func (m *containerManager) dispatch(cmd *core.Command) (interface{}, error) {
 		return nil, fmt.Errorf("container does not exist")
 	}
 
-	args.Command.ID = uuid.New()
+	if args.Command.ID == "" {
+		args.Command.ID = uuid.New()
+	}
 
 	if err := m.pushToContainer(cont, &args.Command); err != nil {
 		return nil, err

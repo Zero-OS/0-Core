@@ -13,13 +13,40 @@ import (
 Runnable represents a runnable built in function that can be managed by the process manager.
 */
 type Runnable func(*core.Command) (interface{}, error)
+type RunnableWithCtx func(*Context) (interface{}, error)
+
+type Context struct {
+	Command *core.Command
+
+	ch chan *stream.Message
+}
+
+func (c *Context) Message(msg *stream.Message) {
+	c.ch <- msg
+}
+
+func (c *Context) Log(text string, level ...uint16) {
+	//optional level
+	var l uint16 = stream.LevelStdout
+
+	if len(level) == 1 {
+		l = level[0]
+	} else if len(level) > 1 {
+		panic("only a single optional level is allowed")
+	}
+
+	c.Message(&stream.Message{
+		Message: text,
+		Meta:    stream.NewMeta(l),
+	})
+}
 
 /*
 internalProcess implements a Procss interface and represents an internal (go) process that can be managed by the process manager
 */
 type internalProcess struct {
-	runnable Runnable
-	cmd      *core.Command
+	runnable interface{}
+	ctx      Context
 }
 
 /*
@@ -29,7 +56,22 @@ func NewInternalProcessFactory(runnable Runnable) ProcessFactory {
 	factory := func(_ PIDTable, cmd *core.Command) Process {
 		return &internalProcess{
 			runnable: runnable,
-			cmd:      cmd,
+			ctx: Context{
+				Command: cmd,
+			},
+		}
+	}
+
+	return factory
+}
+
+func NewInternalProcessFactoryWithCtx(runnable RunnableWithCtx) ProcessFactory {
+	factory := func(_ PIDTable, cmd *core.Command) Process {
+		return &internalProcess{
+			runnable: runnable,
+			ctx: Context{
+				Command: cmd,
+			},
 		}
 	}
 
@@ -40,7 +82,7 @@ func NewInternalProcessFactory(runnable Runnable) ProcessFactory {
 Cmd returns the internal process command
 */
 func (process *internalProcess) Command() *core.Command {
-	return process.cmd
+	return process.ctx.Command
 }
 
 /*
@@ -49,6 +91,7 @@ Run runs the internal process
 func (process *internalProcess) Run() (<-chan *stream.Message, error) {
 
 	channel := make(chan *stream.Message)
+	process.ctx.ch = channel
 
 	go func(channel chan *stream.Message) {
 		defer func() {
@@ -66,7 +109,15 @@ func (process *internalProcess) Run() (<-chan *stream.Message, error) {
 			close(channel)
 		}()
 
-		value, err := process.runnable(process.cmd)
+		var value interface{}
+		var err error
+		switch runnable := process.runnable.(type) {
+		case Runnable:
+			value, err = runnable(process.ctx.Command)
+		case RunnableWithCtx:
+			value, err = runnable(&process.ctx)
+		}
+
 		msg := stream.Message{
 			Meta: stream.NewMeta(stream.LevelResultJSON),
 		}

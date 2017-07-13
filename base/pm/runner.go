@@ -15,7 +15,8 @@ import (
 )
 
 const (
-	StreamBufferSize = 1000
+	StandardStreamBufferSize = 1000 //buffer size for each of stdout and stderr
+	GenericStreamBufferSize  = 100  //we only keep last 100 message of all types.
 
 	meterPeriod = 30 * time.Second
 )
@@ -26,6 +27,7 @@ type Runner interface {
 	Process() process.Process
 	Wait() *core.JobResult
 	StartTime() int64
+	Subscribe(stream.MessageHandler)
 
 	start(unprivileged bool)
 }
@@ -36,9 +38,11 @@ type runnerImpl struct {
 	factory process.ProcessFactory
 	kill    chan int
 
-	process   process.Process
-	hooks     []RunnerHook
-	startTime time.Time
+	process     process.Process
+	hooks       []RunnerHook
+	startTime   time.Time
+	backlog     *stream.Buffer
+	subscribers []stream.MessageHandler
 
 	waitOnce sync.Once
 	result   *core.JobResult
@@ -69,6 +73,7 @@ func NewRunner(manager *PM, command *core.Command, factory process.ProcessFactor
 		factory: factory,
 		kill:    make(chan int),
 		hooks:   hooks,
+		backlog: stream.NewBuffer(GenericStreamBufferSize),
 	}
 
 	runner.wg.Add(1)
@@ -124,6 +129,33 @@ func (process *runnerImpl) setUnprivileged() {
 	}
 }
 
+func (runner *runnerImpl) Subscribe(listener stream.MessageHandler) {
+	//TODO: a race condition might happen here because, while we send the backlog
+	//a new message might arrive and missed by this listener
+	for l := runner.backlog.Front(); l != nil; l = l.Next() {
+		switch v := l.Value.(type) {
+		case *stream.Message:
+			listener(v)
+		}
+	}
+	runner.subscribers = append(runner.subscribers, listener)
+}
+
+func (runner *runnerImpl) callback(msg *stream.Message) {
+	defer func() {
+		//protection against subscriber crashes.
+		if err := recover(); err != nil {
+			log.Warningf("error in subsciber: %v", err)
+		}
+	}()
+
+	//check subscribers here.
+	runner.manager.msgCallback(runner.command, msg)
+	for _, sub := range runner.subscribers {
+		sub(msg)
+	}
+}
+
 func (runner *runnerImpl) run(unprivileged bool) (jobresult *core.JobResult) {
 	runner.startTime = time.Now()
 	jobresult = core.NewBasicJobResult(runner.command)
@@ -162,8 +194,8 @@ func (runner *runnerImpl) run(unprivileged bool) (jobresult *core.JobResult) {
 	var result *stream.Message
 	var critical string
 
-	stdoutBuffer := stream.NewBuffer(StreamBufferSize)
-	stderrBuffer := stream.NewBuffer(StreamBufferSize)
+	stdout := stream.NewBuffer(StandardStreamBufferSize)
+	stderr := stream.NewBuffer(StandardStreamBufferSize)
 
 	timeout := runner.timeout()
 
@@ -177,12 +209,14 @@ loop:
 				ps.Signal(syscall.SIGTERM)
 			}
 			jobresult.State = core.StateKilled
+			runner.callback(stream.MessageExitError)
 			break loop
 		case <-timeout:
 			if ps, ok := ps.(process.Signaler); ok {
 				ps.Signal(syscall.SIGKILL)
 			}
 			jobresult.State = core.StateTimeout
+			runner.callback(stream.MessageExitError)
 			break loop
 		case <-handlersTicker.C:
 			d := time.Now().Sub(runner.startTime)
@@ -190,6 +224,8 @@ loop:
 				go hook.Tick(d)
 			}
 		case message := <-channel:
+			runner.backlog.Append(message)
+
 			//messages with Exit flags are always the last.
 			if message.Meta.Is(stream.ExitSuccessFlag) {
 				jobresult.State = core.StateSuccess
@@ -199,9 +235,9 @@ loop:
 				//a result message.
 				result = message
 			} else if message.Meta.Assert(stream.LevelStdout) {
-				stdoutBuffer.Append(message.Message)
+				stdout.Append(message.Message)
 			} else if message.Meta.Assert(stream.LevelStderr) {
-				stderrBuffer.Append(message.Message)
+				stderr.Append(message.Message)
 			} else if message.Meta.Assert(stream.LevelCritical) {
 				critical = message.Message
 			}
@@ -211,7 +247,7 @@ loop:
 			}
 
 			//by default, all messages are forwarded to the manager for further processing.
-			runner.manager.msgCallback(runner.command, message)
+			runner.callback(message)
 			if message.Meta.Is(stream.ExitSuccessFlag | stream.ExitErrorFlag) {
 				break loop
 			}
@@ -231,8 +267,8 @@ loop:
 	}
 
 	jobresult.Streams = core.Streams{
-		stdoutBuffer.String(),
-		stderrBuffer.String(),
+		stdout.String(),
+		stderr.String(),
 	}
 
 	jobresult.Critical = critical

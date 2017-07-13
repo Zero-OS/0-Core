@@ -77,3 +77,50 @@ By default messages that are output on `stdout` stream are considered level `1`,
 - 22: result message, toml
 - 23: result message, hrd
 - 30: job, json (full result of a job)
+
+
+## Streams
+The Ledis logger aggregate all logs from all process to a single queue so a system like `logstash` will be
+able to pull the logs from _all_ the jobs running on the system. There is another way to read streams 
+of a single process in runtime.
+
+Once `stream` flag is set on a command, zero-os will make sure this command logs are sent to a separate queue for that
+job (also to the aggregated queue). The client already exposes a stream method to read the output stream of a job
+
+```python
+job = client.system('ping google.com', stream=True)
+
+job.stream() # this will start printing ping output in real time on screen. Check stream docstr
+```
+
+Check [Streaming docs](../interacting/streaming.md) for more details
+ 
+## Subscribers
+Although streams is useful in most cases, sometimes we need to process the output stream of a job
+by multiple `subscribers`, streams support described above has the following cons:
+
+- Only one receiver can listen to job output stream
+- Enabling streams has to be planned a head starting the job with the stream flags, once started
+  the state of the flag can't be changed.
+
+Subscribers on the other hand, allows anyone (also any number of the subscribers) to hook to the streams of any job
+
+```python
+job = client.system('ping google.com')
+
+subscriber = job.subscribe()
+
+subscriber.stream() # this again, will print the ping output in real time on screen. Check stream docstr
+```
+
+In another process/thread u can safely start another subscriber on the same job
+
+```python
+job = client.response_for('job id')
+
+subscriber = job.subscribe()
+subscriber.stream() # this again, will print the ping output in real time on screen. Check stream docstr
+```
+
+> Currently there is noway to un-subscribe from a job stream, subscriber job will terminate automatically
+once the watched job exits. Also killing a subscriber job won't stop it or affect the watched job by any means.

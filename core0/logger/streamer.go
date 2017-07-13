@@ -42,11 +42,6 @@ func (l *streamLogger) LogRecord(record *LogRecord) {
 		return
 	}
 
-	if !record.Message.Meta.Assert(stream.LevelStdout, stream.LevelStderr) {
-		//wrong message level (only stream stdout, stderr)
-		return
-	}
-
 	l.ch <- record
 }
 

@@ -22,6 +22,8 @@ const (
 	BaseMACAddress = "00:28:06:82:%02x:%02x"
 
 	BaseIPAddr = "172.19.%d.%d"
+	metadataKey = "zero-os"
+	metadataUri = "https://github.com/zero-os/0-core"
 )
 
 type LibvirtConnection struct {
@@ -137,6 +139,7 @@ type CreateParams struct {
 	Media  []Media     `json:"media"`
 	Nics   []Nic       `json:"nics"`
 	Port   map[int]int `json:"port"`
+	Tags   core.Tags   `json:"tags"`
 }
 
 func (c *CreateParams) Valid() error {
@@ -695,6 +698,7 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
+	params.Tags = cmd.Tags
 	if err := params.Valid(); err != nil {
 		return nil, err
 	}
@@ -723,6 +727,27 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 	_, err = conn.DomainCreateXML(string(data), libvirt.DOMAIN_NONE)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create machine: %s", err)
+	}
+
+	dom, err := conn.LookupDomainByUUIDString(domain.UUID)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't find domain with the uuid %s", domain.UUID)
+	}
+
+	tags, err := json.Marshal(&params.Tags)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't marshal tags for domain with the uuid %s", domain.UUID)
+	}
+
+	metaData := MetaData{Value:string(tags)}
+	metaXML, err := xml.Marshal(&metaData)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't marshal metadata for domain with the uuid %s", domain.UUID)
+	}
+
+	err = dom.SetMetadata(libvirt.DOMAIN_METADATA_ELEMENT,string(metaXML), metadataKey, metadataUri, libvirt.DOMAIN_AFFECT_LIVE)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't set metadata for domain with the uuid %s", domain.UUID)
 	}
 
 	return domain.UUID, nil
@@ -1186,6 +1211,7 @@ type Machine struct {
 	Name  string `json:"name"`
 	State string `json:"state"`
 	Vnc   int    `json:"vnc"`
+	Tags core.Tags `json:"tags"`
 }
 
 func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
@@ -1228,12 +1254,29 @@ func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
 				break
 			}
 		}
+		domainMetaData, err := domain.GetMetadata(libvirt.DOMAIN_METADATA_ELEMENT, metadataUri, libvirt.DOMAIN_AFFECT_LIVE)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't get metadata for domain with the uuid %s", uuid)
+		}
+
+		var metaData MetaData
+		err = xml.Unmarshal([]byte(domainMetaData), &metaData)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't xml unmarshal metadata for domain with the uuid %s", uuid)
+		}
+		var tags core.Tags
+		err = json.Unmarshal([]byte(metaData.Value), &tags)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't json unmarshal tags for domain with the uuid %s", uuid)
+		}
+
 		found = append(found, Machine{
 			ID:    int(id),
 			UUID:  uuid,
 			Name:  name,
 			State: StateToString(state),
 			Vnc:   port,
+			Tags: tags,
 		})
 	}
 

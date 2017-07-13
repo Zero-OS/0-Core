@@ -123,7 +123,6 @@ class Return:
 
 
 class Response:
-
     def __init__(self, client, id):
         self._client = client
         self._id = id
@@ -163,18 +162,35 @@ class Response:
 
         return False
 
-    def stream(self, out=sys.stdout, err=sys.stderr):
+    def stream(self, callback=None):
         """
-        Runtime copy of job stdout and stderr. This required the 'stream` flag to be set to True otherwise it will
+        Runtime copy of job messages. This required the 'stream` flag to be set to True otherwise it will
         not be able to copy any output, while it will block until the process exits.
 
         :note: This function will block until it reaches end of stream or the process is no longer running.
-
-        :param out: Output stream
-        :param err: Error stream
-
+        
+        :param callback: callback method that will get called for each received message
+                         callback accepts 3 arguments
+                         - level int: the log message levels, refer to the docs for available levels
+                                      and their meanings
+                         - message str: the actual output message
+                         - flags int: flags associated with this message
+                                      - 0x2 means EOF with success exit status
+                                      - 0x4 means EOF with error
+                                      
+                                      for example (eof = flag & 0x6) eof will be true for last message u will ever
+                                      receive on this callback.
+                        
+                         Note: if callback is none, a default callback will be used that prints output on stdout/stderr
+                         based on level.
         :return: None
         """
+        if callback is None:
+            callback = Response.__default
+
+        if not callable(callback):
+            raise Exception('callback must be callable')
+
         queue = 'stream:%s' % self.id
         r = self._client._redis
 
@@ -193,15 +209,16 @@ class Response:
             message = payload['message']
             line = message['message']
             meta = message['meta']
-            if meta & 0x0006 != 0:
-                #eof flags are 0x2 (success) or 0x4 error
-                break
-            level = meta >> 16
-            w = out if level == 1 else err
+            callback(meta >> 16, line, meta & 0xff)
 
-            if w is not None:
-                w.write(line)
-                w.write('\n')
+            if meta & 0x6 != 0:
+                break
+
+    @staticmethod
+    def __default(level, line, meta):
+        w = sys.stdout if level == 1 else sys.stderr
+        w.write(line)
+        w.write('\n')
 
     def get(self, timeout=None):
         """
@@ -658,7 +675,7 @@ class BaseClient:
         """
         return self._ip
 
-    def raw(self, command, arguments, queue=None, max_time=None, stream=False):
+    def raw(self, command, arguments, queue=None, max_time=None, stream=False, tags=None, id=None):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -670,17 +687,23 @@ class BaseClient:
         :param max_time: kill job server side if it exceeded this amount of seconds
         :param stream: If True, process stdout and stderr are pushed to a special queue (stream:<id>) so
             client can stream output
+        :param tags: job tags
+        :param id: job id. Generated if not supplied
         :return: Response object
         """
         raise NotImplemented()
 
-    def sync(self, command, arguments):
+    def sync(self, command, arguments, tags=None, id=None):
         """
         Same as self.raw except it do a response.get() waiting for the command execution to finish and reads the result
-
+        :param command: Command name to execute supported by the node (ex: core.system, info.cpu, etc...)
+                        check documentation for list of built in commands
+        :param arguments: A dict of required command arguments depends on the command name.
+        :param tags: job tags
+        :param id: job id. Generated if not supplied
         :return: Result object
         """
-        response = self.raw(command, arguments)
+        response = self.raw(command, arguments, tags=tags, id=id)
 
         result = response.get()
         if result.state != 'SUCCESS':
@@ -688,13 +711,13 @@ class BaseClient:
 
         return result
 
-    def json(self, command, arguments):
+    def json(self, command, arguments, tags=None, id=None):
         """
         Same as self.sync except it assumes the returned result is json, and loads the payload of the return object
         if the returned (data) is not of level (20) an error is raised.
         :Return: Data
         """
-        result = self.sync(command, arguments)
+        result = self.sync(command, arguments, tags=tags, id=id)
         if result.level != 20:
             raise RuntimeError('invalid result level, expecting json(20) got (%d)' % result.level)
 
@@ -714,7 +737,7 @@ class BaseClient:
 
         return json.loads(result.data)
 
-    def system(self, command, dir='', stdin='', env=None, queue=None, max_time=None, stream=False):
+    def system(self, command, dir='', stdin='', env=None, queue=None, max_time=None, stream=False, tags=None, id=None):
         """
         Execute a command
 
@@ -722,6 +745,7 @@ class BaseClient:
         :param dir: CWD of command
         :param stdin: Stdin data to feed to the command stdin
         :param env: dict with ENV variables that will be exported to the command
+        :param id: job id. Auto generated if not defined.
         :return:
         """
         parts = shlex.split(command)
@@ -738,16 +762,17 @@ class BaseClient:
 
         self._system_chk.check(args)
         response = self.raw(command='core.system', arguments=args,
-                            queue=queue, max_time=max_time, stream=stream)
+                            queue=queue, max_time=max_time, stream=stream, tags=tags, id=id)
 
         return response
 
-    def bash(self, script, stdin='', queue=None, max_time=None, stream=False):
+    def bash(self, script, stdin='', queue=None, max_time=None, stream=False, tags=None, id=None):
         """
         Execute a bash script, or run a process inside a bash shell.
 
         :param script: Script to execute (can be multiline script)
         :param stdin: Stdin data to feed to the script
+        :param id: job id. Auto generated if not defined.
         :return:
         """
         args = {
@@ -756,9 +781,31 @@ class BaseClient:
         }
         self._bash_chk.check(args)
         response = self.raw(command='bash', arguments=args,
-                            queue=queue, max_time=max_time, stream=stream)
+                            queue=queue, max_time=max_time, stream=stream, tags=tags, id=id)
 
         return response
+
+    def subscribe(self, id):
+        """
+        Subscribes to job logs. It return the subscribe Response object which you will need to call .stream() on
+        to read the output stream of this job.
+        
+        Calling subscribe multiple times will cause different subscriptions on the same job, each subscription will
+        have a copy of this job streams.
+        
+        Note: killing the subscription job will not affect this job, it will also not cause unsubscripe from this stream
+        the subscriptions will die automatically once this job exits.
+        
+        example:
+            job = client.system('long running job')
+            subscription = job.subscribe()
+            
+            subscription.stream() # this will print directly on stdout/stderr check stream docs for more details.
+            
+        :param id: the job ID to subscribe to
+        :return: the subscribe Job object
+        """
+        return self.raw('core.subscribe', {'id': id}, stream=True)
 
 
 class ContainerClient(BaseClient):
@@ -780,7 +827,10 @@ class ContainerClient(BaseClient):
             'arguments': typchk.Any(),
             'queue': typchk.Or(str, typchk.IsNone()),
             'max_time': typchk.Or(int, typchk.IsNone()),
-            'stream': bool
+            'stream': bool,
+            'tags': typchk.Or([str], typchk.IsNone()),
+            'id': typchk.Or(str, typchk.IsNone()),
+
         }
     })
 
@@ -806,7 +856,7 @@ class ContainerClient(BaseClient):
         """
         return self._zerotier
 
-    def raw(self, command, arguments, queue=None, max_time=None, stream=False):
+    def raw(self, command, arguments, queue=None, max_time=None, stream=False, tags=None, id=None):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -818,6 +868,8 @@ class ContainerClient(BaseClient):
         :param max_time: kill job server side if it exceeded this amount of seconds
         :param stream: If True, process stdout and stderr are pushed to a special queue (stream:<id>) so
             client can stream output
+        :param tags: job tags
+        :param id: job id. Generated if not supplied
         :return: Response object
         """
         args = {
@@ -828,6 +880,8 @@ class ContainerClient(BaseClient):
                 'queue': queue,
                 'max_time': max_time,
                 'stream': stream,
+                'tags': tags,
+                'id': id,
             },
         }
 
@@ -877,7 +931,7 @@ class ContainerManager:
             typchk.IsNone()
         ),
         'storage': typchk.Or(str, typchk.IsNone()),
-        'tags': typchk.Or([str], typchk.IsNone())
+        'name': typchk.Or(str, typchk.IsNone()),
     })
 
     _client_chk = typchk.Checker(
@@ -902,7 +956,7 @@ class ContainerManager:
     def __init__(self, client):
         self._client = client
 
-    def create(self, root_url, mount=None, host_network=False, nics=DefaultNetworking, port=None, hostname=None, privileged=False, storage=None, tags=None):
+    def create(self, root_url, mount=None, host_network=False, nics=DefaultNetworking, port=None, hostname=None, privileged=False, storage=None, name=None, tags=None):
         """
         Creater a new container with the given root flist, mount points and
         zerotier id, and connected to the given bridges
@@ -952,13 +1006,13 @@ class ContainerManager:
             'hostname': hostname,
             'privileged': privileged,
             'storage': storage,
-            'tags': tags,
+            'name': name,
         }
 
         # validate input
         self._create_chk.check(args)
 
-        response = self._client.raw('corex.create', args)
+        response = self._client.raw('corex.create', args, tags=tags)
 
         return self.ContainerResponse(self._client, response.id)
 
@@ -1856,7 +1910,7 @@ class KvmManager:
     def __init__(self, client):
         self._client = client
 
-    def create(self, name, media, cpu=2, memory=512, nics=None, port=None):
+    def create(self, name, media, cpu=2, memory=512, nics=None, port=None, tags=None):
         """
         :param name: Name of the kvm domain
         :param media: array of media objects to attach to the machine, where the first object is the boot device
@@ -1890,7 +1944,7 @@ class KvmManager:
         }
         self._create_chk.check(args)
 
-        return self._client.sync('kvm.create', args)
+        return self._client.sync('kvm.create', args, tags=tags)
 
     def destroy(self, uuid):
         """
@@ -2295,6 +2349,15 @@ class AggregatorManager:
 
 
 class Client(BaseClient):
+    _raw_chk = typchk.Checker({
+        'id': str,
+        'command': str,
+        'arguments': typchk.Any(),
+        'queue': typchk.Or(str, typchk.IsNone()),
+        'max_time': typchk.Or(int, typchk.IsNone()),
+        'stream': bool,
+        'tags': typchk.Or([str], typchk.IsNone()),
+    })
 
     def __init__(self, host, port=6379, password="", db=0, ssl=True, timeout=None, testConnectionAttempts=3):
         super().__init__(timeout=timeout)
@@ -2411,7 +2474,7 @@ class Client(BaseClient):
         """
         return self._aggregator
 
-    def raw(self, command, arguments, queue=None, max_time=None, stream=False):
+    def raw(self, command, arguments, queue=None, max_time=None, stream=False, tags=None, id=None):
         """
         Implements the low level command call, this needs to build the command structure
         and push it on the correct queue.
@@ -2423,9 +2486,12 @@ class Client(BaseClient):
         :param max_time: kill job server side if it exceeded this amount of seconds
         :param stream: If True, process stdout and stderr are pushed to a special queue (stream:<id>) so
             client can stream output
+        :param tags: job tags
+        :param id: job id. Generated if not supplied
         :return: Response object
         """
-        id = str(uuid.uuid4())
+        if not id:
+            id = str(uuid.uuid4())
 
         payload = {
             'id': id,
@@ -2434,8 +2500,10 @@ class Client(BaseClient):
             'queue': queue,
             'max_time': max_time,
             'stream': stream,
+            'tags': tags,
         }
 
+        self._raw_chk.check(payload)
         flag = 'result:{}:flag'.format(id)
         self._redis.rpush('core:default', json.dumps(payload))
         if self._redis.brpoplpush(flag, flag, DefaultTimeout) is None:
