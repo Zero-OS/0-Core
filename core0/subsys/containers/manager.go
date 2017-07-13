@@ -28,6 +28,8 @@ const (
 	cmdContainerFind         = "corex.find"
 	cmdContainerZerotierInfo = "corex.zerotier.info"
 	cmdContainerZerotierList = "corex.zerotier.list"
+	cmdContainerNicAdd       = "corex.nic_add"
+	cmdContainerNicRemove    = "corex.nic_remove"
 
 	coreXResponseQueue = "corex:results"
 	coreXBinaryName    = "coreX"
@@ -224,6 +226,8 @@ func ContainerSubsystem(sink *transport.Sink, cell *screen.RowCell) (ContainerMa
 	pm.CmdMap[cmdContainerDispatch] = process.NewInternalProcessFactory(containerMgr.dispatch)
 	pm.CmdMap[cmdContainerTerminate] = process.NewInternalProcessFactory(containerMgr.terminate)
 	pm.CmdMap[cmdContainerFind] = process.NewInternalProcessFactory(containerMgr.find)
+	pm.CmdMap[cmdContainerNicAdd] = process.NewInternalProcessFactory(containerMgr.nicAdd)
+	pm.CmdMap[cmdContainerNicRemove] = process.NewInternalProcessFactory(containerMgr.nicRemove)
 
 	//container specific info
 	pm.CmdMap[cmdContainerZerotierInfo] = process.NewInternalProcessFactory(containerMgr.ztInfo)
@@ -315,6 +319,51 @@ func (m *containerManager) unset_container(id uint16) {
 	delete(m.containers, id)
 	m.cell.Text = fmt.Sprintf("Containers: %d", len(m.containers))
 	screen.Refresh()
+}
+
+func (m *containerManager) nicAdd(cmd *core.Command) (interface{}, error) {
+	var args struct {
+		Container uint16 `json:"container"`
+		Nic       Nic    `json:"nic"`
+	}
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, err
+	}
+
+	m.conM.RLock()
+	defer m.conM.RUnlock()
+	container, ok := m.containers[args.Container]
+	if !ok {
+		return nil, fmt.Errorf("container does not exist")
+	}
+
+	if container.Args.HostNetwork {
+		return nil, fmt.Errorf("cannot add a nic in host network mode")
+	}
+
+	creationArgs := container.Args
+	creationArgs.Nics = append(creationArgs.Nics, args.Nic)
+
+	if err := creationArgs.Validate(); err != nil {
+		return nil, err
+	}
+
+	idx := len(container.Args.Nics)
+	container.Args.Nics = creationArgs.Nics
+
+	if err := container.preStartNetwork(idx, &args.Nic); err != nil {
+		return nil, err
+	}
+
+	if err := container.postStartNetwork(idx, &args.Nic); err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+}
+
+func (m *containerManager) nicRemove(cmd *core.Command) (interface{}, error) {
+	return nil, nil
 }
 
 func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
