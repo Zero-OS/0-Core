@@ -173,8 +173,6 @@ func (b *Bootstrap) watchers() {
 	screen.Push(&section)
 
 	go func() {
-		var text string
-
 		for {
 			result, err := pm.GetManager().System("zerotier-cli", "-D/tmp/zt", "info")
 			var current string
@@ -186,9 +184,8 @@ func (b *Bootstrap) watchers() {
 
 			current = strings.TrimSpace(result.Streams.Stdout())
 
-			if current != text {
-				text = current
-				section.Text = text
+			if current != section.Text {
+				section.Text = current
 				screen.Refresh()
 			}
 
