@@ -28,8 +28,8 @@ const (
 	cmdContainerFind         = "corex.find"
 	cmdContainerZerotierInfo = "corex.zerotier.info"
 	cmdContainerZerotierList = "corex.zerotier.list"
-	cmdContainerNicAdd       = "corex.nic_add"
-	cmdContainerNicRemove    = "corex.nic_remove"
+	cmdContainerNicAdd       = "corex.nic-add"
+	cmdContainerNicRemove    = "corex.nic-remove"
 
 	coreXResponseQueue = "corex:results"
 	coreXBinaryName    = "coreX"
@@ -132,6 +132,9 @@ func (c *ContainerCreateArguments) Validate() error {
 	//validating networking
 	brcounter := make(map[string]int)
 	for _, nic := range c.Nics {
+		if nic.State == NicStateDestroyed {
+			continue
+		}
 		switch nic.Type {
 		case "default":
 			brcounter[DefaultBridgeName]++
@@ -393,14 +396,17 @@ func (m *containerManager) nicRemove(cmd *core.Command) (interface{}, error) {
 	if args.Index < 0 || args.Index >= len(container.Args.Nics) {
 		return nil, fmt.Errorf("nic index out of range")
 	}
+	nic := container.Args.Nics[args.Index]
+	if nic.State != NicStateConfigured {
+		return nil, fmt.Errorf("nic is in '%s' state", nic.State)
+	}
 
 	var ovs Container
-	nic := container.Args.Nics[args.Index]
 	if nic.Type == "vlan" || nic.Type == "vxlan" {
 		ovs = m.GetOneWithTags("ovs")
 	}
 
-	return nil, container.unBridge(args.Index, container.Args.Nics[args.Index], ovs)
+	return nil, container.unBridge(args.Index, nic, ovs)
 }
 
 func (m *containerManager) create(cmd *core.Command) (interface{}, error) {

@@ -547,6 +547,7 @@ func (c *container) preStartIsolatedNetworking() error {
 
 func (c *container) unBridge(idx int, n *Nic, ovs Container) error {
 	name := fmt.Sprintf(containerLinkNameFmt, c.id, idx)
+	n.State = NicStateDestroyed
 	if ovs != nil {
 		_, err := c.mgr.Dispatch(ovs.ID(), &core.Command{
 			Command: "ovs.port-del",
@@ -556,9 +557,8 @@ func (c *container) unBridge(idx int, n *Nic, ovs Container) error {
 		})
 
 		if err != nil {
-			log.Errorf("failed to delete port %s: %s", name, err)
+			return err
 		}
-		return err
 	}
 
 	link, err := netlink.LinkByName(name)
