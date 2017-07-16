@@ -79,6 +79,6 @@ func DropRules(nft Nft) error {
 }
 
 func Drop(table, chain string, handle int) error {
-	_, err := pm.GetManager().System("nft", "delete", "rule", table, chain, "handle", fmt.Sprint(handle))
+	_, err := pm.GetManager().System("nft", "delete", "rule", "inet", table, chain, "handle", fmt.Sprint(handle))
 	return err
 }

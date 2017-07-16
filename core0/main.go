@@ -85,7 +85,13 @@ func Splash() {
 	screen.Push(&screen.TextSection{})
 	screen.Push(&screen.TextSection{
 		Attributes: screen.Attributes{screen.Green},
-		Text:       core.Version().Short(),
+		Text:       fmt.Sprintf("Version: %s", core.Version().Short()),
+	})
+	screen.Push(&screen.TextSection{
+		Attributes: screen.Attributes{screen.Bold},
+		Text: fmt.Sprintf("Params: %s",
+			options.Options.Kernel.String("debug", "organization", "zerotier", "quiet"), //flags we care about
+		),
 	})
 	screen.Push(&screen.TextSection{})
 	screen.Refresh()
@@ -147,6 +153,7 @@ func main() {
 	bs := bootstrap.NewBootstrap()
 	bs.Bootstrap()
 
+	screen.Push(&screen.TextSection{})
 	screen.Push(&screen.SplitterSection{Title: "System Information"})
 
 	row := &screen.RowSection{
