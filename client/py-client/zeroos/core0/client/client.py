@@ -899,6 +899,22 @@ class ContainerClient(BaseClient):
 
 
 class ContainerManager:
+    _nic = {
+        'type': typchk.Enum('default', 'bridge', 'zerotier', 'vlan', 'vxlan'),
+        'id': typchk.Or(str, typchk.Missing()),
+        'name': typchk.Or(str, typchk.Missing()),
+        'hwaddr': typchk.Or(str, typchk.Missing()),
+        'config': typchk.Or(
+            typchk.Missing(),
+            {
+                'dhcp': typchk.Or(bool, typchk.Missing()),
+                'cidr': typchk.Or(str, typchk.Missing()),
+                'gateway': typchk.Or(str, typchk.Missing()),
+                'dns': typchk.Or([str], typchk.Missing()),
+            }
+        )
+    }
+
     _create_chk = typchk.Checker({
         'root': str,
         'mount': typchk.Or(
@@ -906,21 +922,7 @@ class ContainerManager:
             typchk.IsNone()
         ),
         'host_network': bool,
-        'nics': [{
-            'type': typchk.Enum('default', 'bridge', 'zerotier', 'vlan', 'vxlan'),
-            'id': typchk.Or(str, typchk.Missing()),
-            'name': typchk.Or(str, typchk.Missing()),
-            'hwaddr': typchk.Or(str, typchk.Missing()),
-            'config': typchk.Or(
-                typchk.Missing(),
-                {
-                    'dhcp': typchk.Or(bool, typchk.Missing()),
-                    'cidr': typchk.Or(str, typchk.Missing()),
-                    'gateway': typchk.Or(str, typchk.Missing()),
-                    'dns': typchk.Or([str], typchk.Missing()),
-                }
-            )
-        }],
+        'nics': [_nic],
         'port': typchk.Or(
             typchk.Map(int, int),
             typchk.IsNone()
@@ -937,6 +939,16 @@ class ContainerManager:
     _client_chk = typchk.Checker(
         typchk.Or(int, str)
     )
+
+    _nic_add = typchk.Checker({
+        'container': int,
+        'nic': _nic,
+    })
+
+    _nic_remove = typchk.Checker({
+        'container': int,
+        'index': int,
+    })
 
     DefaultNetworking = object()
 
@@ -1049,6 +1061,52 @@ class ContainerManager:
         if result.state != 'SUCCESS':
             raise RuntimeError('failed to terminate container: %s' % result.data)
 
+    def nic_add(self, container, nic):
+        """
+        Hot plug a nic into a container
+        
+        :param container: container ID
+        :param nic: {
+                        'type': nic_type # default, bridge, zerotier, vlan, or vxlan (note, vlan and vxlan only supported by ovs)
+                        'id': id # depends on the type, bridge name, zerotier network id, the vlan tag or the vxlan id
+                        'name': name of the nic inside the container (ignored in zerotier type)
+                        'hwaddr': Mac address of nic.
+                        'config': { # config is only honored for bridge, vlan, and vxlan types
+                            'dhcp': bool,
+                            'cidr': static_ip # ip/mask
+                            'gateway': gateway
+                            'dns': [dns]
+                        }
+                     }
+        :return: 
+        """
+        args = {
+            'container': container,
+            'nic': nic
+        }
+        self._nic_add.check(args)
+
+        return self._client.json('corex.nic-add', args)
+
+    def nic_remove(self, container, index):
+        """
+        Hot unplug of nic from a container
+        
+        Note: removing a nic, doesn't remove the nic from the container info object, instead it sets it's state
+        to `destroyed`.
+        
+        :param container: container ID
+        :param index: index of the nic as returned in the container object info (as shown by container.list())
+        :return: 
+        """
+        args = {
+            'container': container,
+            'index': index
+        }
+        self._nic_remove.check(args)
+
+        return self._client.json('corex.nic-remove', args)
+
     def client(self, container):
         """
         Return a client instance that is bound to that container.
@@ -1060,6 +1118,8 @@ class ContainerManager:
 
         self._client_chk.check(container)
         return ContainerClient(self._client, int(container))
+
+
 
 
 class IPManager:
