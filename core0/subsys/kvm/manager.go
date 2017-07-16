@@ -10,35 +10,42 @@ import (
 	"sync"
 
 	"github.com/libvirt/libvirt-go"
+	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/zero-os/0-core/core0/screen"
 	"github.com/zero-os/0-core/core0/subsys/containers"
+	"github.com/zero-os/0-core/core0/transport"
 )
 
 const (
 	BaseMACAddress = "00:28:06:82:%02x:%02x"
 
-	BaseIPAddr = "172.19.%d.%d"
+	BaseIPAddr  = "172.19.%d.%d"
 	metadataKey = "zero-os"
 	metadataUri = "https://github.com/zero-os/0-core"
 )
 
+var (
+	log = logging.MustGetLogger("kvm")
+)
+
 type LibvirtConnection struct {
+	handler libvirt.DomainEventLifecycleCallback
+
 	m    sync.Mutex
 	conn *libvirt.Connect
 }
 
 type kvmManager struct {
+	conmgr   containers.ContainerManager
 	sequence uint16
 	m        sync.Mutex
 	libvirt  LibvirtConnection
-
-	conmgr containers.ContainerManager
-
-	cell *screen.RowCell
+	cell     *screen.RowCell
+	evch     chan map[string]interface{}
 }
 
 var (
@@ -70,15 +77,30 @@ const (
 	kvmMigrateCommand     = "kvm.migrate"
 	kvmListCommand        = "kvm.list"
 	kvmMonitorCommand     = "kvm.monitor"
+	kvmEventsCommand      = "kvm.events"
 
 	DefaultBridgeName = "kvm0"
 )
 
-func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) error {
+func KVMSubsystem(sink *transport.Sink, conmgr containers.ContainerManager, cell *screen.RowCell) error {
+	if err := libvirt.EventRegisterDefaultImpl(); err != nil {
+		return err
+	}
+
+	go func() {
+		for {
+			libvirt.EventRunDefaultImpl()
+		}
+	}()
+
 	mgr := &kvmManager{
 		conmgr: conmgr,
 		cell:   cell,
+		evch:   make(chan map[string]interface{}, 100), //buffer 100 event
 	}
+
+	mgr.libvirt.handler = mgr.handle
+
 	cell.Text = "Virtual Machines: 0"
 	if err := mgr.setupDefaultGateway(); err != nil {
 		return err
@@ -100,22 +122,26 @@ func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) erro
 	pm.CmdMap[kvmLimitDiskIOCommand] = process.NewInternalProcessFactory(mgr.limitDiskIO)
 	pm.CmdMap[kvmMigrateCommand] = process.NewInternalProcessFactory(mgr.migrate)
 	pm.CmdMap[kvmListCommand] = process.NewInternalProcessFactory(mgr.list)
-	pm.CmdMap[kvmMonitorCommand] = process.NewInternalProcessFactory(mgr.monitor)
 
-	conn, err := libvirt.NewConnect("qemu:///system")
-	if err != nil {
-		return err
-	}
-	mgr.libvirt.conn = conn
-	// we don't close the connection here because it is supposed to be used outside
-	// so we expect the caller to close it
-	// so if anything is to be added in this method that can return an error
-	// the connection has to be closed before the return
+	//those next 2 commands should never be called by the client, unfortunately we don't have
+	//support for internal commands yet.
+	pm.CmdMap[kvmMonitorCommand] = process.NewInternalProcessFactory(mgr.monitor)
+	pm.CmdMap[kvmEventsCommand] = process.NewInternalProcessFactoryWithCtx(mgr.events)
+
+	//start domains monitoring command
 	pm.GetManager().RunCmd(&core.Command{
-		ID:              "kvm.monitor",
-		Command:         "kvm.monitor",
+		ID:              kvmMonitorCommand,
+		Command:         kvmMonitorCommand,
 		RecurringPeriod: 30,
 	})
+
+	//start events command
+	sink.Flag(kvmEventsCommand)
+	pm.GetManager().RunCmd(&core.Command{
+		ID:      kvmEventsCommand,
+		Command: kvmEventsCommand,
+	})
+
 	return nil
 }
 
@@ -369,20 +395,33 @@ func IOTuneParamsToIOTune(inp IOTuneParams) IOTune {
 	return out
 }
 
-func (c *LibvirtConnection) getConnection() (*libvirt.Connect, error) {
-	if alive, err := c.conn.IsAlive(); err == nil && alive == true {
-		return c.conn, nil
+func (c *LibvirtConnection) register(conn *libvirt.Connect) {
+	log.Infof("register event handler for libvirt")
+	id, err := conn.DomainEventLifecycleRegister(nil, c.handler)
+	if err != nil {
+		log.Errorf("failed to regist event handler: %s", err)
 	}
+
+	log.Infof("event handler id: %d", id)
+}
+
+func (c *LibvirtConnection) getConnection() (*libvirt.Connect, error) {
 	c.m.Lock()
 	defer c.m.Unlock()
-	if alive, err := c.conn.IsAlive(); err == nil && alive == true {
-		return c.conn, nil
+	if c.conn != nil {
+		if alive, err := c.conn.IsAlive(); err == nil && alive == true {
+			return c.conn, nil
+		}
+
+		c.conn.Close()
 	}
-	c.conn.Close()
+
 	conn, err := libvirt.NewConnect("qemu:///system")
 	if err != nil {
 		return nil, err
 	}
+
+	c.register(conn)
 	c.conn = conn
 	return c.conn, nil
 }
@@ -739,13 +778,13 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, fmt.Errorf("couldn't marshal tags for domain with the uuid %s", domain.UUID)
 	}
 
-	metaData := MetaData{Value:string(tags)}
+	metaData := MetaData{Value: string(tags)}
 	metaXML, err := xml.Marshal(&metaData)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't marshal metadata for domain with the uuid %s", domain.UUID)
 	}
 
-	err = dom.SetMetadata(libvirt.DOMAIN_METADATA_ELEMENT,string(metaXML), metadataKey, metadataUri, libvirt.DOMAIN_AFFECT_LIVE)
+	err = dom.SetMetadata(libvirt.DOMAIN_METADATA_ELEMENT, string(metaXML), metadataKey, metadataUri, libvirt.DOMAIN_AFFECT_LIVE)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't set metadata for domain with the uuid %s", domain.UUID)
 	}
@@ -1206,12 +1245,12 @@ func (m *kvmManager) migrate(cmd *core.Command) (interface{}, error) {
 }
 
 type Machine struct {
-	ID    int    `json:"id"`
-	UUID  string `json:"uuid"`
-	Name  string `json:"name"`
-	State string `json:"state"`
-	Vnc   int    `json:"vnc"`
-	Tags core.Tags `json:"tags"`
+	ID    int       `json:"id"`
+	UUID  string    `json:"uuid"`
+	Name  string    `json:"name"`
+	State string    `json:"state"`
+	Vnc   int       `json:"vnc"`
+	Tags  core.Tags `json:"tags"`
 }
 
 func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
@@ -1276,7 +1315,7 @@ func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
 			Name:  name,
 			State: StateToString(state),
 			Vnc:   port,
-			Tags: tags,
+			Tags:  tags,
 		})
 	}
 

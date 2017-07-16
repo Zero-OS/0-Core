@@ -785,7 +785,7 @@ class BaseClient:
 
         return response
 
-    def subscribe(self, id):
+    def subscribe(self, job, id=None):
         """
         Subscribes to job logs. It return the subscribe Response object which you will need to call .stream() on
         to read the output stream of this job.
@@ -798,14 +798,31 @@ class BaseClient:
         
         example:
             job = client.system('long running job')
-            subscription = job.subscribe()
+            subscription = client.subscribe(job.id)
             
             subscription.stream() # this will print directly on stdout/stderr check stream docs for more details.
+        
+        hint: u can give an optional id to the subscriber (otherwise a guid will be generate for you). You probably want
+        to use this in case your job watcher died, so u can hook on the stream of the current subscriber instead of creating a new one
+        
+        example:
+            job = client.system('long running job')
+            subscription = client.subscribe(job.id, 'my-job-subscriber')
             
-        :param id: the job ID to subscribe to
+            subscription.stream()
+            
+            # process dies for any reason
+            # on next start u can simply do
+            
+            subscription = client.response_for('my-job-subscriber')
+            subscription.stream()
+            
+            
+        :param job: the job ID to subscribe to
+        :param id: the subscriber ID (optional) 
         :return: the subscribe Job object
         """
-        return self.raw('core.subscribe', {'id': id}, stream=True)
+        return self.raw('core.subscribe', {'id': job}, stream=True, id=id)
 
 
 class ContainerClient(BaseClient):
