@@ -86,8 +86,7 @@ type ContainerCreateArguments struct {
 	Hostname    string            `json:"hostname"`     //hostname
 	Storage     string            `json:"storage"`      //ardb storage needed for g8ufs mounts.
 	Name        string            `json:"name"`         //for searching containers
-
-	Tags core.Tags `json:"-"` //for searching containers
+	Tags        core.Tags         `json:"tags"`         //for searching containers
 }
 
 type ContainerDispatchArguments struct {
