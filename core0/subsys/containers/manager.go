@@ -13,6 +13,7 @@ import (
 	"github.com/zero-os/0-core/core0/screen"
 	"github.com/zero-os/0-core/core0/subsys/cgroups"
 	"github.com/zero-os/0-core/core0/transport"
+	"math"
 	"net/url"
 	"os"
 	"path"
@@ -315,7 +316,14 @@ func (m *containerManager) setUpDefaultBridge() error {
 func (m *containerManager) getNextSequence() uint16 {
 	m.seqM.Lock()
 	defer m.seqM.Unlock()
-	m.sequence += 1
+	for {
+		m.sequence += 1
+		if m.sequence != 0 && m.sequence < math.MaxUint16 {
+			if _, ok := m.containers[m.sequence]; !ok {
+				break
+			}
+		}
+	}
 	return m.sequence
 }
 
