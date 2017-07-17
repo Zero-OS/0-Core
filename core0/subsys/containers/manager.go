@@ -418,11 +418,7 @@ func (m *containerManager) nicRemove(cmd *core.Command) (interface{}, error) {
 	return nil, container.unBridge(args.Index, nic, ovs)
 }
 
-func (m *containerManager) createSync(cmd *core.Command) (interface{}, error) {
-	return nil, nil
-}
-
-func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
+func (m *containerManager) createContainer(cmd *core.Command) (*container, error) {
 	var args ContainerCreateArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -446,7 +442,6 @@ func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
 	}
 
 	id := m.getNextSequence()
-	log.Warningf("TAGS: %v (Args: %v)", cmd.Tags, args.Tags)
 	c := newContainer(m, id, args)
 	m.setContainer(id, c)
 
@@ -454,7 +449,26 @@ func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	return id, nil
+	return c, nil
+}
+
+func (m *containerManager) createSync(cmd *core.Command) (interface{}, error) {
+	container, err := m.createContainer(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	//after waiting we probably need to return the full result!
+	return container.runner.Wait(), nil
+}
+
+func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
+	container, err := m.createContainer(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	return container.id, nil
 }
 
 type ContainerInfo struct {
