@@ -396,13 +396,10 @@ func IOTuneParamsToIOTune(inp IOTuneParams) IOTune {
 }
 
 func (c *LibvirtConnection) register(conn *libvirt.Connect) {
-	log.Infof("register event handler for libvirt")
-	id, err := conn.DomainEventLifecycleRegister(nil, c.handler)
+	_, err := conn.DomainEventLifecycleRegister(nil, c.handler)
 	if err != nil {
 		log.Errorf("failed to regist event handler: %s", err)
 	}
-
-	log.Infof("event handler id: %d", id)
 }
 
 func (c *LibvirtConnection) getConnection() (*libvirt.Connect, error) {
