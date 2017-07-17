@@ -17,7 +17,6 @@ import (
 	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/zero-os/0-core/core0/screen"
 	"github.com/zero-os/0-core/core0/subsys/containers"
-	"github.com/zero-os/0-core/core0/transport"
 )
 
 const (
@@ -82,7 +81,7 @@ const (
 	DefaultBridgeName = "kvm0"
 )
 
-func KVMSubsystem(sink *transport.Sink, conmgr containers.ContainerManager, cell *screen.RowCell) error {
+func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) error {
 	if err := libvirt.EventRegisterDefaultImpl(); err != nil {
 		return err
 	}
@@ -136,7 +135,6 @@ func KVMSubsystem(sink *transport.Sink, conmgr containers.ContainerManager, cell
 	})
 
 	//start events command
-	sink.Flag(kvmEventsCommand)
 	pm.GetManager().RunCmd(&core.Command{
 		ID:      kvmEventsCommand,
 		Command: kvmEventsCommand,
