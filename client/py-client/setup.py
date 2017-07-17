@@ -11,7 +11,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup (
     name='0-core-client',
-    version='1.1.0-alpha-4',
+    version='1.1.0-alpha-5',
     description='Zero-OS 0-core client',
     long_description=long_description,
     url='https://github.com/zero-os/0-core',
