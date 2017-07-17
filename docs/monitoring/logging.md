@@ -108,7 +108,7 @@ Subscribers on the other hand, allows anyone (also any number of the subscribers
 ```python
 job = client.system('ping google.com')
 
-subscriber = job.subscribe()
+subscriber = client.subscribe(job.id)
 
 subscriber.stream() # this again, will print the ping output in real time on screen. Check stream docstr
 ```
@@ -118,9 +118,41 @@ In another process/thread u can safely start another subscriber on the same job
 ```python
 job = client.response_for('job id')
 
-subscriber = job.subscribe()
+subscriber = client.subscribe(job.id)
 subscriber.stream() # this again, will print the ping output in real time on screen. Check stream docstr
 ```
 
 > Currently there is noway to un-subscribe from a job stream, subscriber job will terminate automatically
 once the watched job exits. Also killing a subscriber job won't stop it or affect the watched job by any means.
+
+### Subscriber ID
+When calling `client.subscribe` it accepts an optional subscriber ID, otherwise it will generate a random UUID
+as an ID for that subscriber.
+
+```python
+subscriber = client.subscribe(job, 'my-subscriber-id')
+```
+
+it's a _GOOD_ idea to always provide a well known (predicted) subscriber ID. The reason for this 
+is that because each subscriber is by itself a job on zero-os, starting too many subscribers to a 
+monitored job can cause high memory consumption since each subscriber has an internal buffer to keep
+track of the monitored job stream. Starting a subscriber with the same ID doesn't spawn a new subscriber
+if it exits, it will instead use the same subscriber job.
+
+#### Example
+```python
+job = client.system('job to monitor')
+subscriber = client.subscribe(job.id, 'my-subscriber')
+
+subscriber.stream(callback)
+# --- Watcher crash (client side) ---
+subscriber = client.subscribe(job.id, 'my-subscriber')
+
+#subscriber now is the same subscriber before the crash
+subscriber.stream(callback)
+```
+
+> *Note*: subscriber has internal buffer of 100 message, if your client is not actively reading messages 
+from the subscriber job, it will start dropping older messages. If your monitor process did not call `stream`
+fast enough, messages loss can happen (depends on how spammy the monitored job is of course).
+ 
