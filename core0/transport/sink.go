@@ -114,7 +114,13 @@ func (sink *Sink) process() {
 }
 
 func (sink *Sink) Forward(result *core.JobResult) error {
-	sink.ch.UnFlag(result.ID)
+	if result.State != core.StateDuplicateID {
+		/*
+			Client tried to push a command with a duplicate id, it means another job
+			is running with that ID so we shouldn't flag
+		*/
+		sink.ch.UnFlag(result.ID)
+	}
 	return sink.ch.Respond(result)
 }
 
