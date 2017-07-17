@@ -26,7 +26,6 @@ type container struct {
 	id     uint16
 	runner pm.Runner
 	mgr    *containerManager
-	route  core.Route
 	Args   ContainerCreateArguments `json:"arguments"`
 	Root   string                   `json:"root"`
 	PID    int                      `json:"pid"`
@@ -39,11 +38,10 @@ type container struct {
 	forwardChan chan *core.Command
 }
 
-func newContainer(mgr *containerManager, id uint16, route core.Route, args ContainerCreateArguments) *container {
+func newContainer(mgr *containerManager, id uint16, args ContainerCreateArguments) *container {
 	c := &container{
 		mgr:         mgr,
 		id:          id,
-		route:       route,
 		Args:        args,
 		forwardChan: make(chan *core.Command),
 	}
@@ -68,7 +66,7 @@ func (c *container) Arguments() ContainerCreateArguments {
 	return c.Args
 }
 
-func (c *container) Start() (err error) {
+func (c *container) Start() (runner pm.Runner, err error) {
 	coreID := fmt.Sprintf("core-%d", c.id)
 
 	defer func() {
@@ -97,8 +95,7 @@ func (c *container) Start() (err error) {
 
 	mgr := pm.GetManager()
 	extCmd := &core.Command{
-		ID:    coreID,
-		Route: c.route,
+		ID: coreID,
 		Arguments: core.MustArguments(
 			process.ContainerCommandArguments{
 				Name:        "/coreX",
@@ -121,7 +118,7 @@ func (c *container) Start() (err error) {
 	onexit := &pm.ExitHook{
 		Action: c.onExit,
 	}
-	var runner pm.Runner
+
 	runner, err = mgr.NewRunner(extCmd, process.NewContainerProcess, onpid, onexit)
 	if err != nil {
 		log.Errorf("error in container runner: %s", err)

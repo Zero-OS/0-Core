@@ -5,7 +5,6 @@ import (
 	"fmt"
 )
 
-type Route string
 type Tags []string
 
 //Cmd is an executable command
@@ -20,10 +19,9 @@ type Command struct {
 	RecurringPeriod int              `json:"recurring_period,omitempty"`
 	Stream          bool             `json:"stream"`
 	LogLevels       []int            `json:"log_levels,omitempty"`
-	Tags            Tags           `json:"tags"`
+	Tags            Tags             `json:"tags"`
 
-	Route     Route `json:"-"`
-	Protected bool  `json:"-"`
+	Protected bool `json:"-"`
 }
 
 type M map[string]interface{}

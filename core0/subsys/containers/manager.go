@@ -23,6 +23,7 @@ import (
 
 const (
 	cmdContainerCreate       = "corex.create"
+	cmdContainerCreateSync   = "corex.create-sync"
 	cmdContainerList         = "corex.list"
 	cmdContainerDispatch     = "corex.dispatch"
 	cmdContainerTerminate    = "corex.terminate"
@@ -237,6 +238,7 @@ func ContainerSubsystem(sink *transport.Sink, cell *screen.RowCell) (ContainerMa
 	}
 
 	pm.CmdMap[cmdContainerCreate] = process.NewInternalProcessFactory(containerMgr.create)
+	pm.CmdMap[cmdContainerCreateSync] = process.NewInternalProcessFactory(containerMgr.createSync)
 	pm.CmdMap[cmdContainerList] = process.NewInternalProcessFactory(containerMgr.list)
 	pm.CmdMap[cmdContainerDispatch] = process.NewInternalProcessFactory(containerMgr.dispatch)
 	pm.CmdMap[cmdContainerTerminate] = process.NewInternalProcessFactory(containerMgr.terminate)
@@ -416,6 +418,10 @@ func (m *containerManager) nicRemove(cmd *core.Command) (interface{}, error) {
 	return nil, container.unBridge(args.Index, nic, ovs)
 }
 
+func (m *containerManager) createSync(cmd *core.Command) (interface{}, error) {
+	return nil, nil
+}
+
 func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
 	var args ContainerCreateArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
@@ -441,10 +447,10 @@ func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
 
 	id := m.getNextSequence()
 	log.Warningf("TAGS: %v (Args: %v)", cmd.Tags, args.Tags)
-	c := newContainer(m, id, cmd.Route, args)
+	c := newContainer(m, id, args)
 	m.setContainer(id, c)
 
-	if err := c.Start(); err != nil {
+	if _, err := c.Start(); err != nil {
 		return nil, err
 	}
 
