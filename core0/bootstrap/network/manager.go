@@ -138,7 +138,7 @@ func (m *networkManager) getAutoInterfaces() ([]Interface, error) {
 	}
 
 	for _, link := range links {
-		if link.Attrs().Name == "lo" {
+		if link.Attrs().Name == "lo" || link.Type() != "device" {
 			continue
 		}
 
