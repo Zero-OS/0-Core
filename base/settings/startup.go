@@ -14,6 +14,7 @@ type Startup struct {
 	MaxRestart      int
 	Protected       bool
 	Name            string
+	Tags            []string
 	Args            map[string]interface{}
 
 	key string

@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	SinkRoute = core.Route("sink")
 	SinkQueue = "core:default"
 	DBIndex   = 0
 )
@@ -89,7 +88,7 @@ func (sink *Sink) handlePublic(cmd *core.Command, result *core.JobResult) {
 }
 
 func (sink *Sink) process() {
-	sink.mgr.AddRouteResultHandler(SinkRoute, sink.handlePublic)
+	sink.mgr.AddResultHandler(sink.handlePublic)
 
 	for {
 		var command core.Command
@@ -106,7 +105,6 @@ func (sink *Sink) process() {
 		}
 
 		sink.ch.Flag(command.ID)
-		command.Route = SinkRoute
 		log.Debugf("Starting command %s", &command)
 
 		sink.mgr.PushCmd(&command)
