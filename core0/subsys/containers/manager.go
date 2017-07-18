@@ -317,6 +317,10 @@ func (m *containerManager) setUpDefaultBridge() error {
 func (m *containerManager) getNextSequence() uint16 {
 	m.seqM.Lock()
 	defer m.seqM.Unlock()
+	//get a read lock on the container dict as well
+	m.conM.RLock()
+	defer m.conM.RUnlock()
+
 	for {
 		m.sequence += 1
 		if m.sequence != 0 && m.sequence < math.MaxUint16 {

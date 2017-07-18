@@ -150,21 +150,22 @@ func main() {
 
 	logger.ConfigureLogging(sink.DB())
 
+	row := &screen.RowSection{
+		Cells: make([]screen.RowCell, 2),
+	}
+	//we need container subsystem initialized before we do bootstrap
+	//so we can start containers from config files
+	contMgr, err := containers.ContainerSubsystem(sink, &row.Cells[0])
+	if err != nil {
+		log.Fatal("failed to intialize container subsystem", err)
+	}
+
 	bs := bootstrap.NewBootstrap()
 	bs.Bootstrap()
 
 	screen.Push(&screen.TextSection{})
 	screen.Push(&screen.SplitterSection{Title: "System Information"})
-
-	row := &screen.RowSection{
-		Cells: make([]screen.RowCell, 2),
-	}
 	screen.Push(row)
-
-	contMgr, err := containers.ContainerSubsystem(sink, &row.Cells[0])
-	if err != nil {
-		log.Fatal("failed to intialize container subsystem", err)
-	}
 
 	if err := kvm.KVMSubsystem(sink, contMgr, &row.Cells[1]); err != nil {
 		log.Errorf("failed to initialize kvm subsystem", err)
