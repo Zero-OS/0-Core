@@ -167,7 +167,7 @@ func main() {
 	screen.Push(&screen.SplitterSection{Title: "System Information"})
 	screen.Push(row)
 
-	if err := kvm.KVMSubsystem(sink, contMgr, &row.Cells[1]); err != nil {
+	if err := kvm.KVMSubsystem(contMgr, &row.Cells[1]); err != nil {
 		log.Errorf("failed to initialize kvm subsystem", err)
 	}
 
