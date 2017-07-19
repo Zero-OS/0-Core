@@ -1,8 +1,8 @@
 [main]
 max_jobs = 524288
-include = ["/etc/g8os/conf"]
+include = ["/etc/zero-os/conf"]
 log_level = "info"
-network = "/etc/g8os/network.toml"
+network = "/etc/zero-os/network.toml"
 
 [containers]
 max_count = 1000
@@ -11,8 +11,7 @@ max_count = 1000
 levels = [2, 4, 7, 8, 9]
 
 [logging.ledis]
-levels = [1, 2, 4, 7, 8, 9]
-size = 10000 # how many log lines to keep in ledis
+size = 50000 # how many backlog to keep in memory
 
 [stats]
 enabled = true

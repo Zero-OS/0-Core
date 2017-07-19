@@ -26,7 +26,7 @@ var Options AppOptions
 func init() {
 	help := false
 	flag.BoolVar(&help, "h", false, "Print this help screen")
-	flag.StringVar(&Options.cfg, "c", "/etc/g8os/g8os.toml", "Path to config file")
+	flag.StringVar(&Options.cfg, "c", "/etc/g8os/zero-os.toml", "Path to config file")
 	flag.BoolVar(&Options.version, "v", false, "Prints version and exit")
 	flag.Parse()
 

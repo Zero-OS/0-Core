@@ -13,7 +13,7 @@ In Zero-OS 0-core captures the output of all running processes as "log messages"
 
 Currently there are two loggers available, both implemented in Go:
 - [File logger](/core0/logger/logger.go) writes log messages to `/var/log/core.log`
-- [Ledis logger](/core0/logger/ledis.go) writes log messages to the LedisDB queue `core:logs`
+- [Ledis logger](/core0/logger/ledis.go) writes log messages to the LedisDB queue (only when subscribed)
 
 In the `zero-os.toml` configuration file, as documented in [Main Configuration](../config/main.md), you specify for each logger which categories of log messages it should process. Log messages are categorized by `levels`:
 
@@ -22,8 +22,8 @@ In the `zero-os.toml` configuration file, as documented in [Main Configuration](
 levels = [1, 2, 4, 7, 8, 9]
 
 [logging.ledis]
-levels = [1, 2, 4, 7, 8, 9]
-size = 10000 # how many log lines to keep in LedisDB
+levels = [1, 2, 4, 7, 8, 9] #only forward those log levels to subscribed queue (default to all if not set)
+size = 10000 # how many backlog to keep in memory
 
 [stats]
 enabled = true
@@ -78,9 +78,25 @@ By default messages that are output on `stdout` stream are considered level `1`,
 - 23: result message, hrd
 - 30: job, json (full result of a job)
 
+## Subscribing to logger stream
+By default logs are not pushed to ledis. Using the client you will have to subscribe to the logger to make it dispatch
+the logs to your queue, where you can start reading and processing the logs.
+
+The logger keeps a backlog of `X` logs (defined by `[logging.ledis]size` in config). On subscription a copy of the backlog
+will be copied to your queue to make sure you don't miss the logs.
+
+Subscribing multiple times to the same log queue name has no effect.
+
+```python
+name = client.logger.subscribe('my-watcher-id')
+
+while True:
+    message = redis.blpop(name)
+    # process message.
+```
 
 ## Streams
-The Ledis logger aggregate all logs from all process to a single queue so a system like `logstash` will be
+The Ledis logger aggregate all logs from all process to a subscribed queues so a system like `logstash` will be
 able to pull the logs from _all_ the jobs running on the system. There is another way to read streams 
 of a single process in runtime.
 
@@ -95,7 +111,7 @@ job.stream() # this will start printing ping output in real time on screen. Chec
 
 Check [Streaming docs](../interacting/streaming.md) for more details
  
-## Subscribers
+## Job Subscribers
 Although streams is useful in most cases, sometimes we need to process the output stream of a job
 by multiple `subscribers`, streams support described above has the following cons:
 

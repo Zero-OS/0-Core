@@ -2,11 +2,17 @@ package logger
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/pborman/uuid"
 	"github.com/siddontang/ledisdb/ledis"
+	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm/process"
+	"github.com/zero-os/0-core/base/pm/stream"
+	"sync"
 )
 
 const (
-	RedisLoggerQueue  = "core:logs"
 	MaxRedisQueueSize = 100000
 )
 
@@ -15,6 +21,9 @@ type redisLogger struct {
 	db       *ledis.DB
 	defaults []uint16
 	size     int64
+	buffer   *stream.Buffer
+	queues   map[string]struct{}
+	m        sync.RWMutex
 
 	ch chan *LogRecord
 }
@@ -29,8 +38,13 @@ func NewLedisLogger(db *ledis.DB, defaults []uint16, size int64) Logger {
 		db:       db,
 		defaults: defaults,
 		size:     size,
+		buffer:   stream.NewBuffer(MaxStreamRedisQueueSize),
+		queues:   make(map[string]struct{}),
 		ch:       make(chan *LogRecord, MaxRedisQueueSize),
 	}
+
+	pm.CmdMap["logger.subscribe"] = process.NewInternalProcessFactory(rl.subscribe)
+	pm.CmdMap["logger.unsubscribe"] = process.NewInternalProcessFactory(rl.unSubscribe)
 
 	go rl.pusher()
 	return rl
@@ -51,21 +65,113 @@ func (l *redisLogger) pusher() {
 	}
 }
 
-func (l *redisLogger) push() error {
-	for {
-		record := <-l.ch
+func (l *redisLogger) unSubscribe(cmd *core.Command) (interface{}, error) {
+	var args struct {
+		Queue string `json:"queue"`
+	}
 
-		bytes, err := json.Marshal(record)
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, err
+	}
+
+	if len(args.Queue) == 0 {
+		return nil, fmt.Errorf("queue is required")
+	}
+
+	l.m.Lock()
+	defer l.m.Unlock()
+	delete(l.queues, args.Queue)
+
+	return nil, nil
+}
+
+func (l *redisLogger) subscribe(cmd *core.Command) (interface{}, error) {
+	var args struct {
+		Queue string `json:"queue"`
+	}
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, err
+	}
+
+	if len(args.Queue) == 0 {
+		args.Queue = uuid.New()
+	}
+
+	args.Queue = fmt.Sprintf("logger:%s", args.Queue)
+
+	go func() {
+		//copying a 100,000 records can take too much,
+		//so we run this in go routine, so the caller
+		//can start reading logs immediately and he doesn't have
+		//to wait until all logs are copied.
+		if err := l.Subscribe(args.Queue); err != nil {
+			log.Errorf("failed to subscribe to queue: %s", err)
+		}
+	}()
+
+	return args.Queue, nil
+}
+
+func (l *redisLogger) Subscribe(queue string) error {
+	l.m.Lock()
+	defer l.m.Unlock()
+	if _, ok := l.queues[queue]; ok {
+		return nil
+	}
+
+	l.queues[queue] = struct{}{}
+
+	//flush backlog
+	for v := l.buffer.Front(); v != nil; v = v.Next() {
+		bytes, err := json.Marshal(v.Value)
 		if err != nil {
 			continue
 		}
 
-		if _, err := l.db.RPush([]byte(RedisLoggerQueue), bytes); err != nil {
+		if _, err := l.db.RPush([]byte(queue), bytes); err != nil {
+			return err
+		}
+	}
+
+	if err := l.db.LTrim([]byte(queue), -1*l.size, -1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (l *redisLogger) pushQueues(record *LogRecord) error {
+	l.m.RLock()
+	defer l.m.RUnlock()
+	l.buffer.Append(record)
+	if len(l.queues) == 0 {
+		return nil
+	}
+
+	bytes, err := json.Marshal(record)
+	if err != nil {
+		return err
+	}
+
+	for queue := range l.queues {
+		if _, err := l.db.RPush([]byte(queue), bytes); err != nil {
 			return err
 		}
 
-		if err := l.db.LTrim([]byte(RedisLoggerQueue), -1*l.size, -1); err != nil {
+		if err := l.db.LTrim([]byte(queue), -1*l.size, -1); err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+func (l *redisLogger) push() error {
+	for {
+		record := <-l.ch
+		if err := l.pushQueues(record); err != nil {
+			log.Errorf("failed to push logs to queue: %s", err)
 		}
 	}
 }
