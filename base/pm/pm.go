@@ -179,6 +179,16 @@ func (pm *PM) RunCmd(cmd *core.Command, hooks ...RunnerHook) (runner Runner, err
 	runner, err = pm.NewRunner(cmd, factory, hooks...)
 
 	if err == DuplicateIDErr {
+		/*
+			TODO:
+				There is a bug here that if someone send a command with a
+				duplicate ID, the response is gonna be sent back on the
+				command ID channel, causing the original command channel
+				to be spammed with duplicate id responses.
+
+				May be it is better to ignore commands that has duplicate
+				Id silently!
+		*/
 		log.Errorf("Duplicate job id '%s'", cmd.ID)
 		errResult := core.NewBasicJobResult(cmd)
 		errResult.State = core.StateDuplicateID

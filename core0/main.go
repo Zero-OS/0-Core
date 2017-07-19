@@ -21,6 +21,7 @@ import (
 	_ "github.com/zero-os/0-core/base/builtin"
 	_ "github.com/zero-os/0-core/core0/builtin"
 	_ "github.com/zero-os/0-core/core0/builtin/btrfs"
+	"github.com/zero-os/0-core/core0/subsys/apps"
 	"github.com/zero-os/0-core/core0/transport"
 	"os/signal"
 	"path"
@@ -167,6 +168,9 @@ func main() {
 	}
 
 	bs.Second()
+	if err := apps.AppsSubsystem(sink); err != nil {
+		log.Errorf("failed to initialize apps subsystem")
+	}
 
 	if err := kvm.KVMSubsystem(contMgr, &row.Cells[1]); err != nil {
 		log.Errorf("failed to initialize kvm subsystem", err)
