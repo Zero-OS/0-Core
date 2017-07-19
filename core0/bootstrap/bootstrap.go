@@ -194,8 +194,7 @@ func (b *Bootstrap) watchers() {
 	}()
 }
 
-//Bootstrap registers extensions and startup system services.
-func (b *Bootstrap) Bootstrap() {
+func (b *Bootstrap) First() {
 	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &syscall.Rlimit{65536, 65536}); err != nil {
 		log.Errorf("failed to setup max open files limit: %s", err)
 	}
@@ -209,7 +208,10 @@ func (b *Bootstrap) Bootstrap() {
 
 	//register included extensions
 	b.registerExtensions(b.i.Extension)
+}
 
+//Bootstrap registers extensions and startup system services.
+func (b *Bootstrap) Second() {
 	progress := &screen.ProgressSection{
 		Text: "Bootstrapping: Core Services",
 	}

@@ -151,7 +151,7 @@ func main() {
 	logger.ConfigureLogging(sink.DB())
 
 	bs := bootstrap.NewBootstrap()
-	bs.Bootstrap()
+	bs.First()
 
 	screen.Push(&screen.TextSection{})
 	screen.Push(&screen.SplitterSection{Title: "System Information"})
@@ -165,6 +165,8 @@ func main() {
 	if err != nil {
 		log.Fatal("failed to intialize container subsystem", err)
 	}
+
+	bs.Second()
 
 	if err := kvm.KVMSubsystem(contMgr, &row.Cells[1]); err != nil {
 		log.Errorf("failed to initialize kvm subsystem", err)

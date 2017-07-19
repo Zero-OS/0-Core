@@ -59,12 +59,11 @@ type PM struct {
 	maxJobs    int
 	jobsCond   *sync.Cond
 
-	preProcessors       []PreProcessor
-	msgHandlers         []MessageHandler
-	resultHandlers      []ResultHandler
-	routeResultHandlers map[core.Route][]ResultHandler
-	statsFlushHandlers  []StatsHandler
-	queueMgr            *cmdQueueManager
+	preProcessors      []PreProcessor
+	msgHandlers        []MessageHandler
+	resultHandlers     []ResultHandler
+	statsFlushHandlers []StatsHandler
+	queueMgr           *cmdQueueManager
 
 	pids    map[int]chan syscall.WaitStatus
 	pidsMux sync.Mutex
@@ -77,12 +76,11 @@ var pm *PM
 //NewPM creates a new PM
 func InitProcessManager(maxJobs int) *PM {
 	pm = &PM{
-		cmds:                make(chan *core.Command),
-		runners:             make(map[string]Runner),
-		maxJobs:             maxJobs,
-		jobsCond:            sync.NewCond(&sync.Mutex{}),
-		routeResultHandlers: make(map[core.Route][]ResultHandler),
-		queueMgr:            newCmdQueueManager(),
+		cmds:     make(chan *core.Command),
+		runners:  make(map[string]Runner),
+		maxJobs:  maxJobs,
+		jobsCond: sync.NewCond(&sync.Mutex{}),
+		queueMgr: newCmdQueueManager(),
 
 		pids: make(map[int]chan syscall.WaitStatus),
 	}
@@ -131,10 +129,6 @@ func (pm *PM) AddMessageHandler(handler MessageHandler) {
 //AddResultHandler adds a handler that receives job results.
 func (pm *PM) AddResultHandler(handler ResultHandler) {
 	pm.resultHandlers = append(pm.resultHandlers, handler)
-}
-
-func (pm *PM) AddRouteResultHandler(route core.Route, handler ResultHandler) {
-	pm.routeResultHandlers[route] = append(pm.routeResultHandlers[route], handler)
 }
 
 //AddStatsFlushHandler adds handler to stats flush.
@@ -337,6 +331,7 @@ func (pm *PM) RunSlice(slice settings.StartupSlice) {
 			RecurringPeriod: startup.RecurringPeriod,
 			MaxRestart:      startup.MaxRestart,
 			Protected:       startup.Protected,
+			Tags:            startup.Tags,
 			Arguments:       core.MustArguments(startup.Args),
 		}
 
@@ -530,10 +525,6 @@ func (pm *PM) resultCallback(cmd *core.Command, result *core.JobResult) {
 	//NOTE: we always force the real gid and nid on the result.
 
 	for _, handler := range pm.resultHandlers {
-		handler(cmd, result)
-	}
-
-	for _, handler := range pm.routeResultHandlers[cmd.Route] {
 		handler(cmd, result)
 	}
 }
