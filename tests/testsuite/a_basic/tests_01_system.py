@@ -66,17 +66,18 @@ class SystemTests(BaseTest):
         return cpuInfo
 
     def getDiskInfo(self, client):
-        diskInfo = {'mountpoint': [], 'fstype': [], 'device': [], 'opts': []}
         response = client.bash('mount').get().stdout
         lines = response.splitlines()
+        disks = []
         for line in lines:
             line = line.split()
-            diskInfo['mountpoint'].append(line[2])
-            diskInfo['fstype'].append(line[4])
-            diskInfo['device'].append(line[0])
-            diskInfo['opts'].append(line[5][1:-1])
-
-        return diskInfo
+            diskInfo = {'mountpoint': [], 'fstype': [], 'device': [], 'opts': []}
+            diskInfo['mountpoint'] = line[2]
+            diskInfo['fstype'] = line[4]
+            diskInfo['device'] = line[0]
+            diskInfo['opts'] = line[5][1:-1]
+            disks.append(diskInfo)
+        return disks 
 
     def getMemInfo(self, client):
 
@@ -300,10 +301,9 @@ class SystemTests(BaseTest):
         g8os_disk_info = client.info.disk()
 
         self.lg('compare g8os results to bash results')
-        for key in expected_disk_info.keys():
-            g8os_param_list = [x[key] for x in g8os_disk_info]
-            self.assertEqual(expected_disk_info[key], g8os_param_list)
-
+        for disk in g8os_disk_info:
+            self.assertIn(disk, expected_disk_info)
+           
         self.lg('{} ENDED'.format(self._testID))
 
     def test007_nic_info(self):
