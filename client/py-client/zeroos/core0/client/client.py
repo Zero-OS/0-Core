@@ -597,7 +597,10 @@ class FilesystemManager:
         :return:
         """
         file = open(local, 'rb')
-        self.upload(remote, file)
+        try:
+            self.upload(remote, file)
+        finally:
+            file.close()
 
     def download_file(self, remote, local):
         """
@@ -607,7 +610,10 @@ class FilesystemManager:
         :return:
         """
         file = open(local, 'wb')
-        self.download(remote, file)
+        try:
+            self.download(remote, file)
+        finally:
+            file.close()
 
 
 class BaseClient:
