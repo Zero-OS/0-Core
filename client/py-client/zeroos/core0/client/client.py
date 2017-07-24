@@ -1966,8 +1966,8 @@ class KvmManager:
     _man_nic_action_chk = typchk.Checker({
         'uuid': str,
         'type': typchk.Enum('default', 'bridge', 'vxlan', 'vlan'),
-        'id': typchk.Or(str, typchk.Missing()),
-        'hwaddr': typchk.Or(str, typchk.Missing()),
+        'id': typchk.Or(str, typchk.IsNone()),
+        'hwaddr': typchk.Or(str, typchk.IsNone()),
     })
 
     _migrate_action_chk = typchk.Checker({
