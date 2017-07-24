@@ -160,6 +160,9 @@ func (c *ContainerCreateArguments) Validate() error {
 
 	nameset := make(map[string]byte)
 	for _, nic := range c.Nics {
+		if nic.State == NicStateDestroyed {
+			continue
+		}
 		if nic.Name != "" {
 			if _, ok := nameset[nic.Name]; ok {
 				return fmt.Errorf("name '%v' is passed twice in the container", nic.Name)
@@ -375,6 +378,8 @@ func (m *containerManager) nicAdd(cmd *core.Command) (interface{}, error) {
 	container.Args.Nics = append(container.Args.Nics, &args.Nic)
 
 	if err := container.Args.Validate(); err != nil {
+		l := container.Args.Nics
+		container.Args.Nics = l[:len(l)-1]
 		return nil, err
 	}
 
