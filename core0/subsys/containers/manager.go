@@ -414,6 +414,17 @@ func (m *containerManager) nicRemove(cmd *core.Command) (interface{}, error) {
 		return nil, fmt.Errorf("nic is in '%s' state", nic.State)
 	}
 
+	if nic.Type == "zerotier" {
+		//special handling for zerotier networks
+		if err := container.leaveZerotierNetwork(args.Index, nic.ID); err != nil {
+			nic.State = NicStateError
+			return nil, err
+		}
+
+		nic.State = NicStateDestroyed
+		return nil, nil
+	}
+
 	var ovs Container
 	if nic.Type == "vlan" || nic.Type == "vxlan" {
 		ovs = m.GetOneWithTags("ovs")
