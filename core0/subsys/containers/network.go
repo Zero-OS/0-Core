@@ -104,13 +104,23 @@ type ztNetorkInfo struct {
 	NetID             string   `json:"nwid"`
 }
 
-func (c *container) postZerotierNetwork(idx int, netID string) error {
+func (c *container) joinZerotierNetwork(idx int, netID string) error {
 	if err := c.zerotierDaemon(); err != nil {
 		return err
 	}
 
 	home := c.zerotierHome()
 	_, err := pm.GetManager().System("ip", "netns", "exec", fmt.Sprint(c.ID()), "zerotier-cli", fmt.Sprintf("-D%s", home), "join", netID)
+	return err
+}
+
+func (c *container) leaveZerotierNetwork(idx int, netID string) error {
+	if err := c.zerotierDaemon(); err != nil {
+		return err
+	}
+
+	home := c.zerotierHome()
+	_, err := pm.GetManager().System("ip", "netns", "exec", fmt.Sprint(c.ID()), "zerotier-cli", fmt.Sprintf("-D%s", home), "leave", netID)
 	return err
 }
 
@@ -483,7 +493,7 @@ func (c *container) postStartNetwork(idx int, network *Nic) (err error) {
 	case "vlan":
 		err = c.postVlanNetwork(name, idx, network)
 	case "zerotier":
-		err = c.postZerotierNetwork(idx, network.ID)
+		err = c.joinZerotierNetwork(idx, network.ID)
 	case "default":
 		err = c.postDefaultNetwork(name, idx, network)
 	case "bridge":
