@@ -543,6 +543,7 @@ class SystemTests(BaseTest):
         self.lg('{} ENDED'.format(self._testID))
 
     @parameterized.expand(['client', 'container'])
+    @unittest.skip('https://github.com/zero-os/0-core/issues/422')
     def test010_upload_download_file(self, client_type):
 
         """ g8os-018
