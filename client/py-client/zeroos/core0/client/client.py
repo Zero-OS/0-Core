@@ -597,7 +597,10 @@ class FilesystemManager:
         :return:
         """
         file = open(local, 'rb')
-        self.upload(remote, file)
+        try:
+            self.upload(remote, file)
+        finally:
+            file.close()
 
     def download_file(self, remote, local):
         """
@@ -607,7 +610,10 @@ class FilesystemManager:
         :return:
         """
         file = open(local, 'wb')
-        self.download(remote, file)
+        try:
+            self.download(remote, file)
+        finally:
+            file.close()
 
 
 class BaseClient:
@@ -1966,8 +1972,8 @@ class KvmManager:
     _man_nic_action_chk = typchk.Checker({
         'uuid': str,
         'type': typchk.Enum('default', 'bridge', 'vxlan', 'vlan'),
-        'id': typchk.Or(str, typchk.Missing()),
-        'hwaddr': typchk.Or(str, typchk.Missing()),
+        'id': typchk.Or(str, typchk.IsNone()),
+        'hwaddr': typchk.Or(str, typchk.IsNone()),
     })
 
     _migrate_action_chk = typchk.Checker({
