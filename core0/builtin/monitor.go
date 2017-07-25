@@ -7,6 +7,7 @@ import (
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/shirou/gopsutil/net"
+	ps "github.com/shirou/gopsutil/process"
 	"github.com/vishvananda/netlink"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/core"
@@ -206,6 +207,22 @@ func (m *monitor) cpu() error {
 			"", pm.Tag{"type", "phys"},
 		)
 	}
+
+	pids, _ := ps.Pids()
+	var threads int32 = 0
+	for _, pid := range pids {
+		process, err := ps.NewProcess(pid)
+		if err != nil {
+			//probably process is gone
+			continue
+		}
+
+		if num, err := process.NumThreads(); err == nil {
+			threads += num
+		}
+	}
+
+	p.Aggregate(pm.AggreagteAverage, "machine.process.threads", float64(threads), "", pm.Tag{"type", "phys"})
 
 	return nil
 }
