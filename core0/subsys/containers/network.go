@@ -14,6 +14,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -40,6 +41,19 @@ func (c *container) zerotierDaemon() error {
 		home := c.zerotierHome()
 		os.RemoveAll(home)
 		os.MkdirAll(home, 0755)
+
+		if len(c.Args.Identity) > 0 {
+			//set zt identity
+			if err := ioutil.WriteFile(path.Join(c.zerotierHome(), "identity.secret"), []byte(c.Args.Identity), 0600); err != nil {
+				log.Errorf("feiled to write zerotier secret identity: %v", err)
+			}
+			parts := strings.Split(c.Args.Identity, ":")
+			public := strings.Join(parts[:len(parts)-1], ":")
+			if err := ioutil.WriteFile(path.Join(c.zerotierHome(), "identity.public"), []byte(public), 0644); err != nil {
+				log.Errorf("feiled to write zerotier public identity: %v", err)
+			}
+		}
+
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 

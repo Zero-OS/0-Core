@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/core"
+	"io/ioutil"
+	"path"
+	"strings"
 )
 
 func (m *containerManager) ztInfo(cmd *core.Command) (interface{}, error) {
@@ -29,10 +32,14 @@ func (m *containerManager) ztInfo(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	var data interface{}
+	var data map[string]interface{}
 	if err := json.Unmarshal([]byte(job.Streams.Stdout()), &data); err != nil {
 		return nil, err
 	}
+
+	//inject private identity
+	secret, err := ioutil.ReadFile(path.Join(cont.zerotierHome(), "identity.secret"))
+	data["secretIdentity"] = strings.TrimSpace(string(secret))
 
 	return data, nil
 }

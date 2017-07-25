@@ -957,6 +957,7 @@ class ContainerManager:
         ),
         'storage': typchk.Or(str, typchk.IsNone()),
         'name': typchk.Or(str, typchk.IsNone()),
+        'identity': typchk.Or(str, typchk.IsNone())
     })
 
     _client_chk = typchk.Checker(
@@ -991,7 +992,7 @@ class ContainerManager:
     def __init__(self, client):
         self._client = client
 
-    def create(self, root_url, mount=None, host_network=False, nics=DefaultNetworking, port=None, hostname=None, privileged=False, storage=None, name=None, tags=None):
+    def create(self, root_url, mount=None, host_network=False, nics=DefaultNetworking, port=None, hostname=None, privileged=False, storage=None, name=None, tags=None, identity=None):
         """
         Creater a new container with the given root flist, mount points and
         zerotier id, and connected to the given bridges
@@ -1025,6 +1026,8 @@ class ContainerManager:
         :param privileged: If true, container runs in privileged mode.
         :param storage: A Url to the ardb storage to use to mount the root flist (or any other mount that requires g8fs)
                         if not provided, the default one from core0 configuration will be used.
+        :param name: Optional name for the container
+        :param identity: Container Zerotier identity, Only used if at least one of the nics is of type zerotier
         """
 
         if nics == self.DefaultNetworking:
@@ -1042,6 +1045,7 @@ class ContainerManager:
             'privileged': privileged,
             'storage': storage,
             'name': name,
+            'identity': identity,
         }
 
         # validate input
