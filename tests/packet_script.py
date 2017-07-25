@@ -26,21 +26,22 @@ def delete_device(manager):
     config = configparser.ConfigParser()
     config.read('config.ini')
     hostname = config['main']['machine_hostname']
-    project = manager.list_projects()[0]
-    devices = manager.list_devices(project.id)
-    for dev in devices:
-        if dev.hostname == hostname:
-            device_id = dev.id
-    params = {
-             "hostname": hostname,
-             "description": "string",
-             "billing_cycle": "hourly",
-             "userdata": "",
-             "locked": False,
-             "tags": []
-             }
-    if device_id:
-        manager.call_api('devices/%s' % device_id, type='DELETE', params=params)
+    if hostname:
+        project = manager.list_projects()[0]
+        devices = manager.list_devices(project.id)
+        for dev in devices:
+            if dev.hostname == hostname:
+                device_id = dev.id
+        params = {
+                 "hostname": hostname,
+                 "description": "string",
+                 "billing_cycle": "hourly",
+                 "userdata": "",
+                 "locked": False,
+                 "tags": []
+                 }
+        if device_id:
+            manager.call_api('devices/%s' % device_id, type='DELETE', params=params)
 
 
 def mount_disks(config):
@@ -74,7 +75,7 @@ def check_status(found, branch):
 
 
 def create_pkt_machine(manager, branch):
-    hostname = 'g8os{}'.format(randint(100, 300))
+    hostname = '0core{}-travis'.format(randint(100, 300))
     try:
         device = create_new_device(manager, hostname, branch=branch)
     except:
