@@ -3,10 +3,10 @@ package builtin
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/shirou/gopsutil/process"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/core"
 	ps "github.com/zero-os/0-core/base/pm/process"
-	"github.com/shirou/gopsutil/process"
 	"io/ioutil"
 	"strings"
 	"syscall"
@@ -27,15 +27,17 @@ type processListArguments struct {
 }
 
 type Process struct {
-	PID        int32    `json:"pid"`
-	PPID       int32    `json:"ppid"`
-	Cmdline    string   `json:"cmdline"`
-	Name       string   `json:"name"`
-	CreateTime int64    `json:"createtime"`
-	Cpu        CPUStats `json:"cpu"`
-	RSS        uint64   `json:"rss"`
-	VMS        uint64   `json:"vms"`
-	Swap       uint64   `json:"swap"`
+	PID        int32                `json:"pid"`
+	PPID       int32                `json:"ppid"`
+	Cmdline    string               `json:"cmdline"`
+	Name       string               `json:"name"`
+	CreateTime int64                `json:"createtime"`
+	Cpu        CPUStats             `json:"cpu"`
+	RSS        uint64               `json:"rss"`
+	VMS        uint64               `json:"vms"`
+	Swap       uint64               `json:"swap"`
+	RLimit     []process.RlimitStat `json:"rlimit"`
+	OFD        int32                `json:"ofd"`
 }
 
 type CPUStats struct {
@@ -94,6 +96,16 @@ func getProcessInfo(ps *process.Process) *Process {
 			System:    cpu.System,
 			User:      cpu.User,
 		}
+	}
+
+	if ofd, err := ps.NumFDs(); err == nil {
+		res.OFD = ofd
+	}
+
+	if rlimit, err := ps.Rlimit(); err == nil {
+		res.RLimit = rlimit
+	} else {
+		res.RLimit = make([]process.RlimitStat, 0)
 	}
 
 	return res
