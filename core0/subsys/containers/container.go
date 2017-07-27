@@ -94,6 +94,16 @@ func (c *container) Start() (runner pm.Runner, err error) {
 	}
 
 	mgr := pm.GetManager()
+
+	//Set a Default Env and merge it with environment map from args
+	env := map[string]string{
+		"PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"HOME": "/",
+	}
+	for key, value := range c.Args.Env {
+		env[key] = value
+	}
+
 	extCmd := &core.Command{
 		ID: coreID,
 		Arguments: core.MustArguments(
@@ -103,10 +113,7 @@ func (c *container) Start() (runner pm.Runner, err error) {
 				Dir:         "/",
 				HostNetwork: c.Args.HostNetwork,
 				Args:        args,
-				Env: map[string]string{
-					"PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-					"HOME": "/",
-				},
+				Env: 	     env,
 			},
 		),
 	}

@@ -89,6 +89,7 @@ type ContainerCreateArguments struct {
 	Storage     string            `json:"storage"`      //ardb storage needed for g8ufs mounts.
 	Name        string            `json:"name"`         //for searching containers
 	Tags        core.Tags         `json:"tags"`         //for searching containers
+	Env         map[string]string `json:"env"`          //environment variables.
 }
 
 type ContainerDispatchArguments struct {
