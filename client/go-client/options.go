@@ -59,15 +59,3 @@ func (o idOpt) apply(cmd *Command) {
 func ID(id string) Option {
 	return idOpt{id}
 }
-
-type tagsOpt struct {
-	tags string
-}
-
-func (o tagsOpt) apply(cmd *Command) {
-	cmd.Tags = o.tags
-}
-
-func Tags(tags string) Option {
-	return tagsOpt{tags}
-}

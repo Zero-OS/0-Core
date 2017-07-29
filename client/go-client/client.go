@@ -6,6 +6,8 @@ import (
 
 type A map[string]interface{}
 
+type Tags []string
+
 type Command struct {
 	ID              string `json:"id"`
 	Command         string `json:"command"`
@@ -16,7 +18,7 @@ type Command struct {
 	MaxRestart      int    `json:"max_restart,omitempty"`
 	RecurringPeriod int    `json:"recurring_period,omitempty"`
 	LogLevels       []int  `json:"log_levels,omitempty"`
-	Tags            string `json:"tags"`
+	Tags            Tags   `json:"tags"`
 }
 
 type Option interface {

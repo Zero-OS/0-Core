@@ -958,7 +958,7 @@ class ContainerManager:
         'storage': typchk.Or(str, typchk.IsNone()),
         'name': typchk.Or(str, typchk.IsNone()),
         'identity': typchk.Or(str, typchk.IsNone()),
-        'env': typchk.Or(None, typchk.Map(str, str))
+        'env': typchk.Or(typchk.IsNone(), typchk.Map(str, str))
     })
 
     _client_chk = typchk.Checker(
