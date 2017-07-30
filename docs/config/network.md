@@ -1,6 +1,6 @@
 # Network Configuration
 
-Core0 applies the network configuration as defined in the `/etc/g8os/network.toml`, structured as follows:
+Zero-OS applies the network configuration as defined in the `/etc/zero-od/network.toml`, structured as follows:
 
 ```toml
 [network]
