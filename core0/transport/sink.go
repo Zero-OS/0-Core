@@ -105,8 +105,14 @@ func (sink *Sink) process() {
 		sink.ch.Flag(command.ID)
 		log.Debugf("Starting command %s", &command)
 
-		if _, err := pm.Run(&command); err != nil {
-			log.Errorf("ERROR RUNNING COMMAND NEED TO BE HANDLED: %s", err)
+		_, err = pm.Run(&command)
+
+		if err == pm.UnknownCommandErr {
+			result := core.NewBasicJobResult(&command)
+			result.State = core.StateUnknownCmd
+			sink.Forward(result)
+		} else if err != nil {
+			log.Errorf("Unknown error while processing command (%s): %s", command, err)
 		}
 	}
 }

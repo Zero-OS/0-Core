@@ -133,7 +133,7 @@ func Run(cmd *core.Command, hooks ...RunnerHook) (Job, error) {
 		return nil, UnknownCommandErr
 	}
 
-	return RunFactory(cmd, factory)
+	return RunFactory(cmd, factory, hooks...)
 }
 
 func loop() {
@@ -313,6 +313,7 @@ func RunSlice(slice settings.StartupSlice) {
 			_, err := Run(c, hooks...)
 			if err != nil {
 				//failed to dispatch command to r manager.
+				log.Errorf("failed to start command %v: %s", c, err)
 				state.Release(c.ID, false)
 			}
 		}(startup, cmd)
