@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/codegangsta/cli"
-	"github.com/zero-os/0-core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm"
 )
 
 func system(t Transport, c *cli.Context) {
@@ -16,7 +16,7 @@ func system(t Transport, c *cli.Context) {
 		Container: c.GlobalString("container"),
 		Content: pm.Command{
 			Command: "core.system",
-			Arguments: core.MustArguments(M{
+			Arguments: pm.MustArguments(M{
 				"name": c.Args().First(),
 				"args": c.Args().Tail(),
 			}),

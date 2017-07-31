@@ -22,8 +22,6 @@ type ContainerCommandArguments struct {
 }
 
 type Channel interface {
-	Writer() uintptr
-	Reader() uintptr
 	io.ReadWriteCloser
 }
 
@@ -48,14 +46,6 @@ func (c *channel) Read(p []byte) (n int, err error) {
 
 func (c *channel) Write(p []byte) (n int, err error) {
 	return c.w.Write(p)
-}
-
-func (c *channel) Writer() uintptr {
-	return c.w.Fd()
-}
-
-func (c *channel) Reader() uintptr {
-	return c.r.Fd()
 }
 
 type ContainerProcess interface {

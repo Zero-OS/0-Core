@@ -33,14 +33,14 @@ func RegisterExtension(cmd string, exe string, workdir string, cmdargs []string,
 		return fmt.Errorf("job factory with the same name already registered: %s", cmd)
 	}
 
-	Register(cmd, NewExtensionProcessFactory(exe, workdir, cmdargs, env))
+	Register(cmd, extensionProcessFactory(exe, workdir, cmdargs, env))
 	return nil
 }
 
 func RegisterBuiltIn(name string, runnable Runnable) {
-	Register(name, NewInternalProcessFactory(runnable))
+	Register(name, internalProcessFactory(runnable))
 }
 
 func RegisterBuiltInWithCtx(name string, runnable RunnableWithCtx) {
-	Register(name, NewInternalProcessFactoryWithCtx(runnable))
+	Register(name, internalProcessFactoryWithCtx(runnable))
 }

@@ -51,7 +51,7 @@ type internalProcess struct {
 /*
 internalProcessFactory factory to build Runnable processes
 */
-func NewInternalProcessFactory(runnable Runnable) ProcessFactory {
+func internalProcessFactory(runnable Runnable) ProcessFactory {
 	factory := func(_ PIDTable, cmd *Command) Process {
 		return &internalProcess{
 			runnable: runnable,
@@ -64,7 +64,7 @@ func NewInternalProcessFactory(runnable Runnable) ProcessFactory {
 	return factory
 }
 
-func NewInternalProcessFactoryWithCtx(runnable RunnableWithCtx) ProcessFactory {
+func internalProcessFactoryWithCtx(runnable RunnableWithCtx) ProcessFactory {
 	factory := func(_ PIDTable, cmd *Command) Process {
 		return &internalProcess{
 			runnable: runnable,

@@ -13,7 +13,7 @@ type extensionProcess struct {
 	cmd    *Command
 }
 
-func NewExtensionProcessFactory(exe string, dir string, args []string, env map[string]string) ProcessFactory {
+func extensionProcessFactory(exe string, dir string, args []string, env map[string]string) ProcessFactory {
 	constructor := func(table PIDTable, cmd *Command) Process {
 		sysargs := SystemCommandArguments{
 			Name: exe,

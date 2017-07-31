@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/zero-os/0-core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm"
 	"gopkg.in/yaml.v2"
 	"io"
 	"os"
@@ -18,7 +18,7 @@ var (
 
 type M map[string]interface{}
 
-type Response core.JobResult
+type Response pm.JobResult
 
 func (r *Response) Print() {
 	data, err := yaml.Marshal(r)
@@ -39,7 +39,7 @@ func (r *Response) PrintStreams() {
 
 func (r *Response) ValidateResultOrExit() {
 
-	if r.State != core.StateSuccess {
+	if r.State != pm.StateSuccess {
 		log.Errorf("State: %s", r.State)
 		if r.Data != "" {
 			log.Errorf("%s", r.Data)

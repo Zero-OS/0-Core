@@ -3,15 +3,15 @@ package main
 import (
 	"encoding/json"
 	"github.com/codegangsta/cli"
-	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/pborman/uuid"
+	"github.com/zero-os/0-core/base/pm"
 	"net"
 	"sync"
 )
 
 type Command struct {
-	Sync      bool         `json:"sync"`
-	Container string       `json:"container"`
+	Sync      bool       `json:"sync"`
+	Container string     `json:"container"`
 	Content   pm.Command `json:"content"`
 }
 
