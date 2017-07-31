@@ -2,18 +2,20 @@ package pm
 
 const (
 	//StateSuccess successs exit status
-	StateSuccess = "SUCCESS"
+	StateSuccess JobState = "SUCCESS"
 	//StateError error exist status
-	StateError = "ERROR"
+	StateError JobState = "ERROR"
 	//StateTimeout timeout exit status
-	StateTimeout = "TIMEOUT"
+	StateTimeout JobState = "TIMEOUT"
 	//StateKilled killed exit status
-	StateKilled = "KILLED"
+	StateKilled JobState = "KILLED"
 	//StateUnknownCmd unknown cmd exit status
-	StateUnknownCmd = "UNKNOWN_CMD"
+	StateUnknownCmd JobState = "UNKNOWN_CMD"
 	//StateDuplicateID dublicate id exit status
-	StateDuplicateID = "DUPILICATE_ID"
+	StateDuplicateID JobState = "DUPILICATE_ID"
 )
+
+type JobState string
 
 type Streams []string
 
@@ -33,17 +35,17 @@ func (s Streams) Stderr() string {
 
 //JobResult represents a result of a job
 type JobResult struct {
-	ID        string  `json:"id"`
-	Command   string  `json:"command"`
-	Data      string  `json:"data"`
-	Streams   Streams `json:"streams,omitempty"`
-	Critical  string  `json:"critical,omitempty"`
-	Level     uint16  `json:"level"`
-	State     string  `json:"state"`
-	StartTime int64   `json:"starttime"`
-	Time      int64   `json:"time"`
-	Tags      Tags    `json:"tags"`
-	Container uint64  `json:"container"`
+	ID        string   `json:"id"`
+	Command   string   `json:"command"`
+	Data      string   `json:"data"`
+	Streams   Streams  `json:"streams,omitempty"`
+	Critical  string   `json:"critical,omitempty"`
+	Level     uint16   `json:"level"`
+	State     JobState `json:"state"`
+	StartTime int64    `json:"starttime"`
+	Time      int64    `json:"time"`
+	Tags      Tags     `json:"tags"`
+	Container uint64   `json:"container"`
 }
 
 //NewBasicJobResult creates a new job result from command

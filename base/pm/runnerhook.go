@@ -10,7 +10,7 @@ import (
 type RunnerHook interface {
 	Tick(delay time.Duration)
 	Message(msg *stream.Message)
-	Exit(state string)
+	Exit(state JobState)
 	PID(pid int)
 }
 
@@ -19,7 +19,7 @@ type NOOPHook struct {
 
 func (h *NOOPHook) Tick(delay time.Duration)    {}
 func (h *NOOPHook) Message(msg *stream.Message) {}
-func (h *NOOPHook) Exit(state string)           {}
+func (h *NOOPHook) Exit(state JobState)         {}
 func (h *NOOPHook) PID(pid int)                 {}
 
 type DelayHook struct {
@@ -43,7 +43,7 @@ type ExitHook struct {
 	Action func(bool)
 }
 
-func (h *ExitHook) Exit(state string) {
+func (h *ExitHook) Exit(state JobState) {
 	s := false
 	if state == StateSuccess {
 		s = true
