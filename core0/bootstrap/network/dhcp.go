@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"github.com/pborman/uuid"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 )
 
 const (
@@ -20,11 +18,11 @@ type dhcpProtocol struct {
 }
 
 func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
-	cmd := &core.Command{
+	cmd := &pm.Command{
 		ID:      uuid.New(),
-		Command: process.CommandSystem,
-		Arguments: core.MustArguments(
-			process.SystemCommandArguments{
+		Command: pm.CommandSystem,
+		Arguments: pm.MustArguments(
+			pm.SystemCommandArguments{
 				Name: "udhcpc",
 				Args: []string{
 					"-f", //foreground
@@ -44,7 +42,7 @@ func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
 	}
 
 	result := job.Wait()
-	if result.State != core.StateSuccess {
+	if result.State != pm.StateSuccess {
 		return fmt.Errorf("udhcpc failed: %s", result.Streams.Stderr())
 	}
 

@@ -9,8 +9,6 @@ import (
 	"github.com/shirou/gopsutil/net"
 	base "github.com/zero-os/0-core/base"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 	"gopkg.in/bufio.v1"
 	"io/ioutil"
 	gonet "net"
@@ -32,13 +30,13 @@ const (
 )
 
 func init() {
-	pm.CmdMap[cmdGetCPUInfo] = process.NewInternalProcessFactory(getCPUInfo)
-	pm.CmdMap[cmdGetDiskInfo] = process.NewInternalProcessFactory(getDiskInfo)
-	pm.CmdMap[cmdGetMemInfo] = process.NewInternalProcessFactory(getMemInfo)
-	pm.CmdMap[cmdGetNicInfo] = process.NewInternalProcessFactory(getNicInfo)
-	pm.CmdMap[cmdGetOsInfo] = process.NewInternalProcessFactory(getOsInfo)
-	pm.CmdMap[cmdGetPortInfo] = process.NewInternalProcessFactory(getPortInfo)
-	pm.CmdMap[cmdGetVersionInfo] = process.NewInternalProcessFactory(getVersionInfo)
+	pm.RegisterBuiltIn(cmdGetCPUInfo, getCPUInfo)
+	pm.RegisterBuiltIn(cmdGetDiskInfo, getDiskInfo)
+	pm.RegisterBuiltIn(cmdGetMemInfo, getMemInfo)
+	pm.RegisterBuiltIn(cmdGetNicInfo, getNicInfo)
+	pm.RegisterBuiltIn(cmdGetOsInfo, getOsInfo)
+	pm.RegisterBuiltIn(cmdGetPortInfo, getPortInfo)
+	pm.RegisterBuiltIn(cmdGetVersionInfo, getVersionInfo)
 
 }
 
@@ -48,19 +46,19 @@ type Version struct {
 	Dirty    bool   `json:"dirty"`
 }
 
-func getVersionInfo(cmd *core.Command) (interface{}, error) {
+func getVersionInfo(cmd *pm.Command) (interface{}, error) {
 	return Version{Branch: base.Branch, Revision: base.Revision, Dirty: base.Dirty != ""}, nil
 }
 
-func getCPUInfo(cmd *core.Command) (interface{}, error) {
+func getCPUInfo(cmd *pm.Command) (interface{}, error) {
 	return cpu.Info()
 }
 
-func getDiskInfo(cmd *core.Command) (interface{}, error) {
+func getDiskInfo(cmd *pm.Command) (interface{}, error) {
 	return disk.Partitions(false)
 }
 
-func getMemInfo(cmd *core.Command) (interface{}, error) {
+func getMemInfo(cmd *pm.Command) (interface{}, error) {
 	return mem.VirtualMemory()
 }
 
@@ -69,7 +67,7 @@ type NicInfo struct {
 	Speed uint32 `json:"speed"`
 }
 
-func getNicInfo(cmd *core.Command) (interface{}, error) {
+func getNicInfo(cmd *pm.Command) (interface{}, error) {
 	var speed uint32
 	ifcs, err := net.Interfaces()
 	if err != nil {
@@ -98,7 +96,7 @@ func getNicInfo(cmd *core.Command) (interface{}, error) {
 	return ret, nil
 }
 
-func getOsInfo(cmd *core.Command) (interface{}, error) {
+func getOsInfo(cmd *pm.Command) (interface{}, error) {
 	return host.Info()
 }
 
@@ -246,7 +244,7 @@ func getSocketsInodes() map[uint64]uint64 {
 	return m
 }
 
-func getPortInfo(cmd *core.Command) (interface{}, error) {
+func getPortInfo(cmd *pm.Command) (interface{}, error) {
 	ports, err := getTCPUDPInfo()
 	if err != nil {
 		return nil, err

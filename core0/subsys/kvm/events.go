@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"github.com/google/shlex"
 	"github.com/libvirt/libvirt-go"
-	"github.com/zero-os/0-core/base/pm/process"
+	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/stream"
 	"runtime/debug"
 	"strings"
@@ -34,7 +34,7 @@ func (m *kvmManager) handle(conn *libvirt.Connect, domain *libvirt.Domain, event
 	m.evch <- data
 }
 
-func (m *kvmManager) events(ctx *process.Context) (interface{}, error) {
+func (m *kvmManager) events(ctx *pm.Context) (interface{}, error) {
 	var sequence uint64 = 1
 	for data := range m.evch {
 		data["sequence"] = sequence

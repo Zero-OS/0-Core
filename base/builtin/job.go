@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 	"syscall"
 )
 
@@ -16,9 +14,9 @@ const (
 )
 
 func init() {
-	pm.CmdMap[cmdJobList] = process.NewInternalProcessFactory(jobList)
-	pm.CmdMap[cmdJobKill] = process.NewInternalProcessFactory(jobKill)
-	pm.CmdMap[cmdJobKillAll] = process.NewInternalProcessFactory(jobKillAll)
+	pm.RegisterBuiltIn(cmdJobList, jobList)
+	pm.RegisterBuiltIn(cmdJobKill, jobKill)
+	pm.RegisterBuiltIn(cmdJobKillAll, jobKillAll)
 }
 
 type jobListArguments struct {
@@ -26,12 +24,12 @@ type jobListArguments struct {
 }
 
 type processData struct {
-	process.ProcessStats
-	StartTime int64         `json:"starttime"`
-	Cmd       *core.Command `json:"cmd,omitempty"`
+	pm.ProcessStats
+	StartTime int64       `json:"starttime"`
+	Cmd       *pm.Command `json:"cmd,omitempty"`
 }
 
-func jobList(cmd *core.Command) (interface{}, error) {
+func jobList(cmd *pm.Command) (interface{}, error) {
 	//load data
 	var data jobListArguments
 	err := json.Unmarshal(*cmd.Arguments, &data)
@@ -64,7 +62,7 @@ func jobList(cmd *core.Command) (interface{}, error) {
 
 		ps := runner.Process()
 
-		if stater, ok := ps.(process.Stater); ok {
+		if stater, ok := ps.(pm.Stater); ok {
 			psStat := stater.Stats()
 			s.CPU = psStat.CPU
 			s.RSS = psStat.RSS
@@ -83,7 +81,7 @@ type jobKillArguments struct {
 	Signal syscall.Signal `json:"signal"`
 }
 
-func jobKill(cmd *core.Command) (interface{}, error) {
+func jobKill(cmd *pm.Command) (interface{}, error) {
 	//load data
 	data := jobKillArguments{}
 	err := json.Unmarshal(*cmd.Arguments, &data)
@@ -101,7 +99,7 @@ func jobKill(cmd *core.Command) (interface{}, error) {
 		return false, nil
 	}
 
-	if ps, ok := job.Process().(process.Signaler); ok {
+	if ps, ok := job.Process().(pm.Signaler); ok {
 		if err := ps.Signal(data.Signal); err != nil {
 			return false, err
 		}
@@ -115,7 +113,7 @@ func jobKill(cmd *core.Command) (interface{}, error) {
 
 }
 
-func jobKillAll(cmd *core.Command) (interface{}, error) {
+func jobKillAll(cmd *pm.Command) (interface{}, error) {
 	pm.Killall()
 	return true, nil
 }

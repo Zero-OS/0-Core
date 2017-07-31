@@ -435,7 +435,7 @@ func (c *Connect) Ref() error {
 
 type CloseCallback func(conn *Connect, reason ConnectCloseReason)
 
-// Register a close callback for the given destination. Only one
+// PIDTable a close callback for the given destination. Only one
 // callback per connection is allowed. Setting a callback will remove
 // the previous one.
 func (c *Connect) RegisterCloseCallback(callback CloseCallback) error {

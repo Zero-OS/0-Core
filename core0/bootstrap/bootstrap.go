@@ -58,7 +58,9 @@ func NewBootstrap() *Bootstrap {
 
 func (b *Bootstrap) registerExtensions(extensions map[string]settings.Extension) {
 	for extKey, extCfg := range extensions {
-		pm.RegisterCmd(extKey, extCfg.Binary, extCfg.Cwd, extCfg.Args, extCfg.Env)
+		if err := pm.RegisterExtension(extKey, extCfg.Binary, extCfg.Cwd, extCfg.Args, extCfg.Env); err != nil {
+			log.Error(err)
+		}
 	}
 }
 

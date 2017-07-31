@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/utils"
 	"github.com/zero-os/0-core/core0/subsys/containers"
 	"net"
@@ -59,8 +58,8 @@ func (l *Local) container(x string) containers.Container {
 
 func (l *Local) server(con net.Conn) {
 	//read command
-	result := &core.JobResult{
-		State: core.StateError,
+	result := &pm.JobResult{
+		State: pm.StateError,
 	}
 
 	defer func() {
@@ -76,27 +75,27 @@ func (l *Local) server(con net.Conn) {
 	var lcmd LocalCmd
 
 	if err := decoder.Decode(&lcmd); err != nil {
-		result.Streams = core.Streams{"", fmt.Sprintf("Failed to decode message: %s", err)}
+		result.Streams = pm.Streams{"", fmt.Sprintf("Failed to decode message: %s", err)}
 		return
 	}
 
-	cmd, err := core.LoadCmd(lcmd.Content)
+	cmd, err := pm.LoadCmd(lcmd.Content)
 	if err != nil {
-		result.Streams = core.Streams{"", fmt.Sprintf("Failed to extract command: %s", err)}
+		result.Streams = pm.Streams{"", fmt.Sprintf("Failed to extract command: %s", err)}
 		return
 	}
 
 	container := l.container(lcmd.Container)
 
 	if lcmd.Container != "" && container == nil {
-		result.Streams = core.Streams{"", fmt.Sprintf("couldn't match any containers with '%s'", lcmd.Container)}
+		result.Streams = pm.Streams{"", fmt.Sprintf("couldn't match any containers with '%s'", lcmd.Container)}
 		return
 	}
 
 	if container == nil {
 		job, err := pm.Run(cmd)
 		if err != nil {
-			result.Streams = core.Streams{"", fmt.Sprintf("Failed to get result job for command(%s): %s", cmd.Command, err)}
+			result.Streams = pm.Streams{"", fmt.Sprintf("Failed to get result job for command(%s): %s", cmd.Command, err)}
 			return
 		}
 
@@ -108,7 +107,7 @@ func (l *Local) server(con net.Conn) {
 	} else {
 		contjob, err := l.mgr.Dispatch(container.ID(), cmd)
 		if err != nil {
-			result.Streams = core.Streams{"", fmt.Sprintf("Failed to dispatch command (%s): %s", cmd.Command, err)}
+			result.Streams = pm.Streams{"", fmt.Sprintf("Failed to dispatch command (%s): %s", cmd.Command, err)}
 			return
 		}
 		result = contjob

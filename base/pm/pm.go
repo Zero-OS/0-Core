@@ -14,8 +14,6 @@ import (
 	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
 	psutil "github.com/shirou/gopsutil/process"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/zero-os/0-core/base/pm/stream"
 	"github.com/zero-os/0-core/base/settings"
 	"github.com/zero-os/0-core/base/utils"
@@ -32,15 +30,15 @@ var (
 	DuplicateIDErr    = errors.New("duplicate job id")
 )
 
-type PreProcessor func(cmd *core.Command)
+type PreProcessor func(cmd *Command)
 
 //MeterHandler represents a callback type
-type MeterHandler func(cmd *core.Command, p *psutil.Process)
+type MeterHandler func(cmd *Command, p *psutil.Process)
 
-type MessageHandler func(*core.Command, *stream.Message)
+type MessageHandler func(*Command, *stream.Message)
 
 //ResultHandler represents a callback type
-type ResultHandler func(cmd *core.Command, result *core.JobResult)
+type ResultHandler func(cmd *Command, result *JobResult)
 
 type Tag struct {
 	Key   string `json:"key"`
@@ -106,7 +104,7 @@ func SetUnprivileged() {
 	unprivileged = true
 }
 
-func RunFactory(cmd *core.Command, factory process.ProcessFactory, hooks ...RunnerHook) (Job, error) {
+func RunFactory(cmd *Command, factory ProcessFactory, hooks ...RunnerHook) (Job, error) {
 	if len(cmd.ID) == 0 {
 		cmd.ID = uuid.New()
 	}
@@ -127,7 +125,7 @@ func RunFactory(cmd *core.Command, factory process.ProcessFactory, hooks ...Runn
 }
 
 //Run runs a command immediately (no pre-processors)
-func Run(cmd *core.Command, hooks ...RunnerHook) (Job, error) {
+func Run(cmd *Command, hooks ...RunnerHook) (Job, error) {
 	factory := GetProcessFactory(cmd)
 	if factory == nil {
 		return nil, UnknownCommandErr
@@ -170,7 +168,7 @@ func processWait() {
 				break
 			}
 
-			//Avoid reading the r state before the Register call is complete.
+			//Avoid reading the r state before the PIDTable call is complete.
 			pidsMux.Lock()
 			ch, ok := pids[pid]
 			pidsMux.Unlock()
@@ -189,7 +187,7 @@ func processWait() {
 	}
 }
 
-func Register(g process.GetPID) error {
+func RegisterPID(g GetPID) error {
 	pidsMux.Lock()
 	defer pidsMux.Unlock()
 	pid, err := g()
@@ -257,17 +255,17 @@ func RunSlice(slice settings.StartupSlice) {
 
 		processArgs(startup.Args, cmdline)
 
-		cmd := &core.Command{
+		cmd := &Command{
 			ID:              startup.Key(),
 			Command:         startup.Name,
 			RecurringPeriod: startup.RecurringPeriod,
 			MaxRestart:      startup.MaxRestart,
 			Protected:       startup.Protected,
 			Tags:            startup.Tags,
-			Arguments:       core.MustArguments(startup.Args),
+			Arguments:       MustArguments(startup.Args),
 		}
 
-		go func(up settings.Startup, c *core.Command) {
+		go func(up settings.Startup, c *Command) {
 			log.Debugf("Waiting for %s to run %s", up.After, cmd)
 			canRun := state.Wait(up.After...)
 
@@ -384,7 +382,7 @@ func Aggregate(op, key string, value float64, id string, tags ...Tag) {
 	}
 }
 
-func handleStatsMessage(cmd *core.Command, msg *stream.Message) {
+func handleStatsMessage(cmd *Command, msg *stream.Message) {
 	parts := strings.Split(msg.Message, "|")
 	if len(parts) < 2 {
 		log.Errorf("Invalid statsd string, expecting data|type[|options], got '%s'", msg.Message)
@@ -437,7 +435,7 @@ func handleStatsMessage(cmd *core.Command, msg *stream.Message) {
 	Aggregate(optype, key, v, id, tags...)
 }
 
-func msgCallback(cmd *core.Command, msg *stream.Message) {
+func msgCallback(cmd *Command, msg *stream.Message) {
 	//handle stats messages
 	if msg.Meta.Assert(stream.LevelStatsd) {
 		handleStatsMessage(cmd, msg)
@@ -453,7 +451,7 @@ func msgCallback(cmd *core.Command, msg *stream.Message) {
 	}
 }
 
-func callback(cmd *core.Command, result *core.JobResult) {
+func callback(cmd *Command, result *JobResult) {
 	result.Tags = cmd.Tags
 	for _, handler := range resultHandlers {
 		handler(cmd, result)
@@ -461,12 +459,12 @@ func callback(cmd *core.Command, result *core.JobResult) {
 }
 
 //System is a wrapper around core.system
-func System(bin string, args ...string) (*core.JobResult, error) {
-	runner, err := Run(&core.Command{
+func System(bin string, args ...string) (*JobResult, error) {
+	runner, err := Run(&Command{
 		ID:      uuid.New(),
-		Command: process.CommandSystem,
-		Arguments: core.MustArguments(
-			process.SystemCommandArguments{
+		Command: CommandSystem,
+		Arguments: MustArguments(
+			SystemCommandArguments{
 				Name: bin,
 				Args: args,
 			},
@@ -478,7 +476,7 @@ func System(bin string, args ...string) (*core.JobResult, error) {
 	}
 
 	job := runner.Wait()
-	if job.State != core.StateSuccess {
+	if job.State != StateSuccess {
 		return job, fmt.Errorf("exited with error (%s): %v", job.State, job.Streams)
 	}
 

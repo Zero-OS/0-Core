@@ -8,8 +8,6 @@ import (
 
 	"github.com/zero-os/0-core/base/nft"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 )
 
 type nftMgr struct {
@@ -21,10 +19,10 @@ func init() {
 	b := &nftMgr{
 		rules: make(map[string]struct{}),
 	}
-	pm.CmdMap["nft.open_port"] = process.NewInternalProcessFactory(b.openPort)
-	pm.CmdMap["nft.drop_port"] = process.NewInternalProcessFactory(b.dropPort)
-	pm.CmdMap["nft.list"] = process.NewInternalProcessFactory(b.listPorts)
-	pm.CmdMap["nft.rule_exists"] = process.NewInternalProcessFactory(b.ruleExists)
+	pm.RegisterBuiltIn("nft.open_port", b.openPort)
+	pm.RegisterBuiltIn("nft.drop_port", b.dropPort)
+	pm.RegisterBuiltIn("nft.list", b.listPorts)
+	pm.RegisterBuiltIn("nft.rule_exists", b.ruleExists)
 
 }
 
@@ -34,7 +32,7 @@ type Port struct {
 	Subnet    string `json:"subnet,omitempty"`
 }
 
-func (b *nftMgr) parsePort(cmd *core.Command) (string, error) {
+func (b *nftMgr) parsePort(cmd *pm.Command) (string, error) {
 	var args Port
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return "", err
@@ -73,7 +71,7 @@ func (b *nftMgr) register(rule string) error {
 	return nil
 }
 
-func (b *nftMgr) openPort(cmd *core.Command) (interface{}, error) {
+func (b *nftMgr) openPort(cmd *pm.Command) (interface{}, error) {
 	rule, err := b.parsePort(cmd)
 	if err != nil {
 		return nil, err
@@ -102,7 +100,7 @@ func (b *nftMgr) openPort(cmd *core.Command) (interface{}, error) {
 	return nil, nft.Apply(n)
 }
 
-func (b *nftMgr) dropPort(cmd *core.Command) (interface{}, error) {
+func (b *nftMgr) dropPort(cmd *pm.Command) (interface{}, error) {
 	rule, err := b.parsePort(cmd)
 	if err != nil {
 		return nil, err
@@ -136,7 +134,7 @@ func (b *nftMgr) dropPort(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func (b *nftMgr) listPorts(cmd *core.Command) (interface{}, error) {
+func (b *nftMgr) listPorts(cmd *pm.Command) (interface{}, error) {
 	b.m.RLock()
 	defer b.m.RUnlock()
 
@@ -147,7 +145,7 @@ func (b *nftMgr) listPorts(cmd *core.Command) (interface{}, error) {
 	return ports, nil
 }
 
-func (b *nftMgr) ruleExists(cmd *core.Command) (interface{}, error) {
+func (b *nftMgr) ruleExists(cmd *pm.Command) (interface{}, error) {
 	rule, err := b.parsePort(cmd)
 	if err != nil {
 		return nil, err

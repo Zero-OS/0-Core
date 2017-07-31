@@ -1,9 +1,8 @@
-package process
+package pm
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/stream"
 	"runtime/debug"
 	"syscall"
@@ -12,11 +11,11 @@ import (
 /*
 Runnable represents a runnable built in function that can be managed by the process manager.
 */
-type Runnable func(*core.Command) (interface{}, error)
+type Runnable func(*Command) (interface{}, error)
 type RunnableWithCtx func(*Context) (interface{}, error)
 
 type Context struct {
-	Command *core.Command
+	Command *Command
 
 	ch chan *stream.Message
 }
@@ -53,7 +52,7 @@ type internalProcess struct {
 internalProcessFactory factory to build Runnable processes
 */
 func NewInternalProcessFactory(runnable Runnable) ProcessFactory {
-	factory := func(_ PIDTable, cmd *core.Command) Process {
+	factory := func(_ PIDTable, cmd *Command) Process {
 		return &internalProcess{
 			runnable: runnable,
 			ctx: Context{
@@ -66,7 +65,7 @@ func NewInternalProcessFactory(runnable Runnable) ProcessFactory {
 }
 
 func NewInternalProcessFactoryWithCtx(runnable RunnableWithCtx) ProcessFactory {
-	factory := func(_ PIDTable, cmd *core.Command) Process {
+	factory := func(_ PIDTable, cmd *Command) Process {
 		return &internalProcess{
 			runnable: runnable,
 			ctx: Context{
@@ -81,7 +80,7 @@ func NewInternalProcessFactoryWithCtx(runnable RunnableWithCtx) ProcessFactory {
 /*
 Cmd returns the internal process command
 */
-func (process *internalProcess) Command() *core.Command {
+func (process *internalProcess) Command() *Command {
 	return process.ctx.Command
 }
 

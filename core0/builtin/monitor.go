@@ -10,8 +10,6 @@ import (
 	ps "github.com/shirou/gopsutil/process"
 	"github.com/vishvananda/netlink"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/zero-os/0-core/base/utils"
 	"io/ioutil"
 	"path"
@@ -47,10 +45,10 @@ type monitor struct{}
 func init() {
 	m := (*monitor)(nil)
 
-	pm.CmdMap["monitor"] = process.NewInternalProcessFactory(m.monitor)
+	pm.RegisterBuiltIn("monitor", m.monitor)
 }
 
-func (m *monitor) monitor(cmd *core.Command) (interface{}, error) {
+func (m *monitor) monitor(cmd *pm.Command) (interface{}, error) {
 	var args struct {
 		Domain string `json:"domain"`
 	}

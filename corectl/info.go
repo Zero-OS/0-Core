@@ -17,7 +17,7 @@ func info(t Transport, cmd string, body ...interface{}) {
 
 	response, err := t.Run(Command{
 		Sync: true,
-		Content: core.Command{
+		Content: pm.Command{
 			Command:   cmd,
 			Arguments: core.MustArguments(data),
 		},

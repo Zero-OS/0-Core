@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"github.com/shirou/gopsutil/process"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	ps "github.com/zero-os/0-core/base/pm/process"
 	"io/ioutil"
 	"strings"
 	"syscall"
@@ -18,8 +16,8 @@ const (
 )
 
 func init() {
-	pm.CmdMap[cmdProcessList] = ps.NewInternalProcessFactory(processList)
-	pm.CmdMap[cmdProcessKill] = ps.NewInternalProcessFactory(processKill)
+	pm.RegisterBuiltIn(cmdProcessList, processList)
+	pm.RegisterBuiltIn(cmdProcessKill, processKill)
 }
 
 type processListArguments struct {
@@ -111,7 +109,7 @@ func getProcessInfo(ps *process.Process) *Process {
 	return res
 }
 
-func processList(cmd *core.Command) (interface{}, error) {
+func processList(cmd *pm.Command) (interface{}, error) {
 	var args processListArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -147,7 +145,7 @@ type processKillArguments struct {
 	Signal int `json:"signal"`
 }
 
-func processKill(cmd *core.Command) (interface{}, error) {
+func processKill(cmd *pm.Command) (interface{}, error) {
 	var args processKillArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err

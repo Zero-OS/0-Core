@@ -3,7 +3,6 @@ package logger
 import (
 	"github.com/siddontang/ledisdb/ledis"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/stream"
 	"github.com/zero-os/0-core/base/settings"
 )
@@ -14,7 +13,7 @@ var (
 
 type Loggers []Logger
 
-func (l Loggers) log(cmd *core.Command, msg *stream.Message) {
+func (l Loggers) log(cmd *pm.Command, msg *stream.Message) {
 	l.LogRecord(&LogRecord{
 		Command: cmd.ID,
 		Message: msg,

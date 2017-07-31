@@ -34,7 +34,7 @@ func containers(t Transport, c *cli.Context) {
 
 	response, err := t.Run(Command{
 		Sync: true,
-		Content: core.Command{
+		Content: pm.Command{
 			Command: "corex.find",
 			Arguments: core.MustArguments(M{
 				"tags": tags,
@@ -85,7 +85,7 @@ func containerInspect(t Transport, c *cli.Context) {
 
 	response, err := t.Run(Command{
 		Sync: true,
-		Content: core.Command{
+		Content: pm.Command{
 			Command:   "corex.list",
 			Arguments: core.MustArguments(M{}),
 		},

@@ -7,7 +7,6 @@ import (
 	"github.com/op/go-logging"
 	"github.com/zero-os/0-core/base"
 	"github.com/zero-os/0-core/base/pm"
-	pmcore "github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/settings"
 	"github.com/zero-os/0-core/core0/assets"
 	"github.com/zero-os/0-core/core0/bootstrap"
@@ -135,7 +134,7 @@ func main() {
 	//start process mgr.
 	log.Infof("Starting process manager")
 
-	pm.AddResultHandler(func(cmd *pmcore.Command, result *pmcore.JobResult) {
+	pm.AddResultHandler(func(cmd *pm.Command, result *pm.JobResult) {
 		log.Debugf("Job result for command '%s' is '%s'", cmd, result.State)
 	})
 

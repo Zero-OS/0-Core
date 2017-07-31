@@ -4,15 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/zero-os/0-core/base/pm/stream"
 )
 
 func init() {
-	pm.CmdMap["core.subscribe"] = process.NewInternalProcessFactoryWithCtx(subscribe)
+	pm.RegisterBuiltInWithCtx("core.subscribe", subscribe)
 }
 
-func subscribe(ctx *process.Context) (interface{}, error) {
+func subscribe(ctx *pm.Context) (interface{}, error) {
 	var args struct {
 		ID string `json:"id"`
 	}

@@ -3,8 +3,6 @@ package containers
 import (
 	"fmt"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 	"os"
 	"path"
 	"sync"
@@ -34,8 +32,8 @@ type container struct {
 	zterr error
 	zto   sync.Once
 
-	channel     process.Channel
-	forwardChan chan *core.Command
+	channel     pm.Channel
+	forwardChan chan *pm.Command
 }
 
 func newContainer(mgr *containerManager, id uint16, args ContainerCreateArguments) *container {
@@ -43,7 +41,7 @@ func newContainer(mgr *containerManager, id uint16, args ContainerCreateArgument
 		mgr:         mgr,
 		id:          id,
 		Args:        args,
-		forwardChan: make(chan *core.Command),
+		forwardChan: make(chan *pm.Command),
 	}
 	c.Root = c.root()
 	return c
@@ -53,7 +51,7 @@ func (c *container) ID() uint16 {
 	return c.id
 }
 
-func (c *container) dispatch(cmd *core.Command) error {
+func (c *container) dispatch(cmd *pm.Command) error {
 	select {
 	case c.forwardChan <- cmd:
 	case <-time.After(5 * time.Second):
@@ -102,10 +100,10 @@ func (c *container) Start() (runner pm.Job, err error) {
 		env[key] = value
 	}
 
-	extCmd := &core.Command{
+	extCmd := &pm.Command{
 		ID: coreID,
-		Arguments: core.MustArguments(
-			process.ContainerCommandArguments{
+		Arguments: pm.MustArguments(
+			pm.ContainerCommandArguments{
 				Name:        "/coreX",
 				Chroot:      c.root(),
 				Dir:         "/",
@@ -124,7 +122,7 @@ func (c *container) Start() (runner pm.Job, err error) {
 		Action: c.onExit,
 	}
 
-	runner, err = pm.RunFactory(extCmd, process.NewContainerProcess, onpid, onexit)
+	runner, err = pm.RunFactory(extCmd, pm.NewContainerProcess, onpid, onexit)
 	if err != nil {
 		log.Errorf("error in container runner: %s", err)
 		return
@@ -158,7 +156,7 @@ func (c *container) preStart() error {
 func (c *container) onStart(pid int) {
 	//get channel
 	ps := c.runner.Process()
-	if ps, ok := ps.(process.ContainerProcess); !ok {
+	if ps, ok := ps.(pm.ContainerProcess); !ok {
 		log.Errorf("not a valid container process")
 		c.runner.Terminate()
 		return

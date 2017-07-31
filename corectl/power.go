@@ -8,7 +8,7 @@ import (
 func reboot(t Transport, c *cli.Context) {
 	response, err := t.Run(Command{
 		Sync: true,
-		Content: core.Command{
+		Content: pm.Command{
 			Command: "core.reboot",
 		},
 	})
@@ -24,7 +24,7 @@ func reboot(t Transport, c *cli.Context) {
 func poweroff(t Transport, c *cli.Context) {
 	response, err := t.Run(Command{
 		Sync: true,
-		Content: core.Command{
+		Content: pm.Command{
 			Command: "core.poweroff",
 		},
 	})

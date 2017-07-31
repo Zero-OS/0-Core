@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/stream"
 	"github.com/zero-os/0-core/core0/logger"
 	"github.com/zero-os/0-core/core0/stats"
@@ -41,7 +40,7 @@ func (c *container) rewind() {
 
 		switch message.Type {
 		case "result":
-			var result core.JobResult
+			var result pm.JobResult
 			if err := json.Unmarshal(message.Payload, &result); err != nil {
 				log.Errorf("failed to load container command result: %s", err)
 			}

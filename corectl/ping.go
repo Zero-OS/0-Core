@@ -8,7 +8,7 @@ import (
 func ping(t Transport, c *cli.Context) {
 	response, err := t.Run(Command{
 		Sync: true,
-		Content: core.Command{
+		Content: pm.Command{
 			Command: "core.ping",
 		},
 	})

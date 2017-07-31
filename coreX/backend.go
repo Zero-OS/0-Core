@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/stream"
 	"os"
 	"sync"
@@ -31,14 +30,14 @@ func NewDispatcher(out *os.File) *Dispatcher {
 	return &Dispatcher{enc: json.NewEncoder(out)}
 }
 
-func (d *Dispatcher) Result(cmd *core.Command, result *core.JobResult) {
+func (d *Dispatcher) Result(cmd *pm.Command, result *pm.JobResult) {
 	d.m.Lock()
 	defer d.m.Unlock()
 
 	d.enc.Encode(Message{Type: ResultMessage, Command: cmd.ID, Payload: result})
 }
 
-func (d *Dispatcher) Message(cmd *core.Command, msg *stream.Message) {
+func (d *Dispatcher) Message(cmd *pm.Command, msg *stream.Message) {
 	d.m.Lock()
 	defer d.m.Unlock()
 

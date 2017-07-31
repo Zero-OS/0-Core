@@ -12,7 +12,6 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/vishvananda/netlink"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
 )
 
 const (
@@ -106,9 +105,9 @@ func (m *kvmManager) prepareVLanNetwork(nic *Nic) (*InterfaceDevice, error) {
 
 	//ensure that a bridge is available with that vlan tag.
 	//we dispatch the ovs.vlan-ensure command to container.
-	result, err := m.conmgr.Dispatch(ovs.ID(), &core.Command{
+	result, err := m.conmgr.Dispatch(ovs.ID(), &pm.Command{
 		Command: "ovs.vlan-ensure",
-		Arguments: core.MustArguments(map[string]interface{}{
+		Arguments: pm.MustArguments(map[string]interface{}{
 			"master": OVSBackPlane,
 			"vlan":   vlanID,
 		}),
@@ -118,7 +117,7 @@ func (m *kvmManager) prepareVLanNetwork(nic *Nic) (*InterfaceDevice, error) {
 		return nil, err
 	}
 
-	if result.State != core.StateSuccess {
+	if result.State != pm.StateSuccess {
 		return nil, fmt.Errorf("failed to ensure vlan bridge: %v", result.Data)
 	}
 
@@ -174,9 +173,9 @@ func (m *kvmManager) prepareVXLanNetwork(nic *Nic) (*InterfaceDevice, error) {
 
 	//ensure that a bridge is available with that vlan tag.
 	//we dispatch the ovs.vxlan-ensure command to container.
-	result, err := m.conmgr.Dispatch(ovs.ID(), &core.Command{
+	result, err := m.conmgr.Dispatch(ovs.ID(), &pm.Command{
 		Command: "ovs.vxlan-ensure",
-		Arguments: core.MustArguments(map[string]interface{}{
+		Arguments: pm.MustArguments(map[string]interface{}{
 			"master": OVSVXBackend,
 			"vxlan":  vxlan,
 		}),
@@ -186,7 +185,7 @@ func (m *kvmManager) prepareVXLanNetwork(nic *Nic) (*InterfaceDevice, error) {
 		return nil, err
 	}
 
-	if result.State != core.StateSuccess {
+	if result.State != pm.StateSuccess {
 		return nil, fmt.Errorf("failed to ensure vlan bridge: %v", result.Data)
 	}
 	//brname:
@@ -277,10 +276,10 @@ func (m *kvmManager) setDHCPHost(seq uint16) error {
 	mac := m.macAddr(seq)
 	ip := m.ipAddr(seq)
 
-	job, err := pm.Run(&core.Command{
+	job, err := pm.Run(&pm.Command{
 		ID:      uuid.New(),
 		Command: "bridge.add_host",
-		Arguments: core.MustArguments(map[string]interface{}{
+		Arguments: pm.MustArguments(map[string]interface{}{
 			"bridge": DefaultBridgeName,
 			"mac":    mac,
 			"ip":     ip,
@@ -292,7 +291,7 @@ func (m *kvmManager) setDHCPHost(seq uint16) error {
 	}
 	result := job.Wait()
 
-	if result.State != core.StateSuccess {
+	if result.State != pm.StateSuccess {
 		return fmt.Errorf("failed to add host to dnsmasq: %s", result.Data)
 	}
 

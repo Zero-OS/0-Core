@@ -1,10 +1,9 @@
-package process
+package pm
 
 import (
 	"encoding/json"
 	"fmt"
 	psutils "github.com/shirou/gopsutil/process"
-	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/stream"
 	"io"
 	"os"
@@ -24,7 +23,7 @@ type SystemCommandArguments struct {
 }
 
 type systemProcessImpl struct {
-	cmd     *core.Command
+	cmd     *Command
 	args    SystemCommandArguments
 	pid     int
 	process *psutils.Process
@@ -32,7 +31,7 @@ type systemProcessImpl struct {
 	table PIDTable
 }
 
-func NewSystemProcess(table PIDTable, cmd *core.Command) Process {
+func NewSystemProcess(table PIDTable, cmd *Command) Process {
 	process := &systemProcessImpl{
 		cmd:   cmd,
 		table: table,
@@ -42,7 +41,7 @@ func NewSystemProcess(table PIDTable, cmd *core.Command) Process {
 	return process
 }
 
-func (process *systemProcessImpl) Command() *core.Command {
+func (process *systemProcessImpl) Command() *Command {
 	return process.cmd
 }
 
@@ -129,7 +128,7 @@ func (process *systemProcessImpl) Run() (<-chan *stream.Message, error) {
 
 	log.Debugf("system: %s %s %s", cmd.Env, cmd.Path, cmd.Args)
 
-	err = process.table.Register(func() (int, error) {
+	err = process.table.RegisterPID(func() (int, error) {
 		err := cmd.Start()
 		if err != nil {
 			return 0, err

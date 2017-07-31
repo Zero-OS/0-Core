@@ -7,7 +7,6 @@ import (
 	"github.com/op/go-logging"
 	"github.com/zero-os/0-core/base"
 	"github.com/zero-os/0-core/base/pm"
-	pmcore "github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/coreX/bootstrap"
 	"github.com/zero-os/0-core/coreX/options"
 
@@ -82,7 +81,7 @@ func main() {
 
 	dec := json.NewDecoder(input)
 	for {
-		var cmd pmcore.Command
+		var cmd pm.Command
 		if err := dec.Decode(&cmd); err != nil {
 			log.Errorf("failed to decode command message: %s", err)
 

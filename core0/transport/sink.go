@@ -6,7 +6,6 @@ import (
 	"github.com/siddontang/ledisdb/ledis"
 	"github.com/siddontang/ledisdb/server"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/core0/assets"
 	"github.com/zero-os/0-core/core0/options"
 	"time"
@@ -79,7 +78,7 @@ func (sink *Sink) DB() *ledis.DB {
 	return sink.db
 }
 
-func (sink *Sink) handlePublic(cmd *core.Command, result *core.JobResult) {
+func (sink *Sink) handlePublic(cmd *pm.Command, result *pm.JobResult) {
 	if err := sink.Forward(result); err != nil {
 		log.Errorf("failed to forward result: %s", cmd.ID)
 	}
@@ -89,7 +88,7 @@ func (sink *Sink) process() {
 	pm.AddResultHandler(sink.handlePublic)
 
 	for {
-		var command core.Command
+		var command pm.Command
 		err := sink.ch.GetNext(SinkQueue, &command)
 		if err != nil {
 			log.Errorf("Failed to get next command from (%s): %s", SinkQueue, err)
@@ -108,8 +107,8 @@ func (sink *Sink) process() {
 		_, err = pm.Run(&command)
 
 		if err == pm.UnknownCommandErr {
-			result := core.NewBasicJobResult(&command)
-			result.State = core.StateUnknownCmd
+			result := pm.NewBasicJobResult(&command)
+			result.State = pm.StateUnknownCmd
 			sink.Forward(result)
 		} else if err != nil {
 			log.Errorf("Unknown error while processing command (%s): %s", command, err)
@@ -117,8 +116,8 @@ func (sink *Sink) process() {
 	}
 }
 
-func (sink *Sink) Forward(result *core.JobResult) error {
-	if result.State != core.StateDuplicateID {
+func (sink *Sink) Forward(result *pm.JobResult) error {
+	if result.State != pm.StateDuplicateID {
 		/*
 			Client tried to push a command with a duplicate id, it means another job
 			is running with that ID so we shouldn't flag
@@ -137,7 +136,7 @@ func (sink *Sink) Start() {
 	go sink.process()
 }
 
-func (sink *Sink) Result(job string, timeout int) (*core.JobResult, error) {
+func (sink *Sink) Result(job string, timeout int) (*pm.JobResult, error) {
 	if sink.ch.Flagged(job) {
 		return sink.ch.GetResponse(job, timeout)
 	} else {

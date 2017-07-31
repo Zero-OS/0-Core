@@ -1,9 +1,8 @@
-package process
+package pm
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/stream"
 	"github.com/zero-os/0-core/base/utils"
 	"syscall"
@@ -11,11 +10,11 @@ import (
 
 type extensionProcess struct {
 	system Process
-	cmd    *core.Command
+	cmd    *Command
 }
 
 func NewExtensionProcessFactory(exe string, dir string, args []string, env map[string]string) ProcessFactory {
-	constructor := func(table PIDTable, cmd *core.Command) Process {
+	constructor := func(table PIDTable, cmd *Command) Process {
 		sysargs := SystemCommandArguments{
 			Name: exe,
 			Dir:  dir,
@@ -45,10 +44,10 @@ func NewExtensionProcessFactory(exe string, dir string, args []string, env map[s
 			sysargs.Args = append(sysargs.Args, utils.Format(arg, input))
 		}
 
-		extcmd := &core.Command{
+		extcmd := &Command{
 			ID:        cmd.ID,
 			Command:   CommandSystem,
-			Arguments: core.MustArguments(sysargs),
+			Arguments: MustArguments(sysargs),
 			Tags:      cmd.Tags,
 		}
 
@@ -61,7 +60,7 @@ func NewExtensionProcessFactory(exe string, dir string, args []string, env map[s
 	return constructor
 }
 
-func (process *extensionProcess) Command() *core.Command {
+func (process *extensionProcess) Command() *Command {
 	return process.cmd
 }
 

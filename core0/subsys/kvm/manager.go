@@ -13,8 +13,6 @@ import (
 	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/zero-os/0-core/core0/screen"
 	"github.com/zero-os/0-core/core0/subsys/containers"
 )
@@ -106,38 +104,38 @@ func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) erro
 		return err
 	}
 
-	pm.CmdMap[kvmCreateCommand] = process.NewInternalProcessFactory(mgr.create)
-	pm.CmdMap[kvmDestroyCommand] = process.NewInternalProcessFactory(mgr.destroy)
-	pm.CmdMap[kvmShutdownCommand] = process.NewInternalProcessFactory(mgr.shutdown)
-	pm.CmdMap[kvmRebootCommand] = process.NewInternalProcessFactory(mgr.reboot)
-	pm.CmdMap[kvmResetCommand] = process.NewInternalProcessFactory(mgr.reset)
-	pm.CmdMap[kvmPauseCommand] = process.NewInternalProcessFactory(mgr.pause)
-	pm.CmdMap[kvmResumeCommand] = process.NewInternalProcessFactory(mgr.resume)
-	pm.CmdMap[kvmInfoCommand] = process.NewInternalProcessFactory(mgr.info)
-	pm.CmdMap[kvmInfoPSCommand] = process.NewInternalProcessFactory(mgr.infops)
-	pm.CmdMap[kvmAttachDiskCommand] = process.NewInternalProcessFactory(mgr.attachDisk)
-	pm.CmdMap[kvmDetachDiskCommand] = process.NewInternalProcessFactory(mgr.detachDisk)
-	pm.CmdMap[kvmAddNicCommand] = process.NewInternalProcessFactory(mgr.addNic)
-	pm.CmdMap[kvmRemoveNicCommand] = process.NewInternalProcessFactory(mgr.removeNic)
-	pm.CmdMap[kvmLimitDiskIOCommand] = process.NewInternalProcessFactory(mgr.limitDiskIO)
-	pm.CmdMap[kvmMigrateCommand] = process.NewInternalProcessFactory(mgr.migrate)
-	pm.CmdMap[kvmListCommand] = process.NewInternalProcessFactory(mgr.list)
-	pm.CmdMap[kvmPrepareMigrationTarget] = process.NewInternalProcessFactory(mgr.prepareMigrationTarget)
+	pm.RegisterBuiltIn(kvmCreateCommand, mgr.create)
+	pm.RegisterBuiltIn(kvmDestroyCommand, mgr.destroy)
+	pm.RegisterBuiltIn(kvmShutdownCommand, mgr.shutdown)
+	pm.RegisterBuiltIn(kvmRebootCommand, mgr.reboot)
+	pm.RegisterBuiltIn(kvmResetCommand, mgr.reset)
+	pm.RegisterBuiltIn(kvmPauseCommand, mgr.pause)
+	pm.RegisterBuiltIn(kvmResumeCommand, mgr.resume)
+	pm.RegisterBuiltIn(kvmInfoCommand, mgr.info)
+	pm.RegisterBuiltIn(kvmInfoPSCommand, mgr.infops)
+	pm.RegisterBuiltIn(kvmAttachDiskCommand, mgr.attachDisk)
+	pm.RegisterBuiltIn(kvmDetachDiskCommand, mgr.detachDisk)
+	pm.RegisterBuiltIn(kvmAddNicCommand, mgr.addNic)
+	pm.RegisterBuiltIn(kvmRemoveNicCommand, mgr.removeNic)
+	pm.RegisterBuiltIn(kvmLimitDiskIOCommand, mgr.limitDiskIO)
+	pm.RegisterBuiltIn(kvmMigrateCommand, mgr.migrate)
+	pm.RegisterBuiltIn(kvmListCommand, mgr.list)
+	pm.RegisterBuiltIn(kvmPrepareMigrationTarget, mgr.prepareMigrationTarget)
 
 	//those next 2 commands should never be called by the client, unfortunately we don't have
 	//support for internal commands yet.
-	pm.CmdMap[kvmMonitorCommand] = process.NewInternalProcessFactory(mgr.monitor)
-	pm.CmdMap[kvmEventsCommand] = process.NewInternalProcessFactoryWithCtx(mgr.events)
+	pm.RegisterBuiltIn(kvmMonitorCommand, mgr.monitor)
+	pm.RegisterBuiltInWithCtx(kvmEventsCommand, mgr.events)
 
 	//start domains monitoring command
-	pm.Run(&core.Command{
+	pm.Run(&pm.Command{
 		ID:              kvmMonitorCommand,
 		Command:         kvmMonitorCommand,
 		RecurringPeriod: 30,
 	})
 
 	//start events command
-	pm.Run(&core.Command{
+	pm.Run(&pm.Command{
 		ID:      kvmEventsCommand,
 		Command: kvmEventsCommand,
 	})
@@ -163,11 +161,11 @@ type NicParams struct {
 }
 type CreateParams struct {
 	NicParams
-	Name   string    `json:"name"`
-	CPU    int       `json:"cpu"`
-	Memory int       `json:"memory"`
-	Media  []Media   `json:"media"`
-	Tags   core.Tags `json:"tags"`
+	Name   string  `json:"name"`
+	CPU    int     `json:"cpu"`
+	Memory int     `json:"memory"`
+	Media  []Media `json:"media"`
+	Tags   pm.Tags `json:"tags"`
 }
 
 func (c *CreateParams) Valid() error {
@@ -460,16 +458,16 @@ func (m *kvmManager) getDomainStruct(uuid string) (*Domain, error) {
 }
 
 func (m *kvmManager) setupDefaultGateway() error {
-	cmd := &core.Command{
+	cmd := &pm.Command{
 		ID:      uuid.New(),
 		Command: "bridge.create",
-		Arguments: core.MustArguments(
-			core.M{
+		Arguments: pm.MustArguments(
+			pm.M{
 				"name": DefaultBridgeName,
-				"network": core.M{
+				"network": pm.M{
 					"nat":  true,
 					"mode": "dnsmasq",
-					"settings": core.M{
+					"settings": pm.M{
 						"cidr":  DefaultBridgeCIDR,
 						"start": IPRangeStart,
 						"end":   IPRangeEnd,
@@ -484,7 +482,7 @@ func (m *kvmManager) setupDefaultGateway() error {
 		return err
 	}
 	result := job.Wait()
-	if result.State != core.StateSuccess {
+	if result.State != pm.StateSuccess {
 		return fmt.Errorf("failed to create default container bridge: %s", result.Data)
 	}
 
@@ -707,11 +705,11 @@ func (m *kvmManager) setPortForwards(uuid string, seq uint16, port map[int]int) 
 
 	for host, container := range port {
 		//nft add rule nat prerouting iif eth0 tcp dport { 80, 443 } dnat 192.168.1.120
-		cmd := &core.Command{
+		cmd := &pm.Command{
 			ID:      m.forwardId(uuid, host),
-			Command: process.CommandSystem,
-			Arguments: core.MustArguments(
-				process.SystemCommandArguments{
+			Command: pm.CommandSystem,
+			Arguments: pm.MustArguments(
+				pm.SystemCommandArguments{
 					Name: "socat",
 					Args: []string{
 						fmt.Sprintf("tcp-listen:%d,reuseaddr,fork", host),
@@ -742,7 +740,7 @@ func (m *kvmManager) updateView() {
 	screen.Refresh()
 }
 
-func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
+func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 	defer m.updateView()
 	var params CreateParams
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
@@ -804,7 +802,7 @@ func (m *kvmManager) create(cmd *core.Command) (interface{}, error) {
 	return domain.UUID, nil
 }
 
-func (m *kvmManager) prepareMigrationTarget(cmd *core.Command) (interface{}, error) {
+func (m *kvmManager) prepareMigrationTarget(cmd *pm.Command) (interface{}, error) {
 	defer m.updateView()
 	var params struct {
 		NicParams
@@ -828,7 +826,7 @@ func (m *kvmManager) prepareMigrationTarget(cmd *core.Command) (interface{}, err
 	return nil, nil
 }
 
-func (m *kvmManager) getDomain(cmd *core.Command) (*libvirt.Domain, string, error) {
+func (m *kvmManager) getDomain(cmd *pm.Command) (*libvirt.Domain, string, error) {
 	var params DomainUUID
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, "", err
@@ -845,7 +843,7 @@ func (m *kvmManager) getDomain(cmd *core.Command) (*libvirt.Domain, string, erro
 	return domain, params.UUID, err
 }
 
-func (m *kvmManager) destroy(cmd *core.Command) (interface{}, error) {
+func (m *kvmManager) destroy(cmd *pm.Command) (interface{}, error) {
 	defer m.updateView()
 	domain, uuid, err := m.getDomain(cmd)
 	if err != nil {
@@ -859,7 +857,7 @@ func (m *kvmManager) destroy(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func (m *kvmManager) shutdown(cmd *core.Command) (interface{}, error) {
+func (m *kvmManager) shutdown(cmd *pm.Command) (interface{}, error) {
 	domain, uuid, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
@@ -873,7 +871,7 @@ func (m *kvmManager) shutdown(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func (m *kvmManager) reboot(cmd *core.Command) (interface{}, error) {
+func (m *kvmManager) reboot(cmd *pm.Command) (interface{}, error) {
 	domain, _, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
@@ -885,7 +883,7 @@ func (m *kvmManager) reboot(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func (m *kvmManager) reset(cmd *core.Command) (interface{}, error) {
+func (m *kvmManager) reset(cmd *pm.Command) (interface{}, error) {
 	domain, _, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
@@ -897,7 +895,7 @@ func (m *kvmManager) reset(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func (m *kvmManager) pause(cmd *core.Command) (interface{}, error) {
+func (m *kvmManager) pause(cmd *pm.Command) (interface{}, error) {
 	domain, _, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
@@ -909,7 +907,7 @@ func (m *kvmManager) pause(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func (m *kvmManager) resume(cmd *core.Command) (interface{}, error) {
+func (m *kvmManager) resume(cmd *pm.Command) (interface{}, error) {
 	domain, _, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
@@ -921,7 +919,7 @@ func (m *kvmManager) resume(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func (m *kvmManager) info(cmd *core.Command) (interface{}, error) {
+func (m *kvmManager) info(cmd *pm.Command) (interface{}, error) {
 	domain, _, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
@@ -1007,7 +1005,7 @@ func (m *kvmManager) detachDevice(uuid, xml string) error {
 	return nil
 }
 
-func (m *kvmManager) attachDisk(cmd *core.Command) (interface{}, error) {
+func (m *kvmManager) attachDisk(cmd *pm.Command) (interface{}, error) {
 	var params ManDiskParams
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
@@ -1031,7 +1029,7 @@ func (m *kvmManager) attachDisk(cmd *core.Command) (interface{}, error) {
 	return nil, m.attachDevice(params.UUID, string(diskxml[:]))
 }
 
-func (m *kvmManager) detachDisk(cmd *core.Command) (interface{}, error) {
+func (m *kvmManager) detachDisk(cmd *pm.Command) (interface{}, error) {
 	var (
 		params ManDiskParams
 		disk   *DiskDevice
@@ -1061,7 +1059,7 @@ func (m *kvmManager) detachDisk(cmd *core.Command) (interface{}, error) {
 	return nil, m.detachDevice(params.UUID, string(diskxml[:]))
 }
 
-func (m *kvmManager) addNic(cmd *core.Command) (interface{}, error) {
+func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 	var (
 		params ManNicParams
 		inf    *InterfaceDevice
@@ -1124,7 +1122,7 @@ func (m *kvmManager) addNic(cmd *core.Command) (interface{}, error) {
 	return nil, m.attachDevice(params.UUID, string(ifxml[:]))
 }
 
-func (m *kvmManager) removeNic(cmd *core.Command) (interface{}, error) {
+func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
 	var (
 		params ManNicParams
 		inf    *InterfaceDevice
@@ -1184,7 +1182,7 @@ func (m *kvmManager) removeNic(cmd *core.Command) (interface{}, error) {
 	return nil, m.detachDevice(params.UUID, string(ifxml[:]))
 }
 
-func (m *kvmManager) limitDiskIO(cmd *core.Command) (interface{}, error) {
+func (m *kvmManager) limitDiskIO(cmd *pm.Command) (interface{}, error) {
 	var params LimitDiskIOParams
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
@@ -1261,7 +1259,7 @@ func (m *kvmManager) limitDiskIO(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func (m *kvmManager) migrate(cmd *core.Command) (interface{}, error) {
+func (m *kvmManager) migrate(cmd *pm.Command) (interface{}, error) {
 	domain, _, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
@@ -1281,16 +1279,16 @@ func (m *kvmManager) migrate(cmd *core.Command) (interface{}, error) {
 }
 
 type Machine struct {
-	ID         int       `json:"id"`
-	UUID       string    `json:"uuid"`
-	Name       string    `json:"name"`
-	State      string    `json:"state"`
-	Vnc        int       `json:"vnc"`
-	Tags       core.Tags `json:"tags"`
-	IfcTargets []string  `json:"ifctargets"`
+	ID         int      `json:"id"`
+	UUID       string   `json:"uuid"`
+	Name       string   `json:"name"`
+	State      string   `json:"state"`
+	Vnc        int      `json:"vnc"`
+	Tags       pm.Tags  `json:"tags"`
+	IfcTargets []string `json:"ifctargets"`
 }
 
-func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
+func (m *kvmManager) list(cmd *pm.Command) (interface{}, error) {
 	conn, err := m.libvirt.getConnection()
 	if err != nil {
 		return nil, err
@@ -1347,7 +1345,7 @@ func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
 		if err != nil {
 			return nil, fmt.Errorf("couldn't xml unmarshal metadata for domain with the uuid %s", uuid)
 		}
-		var tags core.Tags
+		var tags pm.Tags
 		err = json.Unmarshal([]byte(metaData.Value), &tags)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't json unmarshal tags for domain with the uuid %s", uuid)
@@ -1367,7 +1365,7 @@ func (m *kvmManager) list(cmd *core.Command) (interface{}, error) {
 	return found, nil
 }
 
-func (m *kvmManager) monitor(cmd *core.Command) (interface{}, error) {
+func (m *kvmManager) monitor(cmd *pm.Command) (interface{}, error) {
 	conn, err := m.libvirt.getConnection()
 	if err != nil {
 		return nil, err
@@ -1455,18 +1453,18 @@ func (m *kvmManager) monitor(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func (m *kvmManager) infops(cmd *core.Command) (interface{}, error) {
+func (m *kvmManager) infops(cmd *pm.Command) (interface{}, error) {
 	var params DomainUUID
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
 
-	job, err := pm.Run(&core.Command{
+	job, err := pm.Run(&pm.Command{
 		ID:      uuid.New(),
 		Command: "aggregator.query",
-		Arguments: core.MustArguments(core.M{
+		Arguments: pm.MustArguments(pm.M{
 			//todo: add support to partial key match maybe so we can do 'kvm.*'?
-			"tags": core.M{
+			"tags": pm.M{
 				"id": params.UUID,
 			},
 		}),
@@ -1476,7 +1474,7 @@ func (m *kvmManager) infops(cmd *core.Command) (interface{}, error) {
 	}
 
 	result := job.Wait()
-	if result.State != core.StateSuccess {
+	if result.State != pm.StateSuccess {
 		return nil, err
 	}
 

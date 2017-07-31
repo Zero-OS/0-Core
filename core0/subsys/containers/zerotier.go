@@ -4,13 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
 	"io/ioutil"
 	"path"
 	"strings"
 )
 
-func (m *containerManager) ztInfo(cmd *core.Command) (interface{}, error) {
+func (m *containerManager) ztInfo(cmd *pm.Command) (interface{}, error) {
 	var args ContainerArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -44,7 +43,7 @@ func (m *containerManager) ztInfo(cmd *core.Command) (interface{}, error) {
 	return data, nil
 }
 
-func (m *containerManager) ztList(cmd *core.Command) (interface{}, error) {
+func (m *containerManager) ztList(cmd *pm.Command) (interface{}, error) {
 	var args ContainerArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err

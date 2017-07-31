@@ -9,8 +9,6 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/zero-os/0-core/base/pm/stream"
 	"github.com/zero-os/0-core/base/settings"
 	"io"
@@ -195,10 +193,10 @@ func (c *container) mountPList(src string, target string, hooks ...pm.RunnerHook
 	}
 
 	cache := settings.Settings.Globals.Get("cache", path.Join(BackendBaseDir, "cache"))
-	cmd := &core.Command{
+	cmd := &pm.Command{
 		ID:      uuid.New(),
-		Command: process.CommandSystem,
-		Arguments: core.MustArguments(process.SystemCommandArguments{
+		Command: pm.CommandSystem,
+		Arguments: pm.MustArguments(pm.SystemCommandArguments{
 			Name: "g8ufs",
 			Args: []string{
 				"-reset",

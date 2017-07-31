@@ -1,9 +1,7 @@
-package process
+package pm
 
 import (
-	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/stream"
-	"github.com/op/go-logging"
 	"syscall"
 )
 
@@ -11,16 +9,12 @@ const (
 	CommandSystem = "core.system"
 )
 
-var (
-	log = logging.MustGetLogger("process")
-)
-
 type GetPID func() (int, error)
 
 type PIDTable interface {
-	//Register atomic registration of PID. MUST grantee that that no wait4 will happen
+	//PIDTable atomic registration of PID. MUST grantee that that no wait4 will happen
 	//on any of the child process until the register operation is done.
-	Register(g GetPID) error
+	RegisterPID(g GetPID) error
 	WaitPID(pid int) syscall.WaitStatus
 }
 
@@ -35,7 +29,7 @@ type ProcessStats struct {
 
 //Process interface
 type Process interface {
-	Command() *core.Command
+	Command() *Command
 	Run() (<-chan *stream.Message, error)
 }
 
@@ -49,4 +43,4 @@ type Stater interface {
 	Stats() *ProcessStats
 }
 
-type ProcessFactory func(PIDTable, *core.Command) Process
+type ProcessFactory func(PIDTable, *Command) Process

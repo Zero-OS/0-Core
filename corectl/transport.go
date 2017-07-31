@@ -12,7 +12,7 @@ import (
 type Command struct {
 	Sync      bool         `json:"sync"`
 	Container string       `json:"container"`
-	Content   core.Command `json:"content"`
+	Content   pm.Command `json:"content"`
 }
 
 type TransportOptions struct {

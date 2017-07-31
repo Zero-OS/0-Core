@@ -4,8 +4,6 @@ import (
 	"syscall"
 
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 )
 
 const (
@@ -14,18 +12,18 @@ const (
 )
 
 func init() {
-	pm.CmdMap[cmdReboot] = process.NewInternalProcessFactory(restart)
-	pm.CmdMap[cmdPowerOff] = process.NewInternalProcessFactory(poweroff)
+	pm.RegisterBuiltIn(cmdReboot, restart)
+	pm.RegisterBuiltIn(cmdPowerOff, poweroff)
 }
 
-func restart(cmd *core.Command) (interface{}, error) {
+func restart(cmd *pm.Command) (interface{}, error) {
 	pm.Killall()
 	syscall.Sync()
 	syscall.Reboot(syscall.LINUX_REBOOT_CMD_RESTART)
 	return nil, nil
 }
 
-func poweroff(cmd *core.Command) (interface{}, error) {
+func poweroff(cmd *pm.Command) (interface{}, error) {
 	pm.Killall()
 	syscall.Sync()
 	syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)

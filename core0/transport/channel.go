@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/garyburd/redigo/redis"
 	"github.com/siddontang/ledisdb/ledis"
-	"github.com/zero-os/0-core/base/pm/core"
+	"github.com/zero-os/0-core/base/pm"
 	"time"
 )
 
@@ -36,7 +36,7 @@ func (client *channel) String() string {
 	return "ledis"
 }
 
-func (cl *channel) GetNext(queue string, command *core.Command) error {
+func (cl *channel) GetNext(queue string, command *pm.Command) error {
 	payload, err := redis.ByteSlices(cl.db.BLPop([][]byte{[]byte(queue)}, 0))
 	if err != nil {
 		return err
@@ -45,7 +45,7 @@ func (cl *channel) GetNext(queue string, command *core.Command) error {
 	return json.Unmarshal(payload[1], command)
 }
 
-func (cl *channel) Respond(result *core.JobResult) error {
+func (cl *channel) Respond(result *pm.JobResult) error {
 	if result.ID == "" {
 		return fmt.Errorf("result with no ID, not pushing results back...")
 	}
@@ -95,14 +95,14 @@ func (cl *channel) cycle(queue string, timeout int) ([]byte, error) {
 	return data, nil
 }
 
-func (cl *channel) GetResponse(id string, timeout int) (*core.JobResult, error) {
+func (cl *channel) GetResponse(id string, timeout int) (*pm.JobResult, error) {
 	queue := fmt.Sprintf("result:%s", id)
 	payload, err := cl.cycle(queue, timeout)
 	if err != nil {
 		return nil, err
 	}
 
-	var result core.JobResult
+	var result pm.JobResult
 	if err := json.Unmarshal(payload, &result); err != nil {
 		return nil, err
 	}

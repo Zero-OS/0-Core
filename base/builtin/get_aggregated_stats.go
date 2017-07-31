@@ -1,10 +1,8 @@
 package builtin
 
 import (
-	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 	psutil "github.com/shirou/gopsutil/process"
+	"github.com/zero-os/0-core/base/pm"
 	"os"
 )
 
@@ -26,18 +24,18 @@ func init() {
 		agent: agent,
 	}
 
-	pm.CmdMap[cmdGetAggregatedStats] = process.NewInternalProcessFactory(mgr.getAggregatedStats)
+	pm.RegisterBuiltIn(cmdGetAggregatedStats, mgr.getAggregatedStats)
 }
 
-func (mgr *aggregatedStatsMgr) getAggregatedStats(cmd *core.Command) (interface{}, error) {
-	stat := process.ProcessStats{}
+func (mgr *aggregatedStatsMgr) getAggregatedStats(cmd *pm.Command) (interface{}, error) {
+	stat := pm.ProcessStats{}
 
 	for _, runner := range pm.Jobs() {
 		ps := runner.Process()
 		if ps == nil {
 			continue
 		}
-		stats, ok := ps.(process.Stater)
+		stats, ok := ps.(pm.Stater)
 		if !ok {
 			continue
 		}

@@ -1,7 +1,6 @@
 package pm
 
 import (
-	"github.com/zero-os/0-core/base/pm/core"
 	"github.com/zero-os/0-core/base/pm/stream"
 	"regexp"
 	"sync"
@@ -46,7 +45,7 @@ type ExitHook struct {
 
 func (h *ExitHook) Exit(state string) {
 	s := false
-	if state == core.StateSuccess {
+	if state == StateSuccess {
 		s = true
 	}
 

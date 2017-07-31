@@ -7,8 +7,6 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/vishvananda/netlink"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 	"io/ioutil"
 	"net"
 	"os"
@@ -84,11 +82,11 @@ func (c *container) zerotierDaemon() error {
 			},
 		}
 
-		c.zt, c.zterr = pm.Run(&core.Command{
+		c.zt, c.zterr = pm.Run(&pm.Command{
 			ID:      uuid.New(),
-			Command: process.CommandSystem,
-			Arguments: core.MustArguments(
-				process.SystemCommandArguments{
+			Command: pm.CommandSystem,
+			Arguments: pm.MustArguments(
+				pm.SystemCommandArguments{
 					Name: "ip",
 					Args: []string{
 						"netns", "exec", fmt.Sprint(c.ID()), "zerotier-one", "-p0", home,
@@ -165,11 +163,11 @@ func (c *container) postBridge(dev string, index int, n *Nic) error {
 
 	if n.Config.Dhcp {
 		//start a dhcpc inside the container.
-		dhcpc := &core.Command{
+		dhcpc := &pm.Command{
 			ID:      uuid.New(),
-			Command: process.CommandSystem,
-			Arguments: core.MustArguments(
-				process.SystemCommandArguments{
+			Command: pm.CommandSystem,
+			Arguments: pm.MustArguments(
+				pm.SystemCommandArguments{
 					Name: "ip",
 					Args: []string{
 						"netns",
@@ -256,9 +254,9 @@ func (c *container) preBridge(index int, bridge string, n *Nic, ovs Container) e
 		}
 	} else {
 		//with ovs
-		result, err := c.mgr.Dispatch(ovs.ID(), &core.Command{
+		result, err := c.mgr.Dispatch(ovs.ID(), &pm.Command{
 			Command: "ovs.port-add",
-			Arguments: core.MustArguments(
+			Arguments: pm.MustArguments(
 				map[string]interface{}{
 					"bridge": bridge,
 					"port":   name,
@@ -270,7 +268,7 @@ func (c *container) preBridge(index int, bridge string, n *Nic, ovs Container) e
 			return fmt.Errorf("ovs dispatch error: %s", err)
 		}
 
-		if result.State != core.StateSuccess {
+		if result.State != pm.StateSuccess {
 			return fmt.Errorf("failed to attach veth to bridge: %s", result.Data)
 		}
 	}
@@ -327,11 +325,11 @@ func (c *container) setPortForwards() error {
 
 	for host, container := range c.Args.Port {
 		//nft add rule nat prerouting iif eth0 tcp dport { 80, 443 } dnat 192.168.1.120
-		cmd := &core.Command{
+		cmd := &pm.Command{
 			ID:      c.forwardId(host, container),
-			Command: process.CommandSystem,
-			Arguments: core.MustArguments(
-				process.SystemCommandArguments{
+			Command: pm.CommandSystem,
+			Arguments: pm.MustArguments(
+				pm.SystemCommandArguments{
 					Name: "socat",
 					Args: []string{
 						fmt.Sprintf("tcp-listen:%d,reuseaddr,fork", host),
@@ -418,9 +416,9 @@ func (c *container) preVxlanNetwork(idx int, net *Nic) error {
 
 	//ensure that a bridge is available with that vlan tag.
 	//we dispatch the ovs.vlan-ensure command to container.
-	result, err := c.mgr.Dispatch(ovs.ID(), &core.Command{
+	result, err := c.mgr.Dispatch(ovs.ID(), &pm.Command{
 		Command: "ovs.vxlan-ensure",
-		Arguments: core.MustArguments(map[string]interface{}{
+		Arguments: pm.MustArguments(map[string]interface{}{
 			"master": OVSVXBackend,
 			"vxlan":  vxlan,
 		}),
@@ -430,7 +428,7 @@ func (c *container) preVxlanNetwork(idx int, net *Nic) error {
 		return err
 	}
 
-	if result.State != core.StateSuccess {
+	if result.State != pm.StateSuccess {
 		return fmt.Errorf("failed to ensure vxlan bridge: %v", result.Data)
 	}
 
@@ -465,9 +463,9 @@ func (c *container) preVlanNetwork(idx int, net *Nic) error {
 
 	//ensure that a bridge is available with that vlan tag.
 	//we dispatch the ovs.vlan-ensure command to container.
-	result, err := c.mgr.Dispatch(ovs.ID(), &core.Command{
+	result, err := c.mgr.Dispatch(ovs.ID(), &pm.Command{
 		Command: "ovs.vlan-ensure",
-		Arguments: core.MustArguments(map[string]interface{}{
+		Arguments: pm.MustArguments(map[string]interface{}{
 			"master": OVSBackPlane,
 			"vlan":   vlanID,
 		}),
@@ -477,7 +475,7 @@ func (c *container) preVlanNetwork(idx int, net *Nic) error {
 		return err
 	}
 
-	if result.State != core.StateSuccess {
+	if result.State != pm.StateSuccess {
 		return fmt.Errorf("failed to ensure vlan bridge: %v", result.Data)
 	}
 	//brname:
@@ -573,9 +571,9 @@ func (c *container) unBridge(idx int, n *Nic, ovs Container) error {
 	name := fmt.Sprintf(containerLinkNameFmt, c.id, idx)
 	n.State = NicStateDestroyed
 	if ovs != nil {
-		_, err := c.mgr.Dispatch(ovs.ID(), &core.Command{
+		_, err := c.mgr.Dispatch(ovs.ID(), &pm.Command{
 			Command: "ovs.port-del",
-			Arguments: core.MustArguments(map[string]interface{}{
+			Arguments: pm.MustArguments(map[string]interface{}{
 				"port": name,
 			}),
 		})

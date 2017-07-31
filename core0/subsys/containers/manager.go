@@ -6,8 +6,6 @@ import (
 	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/zero-os/0-core/base/settings"
 	"github.com/zero-os/0-core/base/utils"
 	"github.com/zero-os/0-core/core0/screen"
@@ -88,13 +86,13 @@ type ContainerCreateArguments struct {
 	Hostname    string            `json:"hostname"`     //hostname
 	Storage     string            `json:"storage"`      //ardb storage needed for g8ufs mounts.
 	Name        string            `json:"name"`         //for searching containers
-	Tags        core.Tags         `json:"tags"`         //for searching containers
+	Tags        pm.Tags           `json:"tags"`         //for searching containers
 	Env         map[string]string `json:"env"`          //environment variables.
 }
 
 type ContainerDispatchArguments struct {
-	Container uint16       `json:"container"`
-	Command   core.Command `json:"command"`
+	Container uint16     `json:"container"`
+	Command   pm.Command `json:"command"`
 }
 
 func (c *ContainerCreateArguments) Validate() error {
@@ -216,7 +214,7 @@ type Container interface {
 }
 
 type ContainerManager interface {
-	Dispatch(id uint16, cmd *core.Command) (*core.JobResult, error)
+	Dispatch(id uint16, cmd *pm.Command) (*pm.JobResult, error)
 	GetWithTags(tags ...string) []Container
 	GetOneWithTags(tags ...string) Container
 	Of(id uint16) Container
@@ -242,18 +240,18 @@ func ContainerSubsystem(sink *transport.Sink, cell *screen.RowCell) (ContainerMa
 		return nil, err
 	}
 
-	pm.CmdMap[cmdContainerCreate] = process.NewInternalProcessFactory(containerMgr.create)
-	pm.CmdMap[cmdContainerCreateSync] = process.NewInternalProcessFactory(containerMgr.createSync)
-	pm.CmdMap[cmdContainerList] = process.NewInternalProcessFactory(containerMgr.list)
-	pm.CmdMap[cmdContainerDispatch] = process.NewInternalProcessFactory(containerMgr.dispatch)
-	pm.CmdMap[cmdContainerTerminate] = process.NewInternalProcessFactory(containerMgr.terminate)
-	pm.CmdMap[cmdContainerFind] = process.NewInternalProcessFactory(containerMgr.find)
-	pm.CmdMap[cmdContainerNicAdd] = process.NewInternalProcessFactory(containerMgr.nicAdd)
-	pm.CmdMap[cmdContainerNicRemove] = process.NewInternalProcessFactory(containerMgr.nicRemove)
+	pm.RegisterBuiltIn(cmdContainerCreate, containerMgr.create)
+	pm.RegisterBuiltIn(cmdContainerCreateSync, containerMgr.createSync)
+	pm.RegisterBuiltIn(cmdContainerList, containerMgr.list)
+	pm.RegisterBuiltIn(cmdContainerDispatch, containerMgr.dispatch)
+	pm.RegisterBuiltIn(cmdContainerTerminate, containerMgr.terminate)
+	pm.RegisterBuiltIn(cmdContainerFind, containerMgr.find)
+	pm.RegisterBuiltIn(cmdContainerNicAdd, containerMgr.nicAdd)
+	pm.RegisterBuiltIn(cmdContainerNicRemove, containerMgr.nicRemove)
 
 	//container specific info
-	pm.CmdMap[cmdContainerZerotierInfo] = process.NewInternalProcessFactory(containerMgr.ztInfo)
-	pm.CmdMap[cmdContainerZerotierList] = process.NewInternalProcessFactory(containerMgr.ztList)
+	pm.RegisterBuiltIn(cmdContainerZerotierInfo, containerMgr.ztInfo)
+	pm.RegisterBuiltIn(cmdContainerZerotierList, containerMgr.ztList)
 
 	return containerMgr, nil
 }
@@ -290,16 +288,16 @@ func (m *containerManager) setUpCGroups() error {
 }
 
 func (m *containerManager) setUpDefaultBridge() error {
-	cmd := &core.Command{
+	cmd := &pm.Command{
 		ID:      uuid.New(),
 		Command: "bridge.create",
-		Arguments: core.MustArguments(
-			core.M{
+		Arguments: pm.MustArguments(
+			pm.M{
 				"name": DefaultBridgeName,
-				"network": core.M{
+				"network": pm.M{
 					"nat":  true,
 					"mode": "static",
-					"settings": core.M{
+					"settings": pm.M{
 						"cidr": DefaultBridgeCIDR,
 					},
 				},
@@ -312,7 +310,7 @@ func (m *containerManager) setUpDefaultBridge() error {
 		return err
 	}
 	result := job.Wait()
-	if result.State != core.StateSuccess {
+	if result.State != pm.StateSuccess {
 		return fmt.Errorf("failed to create default container bridge: %s", result.Data)
 	}
 
@@ -354,7 +352,7 @@ func (m *containerManager) unsetContainer(id uint16) {
 	screen.Refresh()
 }
 
-func (m *containerManager) nicAdd(cmd *core.Command) (interface{}, error) {
+func (m *containerManager) nicAdd(cmd *pm.Command) (interface{}, error) {
 	var args struct {
 		Container uint16 `json:"container"`
 		Nic       Nic    `json:"nic"`
@@ -396,7 +394,7 @@ func (m *containerManager) nicAdd(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func (m *containerManager) nicRemove(cmd *core.Command) (interface{}, error) {
+func (m *containerManager) nicRemove(cmd *pm.Command) (interface{}, error) {
 	var args struct {
 		Container uint16 `json:"container"`
 		Index     int    `json:"index"`
@@ -440,7 +438,7 @@ func (m *containerManager) nicRemove(cmd *core.Command) (interface{}, error) {
 	return nil, container.unBridge(args.Index, nic, ovs)
 }
 
-func (m *containerManager) createContainer(cmd *core.Command) (*container, error) {
+func (m *containerManager) createContainer(cmd *pm.Command) (*container, error) {
 	var args ContainerCreateArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -474,7 +472,7 @@ func (m *containerManager) createContainer(cmd *core.Command) (*container, error
 	return c, nil
 }
 
-func (m *containerManager) createSync(cmd *core.Command) (interface{}, error) {
+func (m *containerManager) createSync(cmd *pm.Command) (interface{}, error) {
 	container, err := m.createContainer(cmd)
 	if err != nil {
 		return nil, err
@@ -484,7 +482,7 @@ func (m *containerManager) createSync(cmd *core.Command) (interface{}, error) {
 	return container.runner.Wait(), nil
 }
 
-func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
+func (m *containerManager) create(cmd *pm.Command) (interface{}, error) {
 	container, err := m.createContainer(cmd)
 	if err != nil {
 		return nil, err
@@ -494,11 +492,11 @@ func (m *containerManager) create(cmd *core.Command) (interface{}, error) {
 }
 
 type ContainerInfo struct {
-	process.ProcessStats
+	pm.ProcessStats
 	Container Container `json:"container"`
 }
 
-func (m *containerManager) list(cmd *core.Command) (interface{}, error) {
+func (m *containerManager) list(cmd *pm.Command) (interface{}, error) {
 	containers := make(map[uint16]ContainerInfo)
 
 	m.conM.RLock()
@@ -510,9 +508,9 @@ func (m *containerManager) list(cmd *core.Command) (interface{}, error) {
 			continue
 		}
 		ps := job.Process()
-		var state process.ProcessStats
+		var state pm.ProcessStats
 		if ps != nil {
-			if stater, ok := ps.(process.Stater); ok {
+			if stater, ok := ps.(pm.Stater); ok {
 				state = *(stater.Stats())
 			}
 		}
@@ -529,12 +527,12 @@ func (m *containerManager) getCoreXQueue(id uint16) string {
 	return fmt.Sprintf("core:%v", id)
 }
 
-func (m *containerManager) pushToContainer(container *container, cmd *core.Command) error {
+func (m *containerManager) pushToContainer(container *container, cmd *pm.Command) error {
 	m.sink.Flag(cmd.ID)
 	return container.dispatch(cmd)
 }
 
-func (m *containerManager) dispatch(cmd *core.Command) (interface{}, error) {
+func (m *containerManager) dispatch(cmd *pm.Command) (interface{}, error) {
 	var args ContainerDispatchArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -564,7 +562,7 @@ func (m *containerManager) dispatch(cmd *core.Command) (interface{}, error) {
 }
 
 //Dispatch command to container with ID (id)
-func (m *containerManager) Dispatch(id uint16, cmd *core.Command) (*core.JobResult, error) {
+func (m *containerManager) Dispatch(id uint16, cmd *pm.Command) (*pm.JobResult, error) {
 	cmd.ID = uuid.New()
 
 	m.conM.RLock()
@@ -586,7 +584,7 @@ type ContainerArguments struct {
 	Container uint16 `json:"container"`
 }
 
-func (m *containerManager) terminate(cmd *core.Command) (interface{}, error) {
+func (m *containerManager) terminate(cmd *pm.Command) (interface{}, error) {
 	var args ContainerArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -606,7 +604,7 @@ type ContainerFindArguments struct {
 	Tags []string `json:"tags"`
 }
 
-func (m *containerManager) find(cmd *core.Command) (interface{}, error) {
+func (m *containerManager) find(cmd *pm.Command) (interface{}, error) {
 	var args ContainerFindArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -621,9 +619,9 @@ func (m *containerManager) find(cmd *core.Command) (interface{}, error) {
 			continue
 		}
 		ps := job.Process()
-		var state process.ProcessStats
+		var state pm.ProcessStats
 		if ps != nil {
-			if stater, ok := ps.(process.Stater); ok {
+			if stater, ok := ps.(pm.Stater); ok {
 				state = *(stater.Stats())
 			}
 		}

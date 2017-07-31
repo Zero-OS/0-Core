@@ -14,7 +14,7 @@ func system(t Transport, c *cli.Context) {
 	response, err := t.Run(Command{
 		Sync:      sync,
 		Container: c.GlobalString("container"),
-		Content: core.Command{
+		Content: pm.Command{
 			Command: "core.system",
 			Arguments: core.MustArguments(M{
 				"name": c.Args().First(),

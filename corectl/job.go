@@ -8,7 +8,7 @@ import (
 func jobs(t Transport, c *cli.Context) {
 	response, err := t.Run(Command{
 		Sync: true,
-		Content: core.Command{
+		Content: pm.Command{
 			Command:   "job.list",
 			Arguments: core.MustArguments(M{}),
 		},
@@ -30,7 +30,7 @@ func jobKill(t Transport, c *cli.Context) {
 
 	response, err := t.Run(Command{
 		Sync: true,
-		Content: core.Command{
+		Content: pm.Command{
 			Command: "job.kill",
 			Arguments: core.MustArguments(M{
 				"id": id,

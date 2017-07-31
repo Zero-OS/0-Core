@@ -29,7 +29,7 @@ func TestQueue_Push(t *testing.T) {
 		}
 	}()
 
-	q.Push(&jobImb{command: &core.Command{}})
+	q.Push(&jobImb{command: &pm.Command{}})
 
 	if ok := assert.False(t, failed); !ok {
 		t.Fatal()
@@ -52,11 +52,11 @@ func TestQueue_PushQueued(t *testing.T) {
 		lock <- 0
 	}()
 
-	q.Push(&jobImb{command: &core.Command{
+	q.Push(&jobImb{command: &pm.Command{
 		Queue: "test",
 	}})
 
-	q.Push(&jobImb{command: &core.Command{
+	q.Push(&jobImb{command: &pm.Command{
 		Queue: "test",
 	}})
 
@@ -99,7 +99,7 @@ func TestQueue_PushQueued(t *testing.T) {
 		lock <- 0
 	}()
 
-	q.Notify(&jobImb{command: &core.Command{
+	q.Notify(&jobImb{command: &pm.Command{
 		Queue: "test",
 	}})
 

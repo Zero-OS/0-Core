@@ -1,36 +1,46 @@
 package pm
 
-//implement internal processes
+import "fmt"
 
-import (
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
-)
+//implement internal processes
 
 /*
 Global command ProcessConstructor registery
 */
-var CmdMap = map[string]process.ProcessFactory{
-	process.CommandSystem: process.NewSystemProcess,
+var factories = map[string]ProcessFactory{
+	CommandSystem: NewSystemProcess,
 }
 
 /*
 NewProcess creates a new process from a command
 */
-func GetProcessFactory(cmd *core.Command) process.ProcessFactory {
-	return CmdMap[cmd.Command]
+func GetProcessFactory(cmd *Command) ProcessFactory {
+	return factories[cmd.Command]
+}
+
+func Register(name string, factory ProcessFactory) {
+	if _, ok := factories[name]; ok {
+		panic(fmt.Sprintf("command registered with same name: %s", name))
+	}
+	factories[name] = factory
 }
 
 /*
-RegisterCmd registers a new command (extension) so it can be executed via commands
+RegisterExtension registers a new command (extension) so it can be executed via commands
 */
-func RegisterCmd(cmd string, exe string, workdir string, cmdargs []string, env map[string]string) {
-	CmdMap[cmd] = process.NewExtensionProcessFactory(exe, workdir, cmdargs, env)
+func RegisterExtension(cmd string, exe string, workdir string, cmdargs []string, env map[string]string) error {
+	if _, ok := factories[cmd]; ok {
+		return fmt.Errorf("job factory with the same name already registered: %s", cmd)
+	}
+
+	Register(cmd, NewExtensionProcessFactory(exe, workdir, cmdargs, env))
+	return nil
 }
 
-/*
-UnregisterCmd removes an extension from the global registery
-*/
-func UnregisterCmd(cmd string) {
-	delete(CmdMap, cmd)
+func RegisterBuiltIn(name string, runnable Runnable) {
+	Register(name, NewInternalProcessFactory(runnable))
+}
+
+func RegisterBuiltInWithCtx(name string, runnable RunnableWithCtx) {
+	Register(name, NewInternalProcessFactoryWithCtx(runnable))
 }

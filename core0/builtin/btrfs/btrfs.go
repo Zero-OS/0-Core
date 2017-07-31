@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 	"regexp"
 	"strconv"
 	"strings"
@@ -20,16 +18,16 @@ type btrfsManager struct{}
 func init() {
 	var m btrfsManager
 
-	pm.CmdMap["btrfs.list"] = process.NewInternalProcessFactory(m.List)
-	pm.CmdMap["btrfs.info"] = process.NewInternalProcessFactory(m.Info)
-	pm.CmdMap["btrfs.create"] = process.NewInternalProcessFactory(m.Create)
-	pm.CmdMap["btrfs.device_add"] = process.NewInternalProcessFactory(m.DeviceAdd)
-	pm.CmdMap["btrfs.device_remove"] = process.NewInternalProcessFactory(m.DeviceRemove)
-	pm.CmdMap["btrfs.subvol_create"] = process.NewInternalProcessFactory(m.SubvolCreate)
-	pm.CmdMap["btrfs.subvol_delete"] = process.NewInternalProcessFactory(m.SubvolDelete)
-	pm.CmdMap["btrfs.subvol_quota"] = process.NewInternalProcessFactory(m.SubvolQuota)
-	pm.CmdMap["btrfs.subvol_list"] = process.NewInternalProcessFactory(m.SubvolList)
-	pm.CmdMap["btrfs.subvol_snapshot"] = process.NewInternalProcessFactory(m.SubvolSnapshot)
+	pm.RegisterBuiltIn("btrfs.list", m.List)
+	pm.RegisterBuiltIn("btrfs.info", m.Info)
+	pm.RegisterBuiltIn("btrfs.create", m.Create)
+	pm.RegisterBuiltIn("btrfs.device_add", m.DeviceAdd)
+	pm.RegisterBuiltIn("btrfs.device_remove", m.DeviceRemove)
+	pm.RegisterBuiltIn("btrfs.subvol_create", m.SubvolCreate)
+	pm.RegisterBuiltIn("btrfs.subvol_delete", m.SubvolDelete)
+	pm.RegisterBuiltIn("btrfs.subvol_quota", m.SubvolQuota)
+	pm.RegisterBuiltIn("btrfs.subvol_list", m.SubvolList)
+	pm.RegisterBuiltIn("btrfs.subvol_snapshot", m.SubvolSnapshot)
 }
 
 type btrfsFS struct {
@@ -119,7 +117,7 @@ func (arg CreateArgument) Validate() error {
 	return nil
 }
 
-func (m *btrfsManager) Create(cmd *core.Command) (interface{}, error) {
+func (m *btrfsManager) Create(cmd *pm.Command) (interface{}, error) {
 	var args CreateArgument
 	var opts []string
 
@@ -152,7 +150,7 @@ func (m *btrfsManager) Create(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func (m *btrfsManager) DeviceAdd(cmd *core.Command) (interface{}, error) {
+func (m *btrfsManager) DeviceAdd(cmd *pm.Command) (interface{}, error) {
 	var args DeviceAddArgument
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -169,7 +167,7 @@ func (m *btrfsManager) DeviceAdd(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func (m *btrfsManager) DeviceRemove(cmd *core.Command) (interface{}, error) {
+func (m *btrfsManager) DeviceRemove(cmd *pm.Command) (interface{}, error) {
 	var args DeviceAddArgument
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -186,7 +184,7 @@ func (m *btrfsManager) DeviceRemove(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func (m *btrfsManager) list(cmd *core.Command, args []string) ([]btrfsFS, error) {
+func (m *btrfsManager) list(cmd *pm.Command, args []string) ([]btrfsFS, error) {
 	defaultargs := []string{"filesystem", "show", "--raw"}
 	defaultargs = append(defaultargs, args...)
 	result, err := m.btrfs(defaultargs...)
@@ -207,12 +205,12 @@ func (m *btrfsManager) list(cmd *core.Command, args []string) ([]btrfsFS, error)
 }
 
 // list btrfs FSs
-func (m *btrfsManager) List(cmd *core.Command) (interface{}, error) {
+func (m *btrfsManager) List(cmd *pm.Command) (interface{}, error) {
 	return m.list(cmd, []string{})
 }
 
 // get btrfs info
-func (m *btrfsManager) Info(cmd *core.Command) (interface{}, error) {
+func (m *btrfsManager) Info(cmd *pm.Command) (interface{}, error) {
 	var args InfoArgument
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -244,7 +242,7 @@ type SubvolQuotaArgument struct {
 }
 
 // create subvolume under a mount point
-func (m *btrfsManager) SubvolCreate(cmd *core.Command) (interface{}, error) {
+func (m *btrfsManager) SubvolCreate(cmd *pm.Command) (interface{}, error) {
 	var args SubvolArgument
 
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
@@ -263,7 +261,7 @@ func (m *btrfsManager) SubvolCreate(cmd *core.Command) (interface{}, error) {
 }
 
 // delete subvolume under a mount point
-func (m *btrfsManager) SubvolDelete(cmd *core.Command) (interface{}, error) {
+func (m *btrfsManager) SubvolDelete(cmd *pm.Command) (interface{}, error) {
 	var args SubvolArgument
 
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
@@ -282,7 +280,7 @@ func (m *btrfsManager) SubvolDelete(cmd *core.Command) (interface{}, error) {
 }
 
 // create quota for a subvolume
-func (m *btrfsManager) SubvolQuota(cmd *core.Command) (interface{}, error) {
+func (m *btrfsManager) SubvolQuota(cmd *pm.Command) (interface{}, error) {
 	var args SubvolQuotaArgument
 
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
@@ -307,7 +305,7 @@ func (m *btrfsManager) SubvolQuota(cmd *core.Command) (interface{}, error) {
 }
 
 // make a subvol snapshot
-func (m *btrfsManager) SubvolSnapshot(cmd *core.Command) (interface{}, error) {
+func (m *btrfsManager) SubvolSnapshot(cmd *pm.Command) (interface{}, error) {
 	var args SnapshotArgument
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -328,7 +326,7 @@ func (m *btrfsManager) SubvolSnapshot(cmd *core.Command) (interface{}, error) {
 }
 
 // list subvolume under a mount point
-func (m *btrfsManager) SubvolList(cmd *core.Command) (interface{}, error) {
+func (m *btrfsManager) SubvolList(cmd *pm.Command) (interface{}, error) {
 	var args SubvolArgument
 
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
@@ -346,7 +344,7 @@ func (m *btrfsManager) SubvolList(cmd *core.Command) (interface{}, error) {
 	return m.parseSubvolList(result.Streams.Stdout())
 }
 
-func (m *btrfsManager) btrfs(args ...string) (*core.JobResult, error) {
+func (m *btrfsManager) btrfs(args ...string) (*pm.JobResult, error) {
 	return pm.System("btrfs", args...)
 }
 

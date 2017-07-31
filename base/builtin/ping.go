@@ -4,8 +4,6 @@ import (
 	"fmt"
 	base "github.com/zero-os/0-core/base"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 )
 
 const (
@@ -13,9 +11,9 @@ const (
 )
 
 func init() {
-	pm.CmdMap[cmdPing] = process.NewInternalProcessFactory(ping)
+	pm.RegisterBuiltIn(cmdPing, ping)
 }
 
-func ping(cmd *core.Command) (interface{}, error) {
+func ping(cmd *pm.Command) (interface{}, error) {
 	return fmt.Sprintf("PONG %s", base.Version()), nil
 }

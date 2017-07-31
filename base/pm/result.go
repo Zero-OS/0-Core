@@ -1,4 +1,4 @@
-package core
+package pm
 
 const (
 	//StateSuccess successs exit status

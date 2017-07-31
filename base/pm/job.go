@@ -5,8 +5,6 @@ package pm
 import "C"
 import (
 	"fmt"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/zero-os/0-core/base/pm/stream"
 	"runtime"
 	"sync"
@@ -22,10 +20,10 @@ const (
 )
 
 type Job interface {
-	Command() *core.Command
+	Command() *Command
 	Terminate()
-	Process() process.Process
-	Wait() *core.JobResult
+	Process() Process
+	Wait() *JobResult
 	StartTime() int64
 	Subscribe(stream.MessageHandler)
 
@@ -33,18 +31,18 @@ type Job interface {
 }
 
 type jobImb struct {
-	command *core.Command
-	factory process.ProcessFactory
+	command *Command
+	factory ProcessFactory
 	kill    chan int
 
-	process     process.Process
+	process     Process
 	hooks       []RunnerHook
 	startTime   time.Time
 	backlog     *stream.Buffer
 	subscribers []stream.MessageHandler
 
 	o      sync.Once
-	result *core.JobResult
+	result *JobResult
 	wg     sync.WaitGroup
 }
 
@@ -65,7 +63,7 @@ NewRunner creates a new r object that is bind to this PM instance.
         The r is considered running, if it ran with no errors for 2 seconds, or exited before the 2 seconds passes
         with SUCCESS exit code.
 */
-func newJob(command *core.Command, factory process.ProcessFactory, hooks ...RunnerHook) Job {
+func newJob(command *Command, factory ProcessFactory, hooks ...RunnerHook) Job {
 	runner := &jobImb{
 		command: command,
 		factory: factory,
@@ -78,7 +76,7 @@ func newJob(command *core.Command, factory process.ProcessFactory, hooks ...Runn
 	return runner
 }
 
-func (r *jobImb) Command() *core.Command {
+func (r *jobImb) Command() *Command {
 	return r.command
 }
 
@@ -154,10 +152,10 @@ func (r *jobImb) callback(msg *stream.Message) {
 	}
 }
 
-func (r *jobImb) run(unprivileged bool) (jobresult *core.JobResult) {
+func (r *jobImb) run(unprivileged bool) (jobresult *JobResult) {
 	r.startTime = time.Now()
-	jobresult = core.NewBasicJobResult(r.command)
-	jobresult.State = core.StateError
+	jobresult = NewBasicJobResult(r.command)
+	jobresult.State = StateError
 
 	defer func() {
 		jobresult.StartTime = int64(time.Duration(r.startTime.UnixNano()) / time.Millisecond)
@@ -166,7 +164,7 @@ func (r *jobImb) run(unprivileged bool) (jobresult *core.JobResult) {
 		jobresult.Time = endtime.Sub(r.startTime).Nanoseconds() / int64(time.Millisecond)
 
 		if err := recover(); err != nil {
-			jobresult.State = core.StateError
+			jobresult.State = StateError
 			jobresult.Critical = fmt.Sprintf("PANIC(%v)", err)
 		}
 	}()
@@ -203,17 +201,17 @@ loop:
 	for {
 		select {
 		case <-r.kill:
-			if ps, ok := ps.(process.Signaler); ok {
+			if ps, ok := ps.(Signaler); ok {
 				ps.Signal(syscall.SIGTERM)
 			}
-			jobresult.State = core.StateKilled
+			jobresult.State = StateKilled
 			r.callback(stream.MessageExitError)
 			break loop
 		case <-timeout:
-			if ps, ok := ps.(process.Signaler); ok {
+			if ps, ok := ps.(Signaler); ok {
 				ps.Signal(syscall.SIGKILL)
 			}
-			jobresult.State = core.StateTimeout
+			jobresult.State = StateTimeout
 			r.callback(stream.MessageExitError)
 			break loop
 		case <-handlersTicker.C:
@@ -226,9 +224,9 @@ loop:
 
 			//messages with Exit flags are always the last.
 			if message.Meta.Is(stream.ExitSuccessFlag) {
-				jobresult.State = core.StateSuccess
+				jobresult.State = StateSuccess
 			} else if message.Meta.Is(stream.ExitErrorFlag) {
-				jobresult.State = core.StateError
+				jobresult.State = StateError
 			} else if message.Meta.Assert(stream.ResultMessageLevels...) {
 				//a result message.
 				result = message
@@ -264,7 +262,7 @@ loop:
 		jobresult.Data = result.Message
 	}
 
-	jobresult.Streams = core.Streams{
+	jobresult.Streams = Streams{
 		stdout.String(),
 		stderr.String(),
 	}
@@ -276,7 +274,7 @@ loop:
 
 func (r *jobImb) start(unprivileged bool) {
 	runs := 0
-	var result *core.JobResult
+	var result *JobResult
 	defer func() {
 		if result != nil {
 			r.result = result
@@ -304,7 +302,7 @@ loop:
 			continue
 		}
 
-		if result.State == core.StateKilled {
+		if result.State == StateKilled {
 			//we never restart a killed r.
 			break
 		}
@@ -312,7 +310,7 @@ loop:
 		restarting := false
 		var restartIn time.Duration
 
-		if result.State != core.StateSuccess && r.command.MaxRestart > 0 {
+		if result.State != StateSuccess && r.command.MaxRestart > 0 {
 			runs++
 			if runs < r.command.MaxRestart {
 				log.Debugf("Restarting '%s' due to upnormal exit status, trials: %d/%d", r.command, runs+1, r.command.MaxRestart)
@@ -332,7 +330,7 @@ loop:
 			case <-time.After(restartIn):
 			case <-r.kill:
 				log.Infof("Command %s Killed during scheduler sleep", r.command)
-				result.State = core.StateKilled
+				result.State = StateKilled
 				break loop
 			}
 		} else {
@@ -345,19 +343,19 @@ func (r *jobImb) Terminate() {
 	r.kill <- 1
 }
 
-func (r *jobImb) Process() process.Process {
+func (r *jobImb) Process() Process {
 	return r.process
 }
 
-func (r *jobImb) Wait() *core.JobResult {
+func (r *jobImb) Wait() *JobResult {
 	r.wg.Wait()
 	return r.result
 }
 
 //implement PIDTable
 //intercept pid registration to fire the correct hooks.
-func (r *jobImb) Register(g process.GetPID) error {
-	return Register(func() (int, error) {
+func (r *jobImb) RegisterPID(g GetPID) error {
+	return RegisterPID(func() (int, error) {
 		pid, err := g()
 		if err != nil {
 			return 0, err

@@ -6,8 +6,6 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/siddontang/ledisdb/ledis"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/zero-os/0-core/base/pm/stream"
 	"sync"
 )
@@ -43,8 +41,8 @@ func NewLedisLogger(db *ledis.DB, defaults []uint16, size int64) Logger {
 		ch:       make(chan *LogRecord, MaxRedisQueueSize),
 	}
 
-	pm.CmdMap["logger.subscribe"] = process.NewInternalProcessFactory(rl.subscribe)
-	pm.CmdMap["logger.unsubscribe"] = process.NewInternalProcessFactory(rl.unSubscribe)
+	pm.RegisterBuiltIn("logger.subscribe", rl.subscribe)
+	pm.RegisterBuiltIn("logger.unsubscribe", rl.unSubscribe)
 
 	go rl.pusher()
 	return rl
@@ -65,7 +63,7 @@ func (l *redisLogger) pusher() {
 	}
 }
 
-func (l *redisLogger) unSubscribe(cmd *core.Command) (interface{}, error) {
+func (l *redisLogger) unSubscribe(cmd *pm.Command) (interface{}, error) {
 	var args struct {
 		Queue string `json:"queue"`
 	}
@@ -85,7 +83,7 @@ func (l *redisLogger) unSubscribe(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func (l *redisLogger) subscribe(cmd *core.Command) (interface{}, error) {
+func (l *redisLogger) subscribe(cmd *pm.Command) (interface{}, error) {
 	var args struct {
 		Queue string `json:"queue"`
 	}

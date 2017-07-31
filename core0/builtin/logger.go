@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/op/go-logging"
+	"github.com/zero-os/0-core/base/pm"
 	"os"
 	"syscall"
 )
@@ -16,15 +14,15 @@ type logMgr struct{}
 
 func init() {
 	l := (*logMgr)(nil)
-	pm.CmdMap["logger.set_level"] = process.NewInternalProcessFactory(l.setLevel)
-	pm.CmdMap["logger.reopen"] = process.NewInternalProcessFactory(l.reopen)
+	pm.RegisterBuiltIn("logger.set_level", l.setLevel)
+	pm.RegisterBuiltIn("logger.reopen", l.reopen)
 }
 
 type LogLevel struct {
 	Level string `json:"level"`
 }
 
-func (l *logMgr) setLevel(cmd *core.Command) (interface{}, error) {
+func (l *logMgr) setLevel(cmd *pm.Command) (interface{}, error) {
 	var args LogLevel
 
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
@@ -42,6 +40,6 @@ func (l *logMgr) setLevel(cmd *core.Command) (interface{}, error) {
 
 }
 
-func (l *logMgr) reopen(cmd *core.Command) (interface{}, error) {
+func (l *logMgr) reopen(cmd *pm.Command) (interface{}, error) {
 	return nil, syscall.Kill(os.Getpid(), syscall.SIGUSR1)
 }

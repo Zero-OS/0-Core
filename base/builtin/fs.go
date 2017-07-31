@@ -12,11 +12,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 	"github.com/patrickmn/go-cache"
 	"github.com/pborman/uuid"
+	"github.com/zero-os/0-core/base/pm"
 )
 
 const (
@@ -90,17 +88,17 @@ func init() {
 
 	fs.cache.OnEvicted(fs.evicted)
 
-	pm.CmdMap[cmdFilesystemOpen] = process.NewInternalProcessFactory(fs.open)
-	pm.CmdMap[cmdFilesystemRead] = process.NewInternalProcessFactory(fs.read)
-	pm.CmdMap[cmdFilesystemWrite] = process.NewInternalProcessFactory(fs.write)
-	pm.CmdMap[cmdFilesystemClose] = process.NewInternalProcessFactory(fs.close)
-	pm.CmdMap[cmdFilesystemMkDir] = process.NewInternalProcessFactory(fs.mkdir)
-	pm.CmdMap[cmdFilesystemRemove] = process.NewInternalProcessFactory(fs.remove)
-	pm.CmdMap[cmdFilesystemChmod] = process.NewInternalProcessFactory(fs.chmod)
-	pm.CmdMap[cmdFilesystemChown] = process.NewInternalProcessFactory(fs.chown)
-	pm.CmdMap[cmdFilesystemExists] = process.NewInternalProcessFactory(fs.exists)
-	pm.CmdMap[cmdFilesystemList] = process.NewInternalProcessFactory(fs.list)
-	pm.CmdMap[cmdFilesystemMove] = process.NewInternalProcessFactory(fs.move)
+	pm.RegisterBuiltIn(cmdFilesystemOpen, fs.open)
+	pm.RegisterBuiltIn(cmdFilesystemRead, fs.read)
+	pm.RegisterBuiltIn(cmdFilesystemWrite, fs.write)
+	pm.RegisterBuiltIn(cmdFilesystemClose, fs.close)
+	pm.RegisterBuiltIn(cmdFilesystemMkDir, fs.mkdir)
+	pm.RegisterBuiltIn(cmdFilesystemRemove, fs.remove)
+	pm.RegisterBuiltIn(cmdFilesystemChmod, fs.chmod)
+	pm.RegisterBuiltIn(cmdFilesystemChown, fs.chown)
+	pm.RegisterBuiltIn(cmdFilesystemExists, fs.exists)
+	pm.RegisterBuiltIn(cmdFilesystemList, fs.list)
+	pm.RegisterBuiltIn(cmdFilesystemMove, fs.move)
 }
 
 func (fs *filesystem) evicted(_ string, f interface{}) {
@@ -156,7 +154,7 @@ func (fs *filesystem) mode(m string) (int, error) {
 	return mode, nil
 }
 
-func (fs *filesystem) open(cmd *core.Command) (interface{}, error) {
+func (fs *filesystem) open(cmd *pm.Command) (interface{}, error) {
 	var args FSOpenArgs
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -178,7 +176,7 @@ func (fs *filesystem) open(cmd *core.Command) (interface{}, error) {
 	return id, nil
 }
 
-func (fs *filesystem) close(cmd *core.Command) (interface{}, error) {
+func (fs *filesystem) close(cmd *pm.Command) (interface{}, error) {
 	var args FSFileDescriptorArgs
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -190,7 +188,7 @@ func (fs *filesystem) close(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func (fs *filesystem) read(cmd *core.Command) (interface{}, error) {
+func (fs *filesystem) read(cmd *pm.Command) (interface{}, error) {
 	var args FSFileDescriptorArgs
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -222,7 +220,7 @@ func (fs *filesystem) read(cmd *core.Command) (interface{}, error) {
 	return base64.StdEncoding.EncodeToString(buffer[0:n]), err
 }
 
-func (fs *filesystem) write(cmd *core.Command) (interface{}, error) {
+func (fs *filesystem) write(cmd *pm.Command) (interface{}, error) {
 	var args FSWriteArgs
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -252,7 +250,7 @@ func (fs *filesystem) write(cmd *core.Command) (interface{}, error) {
 	return nil, nil
 }
 
-func (fs *filesystem) mkdir(cmd *core.Command) (interface{}, error) {
+func (fs *filesystem) mkdir(cmd *pm.Command) (interface{}, error) {
 	var p FSPathArgs
 	if err := json.Unmarshal(*cmd.Arguments, &p); err != nil {
 		return nil, err
@@ -261,7 +259,7 @@ func (fs *filesystem) mkdir(cmd *core.Command) (interface{}, error) {
 	return nil, os.MkdirAll(p.Path, 0755)
 }
 
-func (fs *filesystem) remove(cmd *core.Command) (interface{}, error) {
+func (fs *filesystem) remove(cmd *pm.Command) (interface{}, error) {
 	var p FSPathArgs
 	if err := json.Unmarshal(*cmd.Arguments, &p); err != nil {
 		return nil, err
@@ -270,7 +268,7 @@ func (fs *filesystem) remove(cmd *core.Command) (interface{}, error) {
 	return nil, os.RemoveAll(p.Path)
 }
 
-func (fs *filesystem) exists(cmd *core.Command) (interface{}, error) {
+func (fs *filesystem) exists(cmd *pm.Command) (interface{}, error) {
 	var p FSPathArgs
 	if err := json.Unmarshal(*cmd.Arguments, &p); err != nil {
 		return nil, err
@@ -280,7 +278,7 @@ func (fs *filesystem) exists(cmd *core.Command) (interface{}, error) {
 	return !os.IsNotExist(err), nil
 }
 
-func (fs *filesystem) list(cmd *core.Command) (interface{}, error) {
+func (fs *filesystem) list(cmd *pm.Command) (interface{}, error) {
 	var p FSPathArgs
 	if err := json.Unmarshal(*cmd.Arguments, &p); err != nil {
 		return nil, err
@@ -306,7 +304,7 @@ func (fs *filesystem) list(cmd *core.Command) (interface{}, error) {
 	return results, nil
 }
 
-func (fs *filesystem) chmod(cmd *core.Command) (interface{}, error) {
+func (fs *filesystem) chmod(cmd *pm.Command) (interface{}, error) {
 	var p FSChmodArgs
 	if err := json.Unmarshal(*cmd.Arguments, &p); err != nil {
 		return nil, err
@@ -329,7 +327,7 @@ func (fs *filesystem) chmod(cmd *core.Command) (interface{}, error) {
 	return nil, filepath.Walk(p.Path, walk)
 }
 
-func (fs *filesystem) chown(cmd *core.Command) (interface{}, error) {
+func (fs *filesystem) chown(cmd *pm.Command) (interface{}, error) {
 	var args FSChownArgs
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
@@ -365,7 +363,7 @@ func (fs *filesystem) chown(cmd *core.Command) (interface{}, error) {
 	return nil, filepath.Walk(args.Path, walk)
 }
 
-func (fs *filesystem) move(cmd *core.Command) (interface{}, error) {
+func (fs *filesystem) move(cmd *pm.Command) (interface{}, error) {
 	var p FSMoveArgs
 	if err := json.Unmarshal(*cmd.Arguments, &p); err != nil {
 		return nil, err

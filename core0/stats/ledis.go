@@ -8,8 +8,6 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/siddontang/ledisdb/ledis"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/core"
-	"github.com/zero-os/0-core/base/pm/process"
 	"sort"
 	"strings"
 	"time"
@@ -78,7 +76,7 @@ func NewLedisStatsAggregator(db *ledis.DB) Aggregator {
 		}
 	})
 
-	pm.CmdMap["aggregator.query"] = process.NewInternalProcessFactory(redisBuffer.query)
+	pm.RegisterBuiltIn("aggregator.query", redisBuffer.query)
 
 	return redisBuffer
 }
@@ -89,7 +87,7 @@ type Point struct {
 	Tags map[string]string `json:"tags,omitempty"`
 }
 
-func (r *redisStatsBuffer) query(cmd *core.Command) (interface{}, error) {
+func (r *redisStatsBuffer) query(cmd *pm.Command) (interface{}, error) {
 	var filter struct {
 		Key  string            `json:"key"`
 		Tags map[string]string `json:"tags"`
