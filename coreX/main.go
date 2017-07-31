@@ -65,10 +65,7 @@ func main() {
 	//start process mgr.
 	log.Infof("Starting process manager")
 
-	pm.AddResultHandler(dispatcher.Result)
-	pm.AddMessageHandler(dispatcher.Message)
-	pm.AddStatsHandler(dispatcher.Stats)
-
+	pm.AddHandle(dispatcher)
 	pm.Start()
 
 	bs := bootstrap.NewBootstrap()

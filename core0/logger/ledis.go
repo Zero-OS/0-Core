@@ -14,7 +14,7 @@ const (
 	MaxRedisQueueSize = 100000
 )
 
-// redisLogger send log to redis queue
+// redisLogger send Message to redis queue
 type redisLogger struct {
 	db       *ledis.DB
 	defaults []uint16

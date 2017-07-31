@@ -31,9 +31,6 @@ that are collected via the process manager. Flush happens when buffer is full or
 
 The StatsBuffer.Handler should be registers as StatsFlushHandler on the process manager object.
 */
-type Aggregator interface {
-	Aggregate(operation string, key string, value float64, id string, tags ...pm.Tag)
-}
 
 type Tags []pm.Tag
 
@@ -64,7 +61,7 @@ type redisStatsBuffer struct {
 	cache *cache.Cache
 }
 
-func NewLedisStatsAggregator(db *ledis.DB) Aggregator {
+func NewLedisStatsAggregator(db *ledis.DB) pm.StatsHandler {
 	redisBuffer := &redisStatsBuffer{
 		db:    db,
 		cache: cache.New(1*time.Hour, 5*time.Minute),
@@ -157,7 +154,7 @@ func (r *redisStatsBuffer) hash(tags []pm.Tag) string {
 	return fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%v", tags))))
 }
 
-func (r *redisStatsBuffer) Aggregate(op string, key string, value float64, id string, tags ...pm.Tag) {
+func (r *redisStatsBuffer) Stats(op string, key string, value float64, id string, tags ...pm.Tag) {
 	if len(id) != 0 {
 		tags = append(tags, pm.Tag{IDTag, id})
 	}

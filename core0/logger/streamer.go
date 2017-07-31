@@ -12,7 +12,7 @@ const (
 	StreamRedisQueueTTL     = 60
 )
 
-// redisLogger send log to redis queue
+// redisLogger send Message to redis queue
 type streamLogger struct {
 	db   *ledis.DB
 	size int64

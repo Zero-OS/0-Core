@@ -24,6 +24,16 @@ type PluginsSettings struct {
 	Plugin map[string]Plugin
 }
 
+type pluginPreProcessor struct {
+	domain string
+}
+
+func (p *pluginPreProcessor) Pre(cmd *pm.Command) {
+	if strings.HasPrefix(cmd.Command, p.domain+".") {
+		cmd.Queue = p.domain
+	}
+}
+
 func (b *Bootstrap) pluginFactory(plugin *Plugin, fn string) pm.ProcessFactory {
 	return func(table pm.PIDTable, srcCmd *pm.Command) pm.Process {
 		cmd := &pm.Command{
@@ -48,13 +58,8 @@ func (b *Bootstrap) pluginFactory(plugin *Plugin, fn string) pm.ProcessFactory {
 func (b *Bootstrap) plugin(domain string, plugin Plugin) {
 	if plugin.Queue {
 		//if plugin requires queuing we make sure when a command is pushed (from a cient)
-		//that we force a queue on it.
-		pm.AddPreProcessor(func(cmd *pm.Command) {
-			if strings.HasPrefix(cmd.Command, domain+".") {
-				log.Debugf("setting command queue to: %s", domain)
-				cmd.Queue = domain
-			}
-		})
+		//that we force a domain on it.
+		pm.AddHandle(&pluginPreProcessor{domain})
 	}
 
 	for _, export := range plugin.Exports {

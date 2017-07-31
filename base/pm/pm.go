@@ -13,7 +13,6 @@ import (
 
 	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
-	psutil "github.com/shirou/gopsutil/process"
 	"github.com/zero-os/0-core/base/pm/stream"
 	"github.com/zero-os/0-core/base/settings"
 	"github.com/zero-os/0-core/base/utils"
@@ -30,23 +29,10 @@ var (
 	DuplicateIDErr    = errors.New("duplicate job id")
 )
 
-type PreProcessor func(cmd *Command)
-
-//MeterHandler represents a callback type
-type MeterHandler func(cmd *Command, p *psutil.Process)
-
-type MessageHandler func(*Command, *stream.Message)
-
-//ResultHandler represents a callback type
-type ResultHandler func(cmd *Command, result *JobResult)
-
 type Tag struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
-
-//StatsFlushHandler represents a callback type
-type StatsHandler func(operation string, key string, value float64, id string, tags ...Tag)
 
 //PM is the main r manager.
 var (
@@ -58,11 +44,8 @@ var (
 	jobsCond *sync.Cond
 
 	//needs clean up
-	preProcessors      []PreProcessor
-	msgHandlers        []MessageHandler
-	resultHandlers     []ResultHandler
-	statsFlushHandlers []StatsHandler
-	queue              Queue
+	handlers []Handler
+	queue    Queue
 
 	pids    map[int]chan syscall.WaitStatus
 	pidsMux sync.Mutex
@@ -80,24 +63,8 @@ func New() {
 	})
 }
 
-func AddPreProcessor(processor PreProcessor) {
-	preProcessors = append(preProcessors, processor)
-}
-
-//AddMessageHandler adds handlers for messages that are captured from sub processes. Logger can use this to
-//r messages
-func AddMessageHandler(handler MessageHandler) {
-	msgHandlers = append(msgHandlers, handler)
-}
-
-//AddResultHandler adds a handler that receives job results.
-func AddResultHandler(handler ResultHandler) {
-	resultHandlers = append(resultHandlers, handler)
-}
-
-//AddStatsFlushHandler adds handler to stats flush.
-func AddStatsHandler(handler StatsHandler) {
-	statsFlushHandlers = append(statsFlushHandlers, handler)
+func AddHandle(handler Handler) {
+	handlers = append(handlers, handler)
 }
 
 func SetUnprivileged() {
@@ -107,6 +74,12 @@ func SetUnprivileged() {
 func RunFactory(cmd *Command, factory ProcessFactory, hooks ...RunnerHook) (Job, error) {
 	if len(cmd.ID) == 0 {
 		cmd.ID = uuid.New()
+	}
+
+	for _, handler := range handlers {
+		if handler, ok := handler.(PreHandler); ok {
+			handler.Pre(cmd)
+		}
 	}
 
 	jobsM.Lock()
@@ -377,8 +350,10 @@ func Kill(cmdID string) error {
 }
 
 func Aggregate(op, key string, value float64, id string, tags ...Tag) {
-	for _, handler := range statsFlushHandlers {
-		handler(op, key, value, id, tags...)
+	for _, handler := range handlers {
+		if handler, ok := handler.(StatsHandler); ok {
+			handler.Stats(op, key, value, id, tags...)
+		}
 	}
 }
 
@@ -446,15 +421,20 @@ func msgCallback(cmd *Command, msg *stream.Message) {
 	if cmd.Stream {
 		msg.Meta = msg.Meta.Set(stream.StreamFlag)
 	}
-	for _, handler := range msgHandlers {
-		handler(cmd, msg)
+
+	for _, handler := range handlers {
+		if handler, ok := handler.(MessageHandler); ok {
+			handler.Message(cmd, msg)
+		}
 	}
 }
 
 func callback(cmd *Command, result *JobResult) {
 	result.Tags = cmd.Tags
-	for _, handler := range resultHandlers {
-		handler(cmd, result)
+	for _, handler := range handlers {
+		if handler, ok := handler.(ResultHandler); ok {
+			handler.Result(cmd, result)
+		}
 	}
 }
 

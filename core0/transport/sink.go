@@ -78,14 +78,15 @@ func (sink *Sink) DB() *ledis.DB {
 	return sink.db
 }
 
-func (sink *Sink) handlePublic(cmd *pm.Command, result *pm.JobResult) {
+//ResultHandler implementation
+func (sink *Sink) Result(cmd *pm.Command, result *pm.JobResult) {
 	if err := sink.Forward(result); err != nil {
 		log.Errorf("failed to forward result: %s", cmd.ID)
 	}
 }
 
 func (sink *Sink) process() {
-	pm.AddResultHandler(sink.handlePublic)
+	pm.AddHandle(sink)
 
 	for {
 		var command pm.Command
@@ -136,7 +137,7 @@ func (sink *Sink) Start() {
 	go sink.process()
 }
 
-func (sink *Sink) Result(job string, timeout int) (*pm.JobResult, error) {
+func (sink *Sink) GetResult(job string, timeout int) (*pm.JobResult, error) {
 	if sink.ch.Flagged(job) {
 		return sink.ch.GetResponse(job, timeout)
 	} else {

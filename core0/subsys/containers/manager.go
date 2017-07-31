@@ -577,7 +577,7 @@ func (m *containerManager) Dispatch(id uint16, cmd *pm.Command) (*pm.JobResult, 
 		return nil, err
 	}
 
-	return m.sink.Result(cmd.ID, transport.ReturnExpire)
+	return m.sink.GetResult(cmd.ID, transport.ReturnExpire)
 }
 
 type ContainerArguments struct {

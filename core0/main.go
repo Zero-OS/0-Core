@@ -96,6 +96,12 @@ func Splash() {
 	screen.Refresh()
 }
 
+type console struct{}
+
+func (_ *console) Result(cmd *pm.Command, result *pm.JobResult) {
+	log.Debugf("Job result for command '%s' is '%s'", cmd, result.State)
+}
+
 func main() {
 	var options = options.Options
 	fmt.Println(core.Version())
@@ -134,10 +140,7 @@ func main() {
 	//start process mgr.
 	log.Infof("Starting process manager")
 
-	pm.AddResultHandler(func(cmd *pm.Command, result *pm.JobResult) {
-		log.Debugf("Job result for command '%s' is '%s'", cmd, result.State)
-	})
-
+	pm.AddHandle((*console)(nil))
 	pm.Start()
 
 	//configure logging handlers from configurations
@@ -188,7 +191,7 @@ func main() {
 
 	if config.Stats.Enabled {
 		aggregator := stats.NewLedisStatsAggregator(sink.DB())
-		pm.AddStatsHandler(aggregator.Aggregate)
+		pm.AddHandle(aggregator)
 	}
 
 	//wait

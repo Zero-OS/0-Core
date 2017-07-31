@@ -28,12 +28,12 @@ func IsLoggable(defaults []uint16, msg *stream.Message) bool {
 	return true
 }
 
-// ConsoleLogger log message to the console
+// ConsoleLogger Message message to the console
 type ConsoleLogger struct {
 	defaults []uint16
 }
 
-// NewConsoleLogger creates a simple console logger that prints log messages to Console.
+// NewConsoleLogger creates a simple console logger that prints Message messages to Console.
 func NewConsoleLogger(defaults []uint16) Logger {
 	return &ConsoleLogger{
 		defaults: defaults,

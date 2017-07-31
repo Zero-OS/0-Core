@@ -13,7 +13,8 @@ var (
 
 type Loggers []Logger
 
-func (l Loggers) log(cmd *pm.Command, msg *stream.Message) {
+//message handler implementation
+func (l Loggers) Message(cmd *pm.Command, msg *stream.Message) {
 	l.LogRecord(&LogRecord{
 		Command: cmd.ID,
 		Message: msg,
@@ -34,5 +35,5 @@ func ConfigureLogging(db *ledis.DB) {
 		NewStreamLogger(db, 0),
 	)
 
-	pm.AddMessageHandler(Current.log)
+	pm.AddHandle(Current)
 }
