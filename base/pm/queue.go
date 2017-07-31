@@ -41,6 +41,10 @@ func (q *Queue) Push(job Job) {
 	}
 
 	queue.PushBack(job)
+	if queue.Len() == 1 {
+		//first job in the queue
+		q.ch <- job
+	}
 }
 
 func (q *Queue) Notify(job Job) {

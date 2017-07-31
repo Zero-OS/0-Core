@@ -65,7 +65,7 @@ NewRunner creates a new r object that is bind to this PM instance.
         The r is considered running, if it ran with no errors for 2 seconds, or exited before the 2 seconds passes
         with SUCCESS exit code.
 */
-func newRunner(command *core.Command, factory process.ProcessFactory, hooks ...RunnerHook) Job {
+func newJob(command *core.Command, factory process.ProcessFactory, hooks ...RunnerHook) Job {
 	runner := &jobImb{
 		command: command,
 		factory: factory,

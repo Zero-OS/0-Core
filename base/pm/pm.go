@@ -55,7 +55,6 @@ var (
 	log = logging.MustGetLogger("pm")
 
 	n        sync.Once
-	cmds     chan *core.Command
 	jobs     map[string]Job
 	jobsM    sync.RWMutex
 	jobsCond *sync.Cond
@@ -77,8 +76,6 @@ var (
 func New() {
 	n.Do(func() {
 		log.Debugf("initializing r manager")
-
-		cmds = make(chan *core.Command)
 		jobs = make(map[string]Job)
 		jobsCond = sync.NewCond(&sync.Mutex{})
 		pids = make(map[int]chan syscall.WaitStatus)
@@ -109,7 +106,11 @@ func SetUnprivileged() {
 	unprivileged = true
 }
 
-func NewRunner(cmd *core.Command, factory process.ProcessFactory, hooks ...RunnerHook) (Job, error) {
+func RunFactory(cmd *core.Command, factory process.ProcessFactory, hooks ...RunnerHook) (Job, error) {
+	if len(cmd.ID) == 0 {
+		cmd.ID = uuid.New()
+	}
+
 	jobsM.Lock()
 	defer jobsM.Unlock()
 
@@ -118,10 +119,11 @@ func NewRunner(cmd *core.Command, factory process.ProcessFactory, hooks ...Runne
 		return nil, DuplicateIDErr
 	}
 
-	runner := newRunner(cmd, factory, hooks...)
-	jobs[cmd.ID] = runner
+	job := newJob(cmd, factory, hooks...)
+	jobs[cmd.ID] = job
 
-	return runner, nil
+	queue.Push(job)
+	return job, nil
 }
 
 //Run runs a command immediately (no pre-processors)
@@ -131,17 +133,7 @@ func Run(cmd *core.Command, hooks ...RunnerHook) (Job, error) {
 		return nil, UnknownCommandErr
 	}
 
-	if len(cmd.ID) == 0 {
-		cmd.ID = uuid.New()
-	}
-
-	job, err := NewRunner(cmd, factory, hooks...)
-	if err != nil {
-		return nil, err
-	}
-
-	queue.Push(job)
-	return job, err
+	return RunFactory(cmd, factory)
 }
 
 func loop() {
@@ -154,7 +146,7 @@ func loop() {
 		}
 		jobsCond.L.Unlock()
 		job := <-ch
-
+		log.Debugf("starting job: %s", job.Command())
 		go job.start(unprivileged)
 	}
 }
@@ -462,8 +454,6 @@ func msgCallback(cmd *core.Command, msg *stream.Message) {
 
 func callback(cmd *core.Command, result *core.JobResult) {
 	result.Tags = cmd.Tags
-	//NOTE: we always force the real gid and nid on the result.
-
 	for _, handler := range resultHandlers {
 		handler(cmd, result)
 	}

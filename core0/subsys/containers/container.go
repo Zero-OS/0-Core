@@ -124,8 +124,7 @@ func (c *container) Start() (runner pm.Job, err error) {
 		Action: c.onExit,
 	}
 
-	panic("need to start runner, or another way to do it.")
-	runner, err = pm.NewRunner(extCmd, process.NewContainerProcess, onpid, onexit)
+	runner, err = pm.RunFactory(extCmd, process.NewContainerProcess, onpid, onexit)
 	if err != nil {
 		log.Errorf("error in container runner: %s", err)
 		return
