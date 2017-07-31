@@ -307,11 +307,11 @@ func (m *containerManager) setUpDefaultBridge() error {
 		),
 	}
 
-	runner, err := pm.GetManager().RunCmd(cmd)
+	job, err := pm.Run(cmd)
 	if err != nil {
 		return err
 	}
-	result := runner.Wait()
+	result := job.Wait()
 	if result.State != core.StateSuccess {
 		return fmt.Errorf("failed to create default container bridge: %s", result.Data)
 	}
@@ -505,11 +505,11 @@ func (m *containerManager) list(cmd *core.Command) (interface{}, error) {
 	defer m.conM.RUnlock()
 	for id, c := range m.containers {
 		name := fmt.Sprintf("core-%d", id)
-		runner, ok := pm.GetManager().Runner(name)
+		job, ok := pm.JobOf(name)
 		if !ok {
 			continue
 		}
-		ps := runner.Process()
+		ps := job.Process()
 		var state process.ProcessStats
 		if ps != nil {
 			if stater, ok := ps.(process.Stater); ok {
@@ -616,11 +616,11 @@ func (m *containerManager) find(cmd *core.Command) (interface{}, error) {
 	result := make(map[uint16]ContainerInfo)
 	for _, c := range containers {
 		name := fmt.Sprintf("core-%d", c.ID())
-		runner, ok := pm.GetManager().Runner(name)
+		job, ok := pm.JobOf(name)
 		if !ok {
 			continue
 		}
-		ps := runner.Process()
+		ps := job.Process()
 		var state process.ProcessStats
 		if ps != nil {
 			if stater, ok := ps.(process.Stater); ok {

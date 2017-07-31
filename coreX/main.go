@@ -55,7 +55,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	pm.New(opt.MaxJobs())
+	pm.MaxJobs = opt.MaxJobs()
+	pm.New()
 
 	input := os.NewFile(3, "|input")
 	output := os.NewFile(4, "|output")
@@ -64,13 +65,12 @@ func main() {
 
 	//start process mgr.
 	log.Infof("Starting process manager")
-	mgr := pm.GetManager()
 
-	mgr.AddResultHandler(dispatcher.Result)
-	mgr.AddMessageHandler(dispatcher.Message)
-	mgr.AddStatsHandler(dispatcher.Stats)
+	pm.AddResultHandler(dispatcher.Result)
+	pm.AddMessageHandler(dispatcher.Message)
+	pm.AddStatsHandler(dispatcher.Stats)
 
-	mgr.Run()
+	pm.Start()
 
 	bs := bootstrap.NewBootstrap()
 
@@ -87,6 +87,6 @@ func main() {
 			log.Errorf("failed to decode command message: %s", err)
 
 		}
-		mgr.PushCmd(&cmd)
+		pm.Run(&cmd)
 	}
 }

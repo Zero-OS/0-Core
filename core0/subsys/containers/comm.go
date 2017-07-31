@@ -64,7 +64,7 @@ func (c *container) rewind() {
 				log.Errorf("failed to load container stat message: %s", err)
 			}
 			//push stats to aggregation system
-			pm.GetManager().Aggregate(string(stat.Operation), fmt.Sprintf("core-%d.%s", c.id, stat.Key), stat.Value, stat.Tags)
+			pm.Aggregate(string(stat.Operation), fmt.Sprintf("core-%d.%s", c.id, stat.Key), stat.Value, stat.Tags)
 		default:
 			log.Warningf("got unknown message type from container(%d): %s", c.id, message.Type)
 		}

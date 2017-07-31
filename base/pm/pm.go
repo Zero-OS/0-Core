@@ -121,8 +121,6 @@ func NewRunner(cmd *core.Command, factory process.ProcessFactory, hooks ...Runne
 	runner := newRunner(cmd, factory, hooks...)
 	jobs[cmd.ID] = runner
 
-	go runner.start(unprivileged)
-
 	return runner, nil
 }
 
@@ -131,6 +129,10 @@ func Run(cmd *core.Command, hooks ...RunnerHook) (Job, error) {
 	factory := GetProcessFactory(cmd)
 	if factory == nil {
 		return nil, UnknownCommandErr
+	}
+
+	if len(cmd.ID) == 0 {
+		cmd.ID = uuid.New()
 	}
 
 	job, err := NewRunner(cmd, factory, hooks...)
@@ -339,7 +341,7 @@ func cleanUp(runner Job) {
 }
 
 //Processes returs a list of running processes
-func Runners() map[string]Job {
+func Jobs() map[string]Job {
 	res := make(map[string]Job)
 	jobsM.RLock()
 	defer jobsM.RUnlock()
@@ -351,7 +353,7 @@ func Runners() map[string]Job {
 	return res
 }
 
-func GetRunner(id string) (Job, bool) {
+func JobOf(id string) (Job, bool) {
 	jobsM.RLock()
 	defer jobsM.RUnlock()
 	r, ok := jobs[id]

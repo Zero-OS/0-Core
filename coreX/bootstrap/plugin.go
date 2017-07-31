@@ -51,7 +51,7 @@ func (b *Bootstrap) plugin(domain string, plugin Plugin) {
 	if plugin.Queue {
 		//if plugin requires queuing we make sure when a command is pushed (from a cient)
 		//that we force a queue on it.
-		pm.GetManager().AddPreProcessor(func(cmd *core.Command) {
+		pm.AddPreProcessor(func(cmd *core.Command) {
 			if strings.HasPrefix(cmd.Command, domain+".") {
 				log.Debugf("setting command queue to: %s", domain)
 				cmd.Queue = domain

@@ -130,14 +130,14 @@ func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) erro
 	pm.CmdMap[kvmEventsCommand] = process.NewInternalProcessFactoryWithCtx(mgr.events)
 
 	//start domains monitoring command
-	pm.GetManager().RunCmd(&core.Command{
+	pm.Run(&core.Command{
 		ID:              kvmMonitorCommand,
 		Command:         kvmMonitorCommand,
 		RecurringPeriod: 30,
 	})
 
 	//start events command
-	pm.GetManager().RunCmd(&core.Command{
+	pm.Run(&core.Command{
 		ID:      kvmEventsCommand,
 		Command: kvmEventsCommand,
 	})
@@ -479,11 +479,11 @@ func (m *kvmManager) setupDefaultGateway() error {
 		),
 	}
 
-	runner, err := pm.GetManager().RunCmd(cmd)
+	job, err := pm.Run(cmd)
 	if err != nil {
 		return err
 	}
-	result := runner.Wait()
+	result := job.Wait()
 	if result.State != core.StateSuccess {
 		return fmt.Errorf("failed to create default container bridge: %s", result.Data)
 	}
@@ -544,7 +544,7 @@ func (m *kvmManager) mkNBDDisk(idx int, u *url.URL) DiskDevice {
 }
 
 func getDiskType(path string) string {
-	result, err := pm.GetManager().System("qemu-img", "info", "--output=json", path)
+	result, err := pm.System("qemu-img", "info", "--output=json", path)
 	if err != nil {
 		return "raw"
 	}
@@ -722,7 +722,7 @@ func (m *kvmManager) setPortForwards(uuid string, seq uint16, port map[int]int) 
 			),
 		}
 
-		pm.GetManager().RunCmd(cmd)
+		pm.Run(cmd)
 	}
 
 	return nil
@@ -1378,7 +1378,6 @@ func (m *kvmManager) monitor(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	p := pm.GetManager()
 	for _, info := range infos {
 		uuid, err := info.Domain.GetUUIDString()
 		if err != nil {
@@ -1387,13 +1386,13 @@ func (m *kvmManager) monitor(cmd *core.Command) (interface{}, error) {
 
 		for i, vcpu := range info.Vcpu {
 			nr := fmt.Sprintf("%d", i)
-			p.Aggregate(
+			pm.Aggregate(
 				pm.AggreagteAverage,
 				"kvm.vcpu.state", float64(vcpu.State), uuid,
 				pm.Tag{"type", "virt"}, pm.Tag{"nr", nr},
 			)
 
-			p.Aggregate(
+			pm.Aggregate(
 				pm.AggreagteAverage,
 				"kvm.vcpu.time", float64(vcpu.Time)/1000000000., uuid,
 				pm.Tag{"type", "virt"}, pm.Tag{"nr", nr},
@@ -1401,25 +1400,25 @@ func (m *kvmManager) monitor(cmd *core.Command) (interface{}, error) {
 		}
 
 		for _, net := range info.Net {
-			p.Aggregate(
+			pm.Aggregate(
 				pm.AggreagteDifference,
 				"kvm.net.rxbytes", float64(net.RxBytes), uuid,
 				pm.Tag{"type", "virt"}, pm.Tag{"name", net.Name},
 			)
 
-			p.Aggregate(
+			pm.Aggregate(
 				pm.AggreagteDifference,
 				"kvm.net.rxpackets", float64(net.RxPkts), uuid,
 				pm.Tag{"type", "virt"}, pm.Tag{"name", net.Name},
 			)
 
-			p.Aggregate(
+			pm.Aggregate(
 				pm.AggreagteDifference,
 				"kvm.net.txbytes", float64(net.TxBytes), uuid,
 				pm.Tag{"type", "virt"}, pm.Tag{"name", net.Name},
 			)
 
-			p.Aggregate(
+			pm.Aggregate(
 				pm.AggreagteDifference,
 				"kvm.net.txpackets", float64(net.TxPkts), uuid,
 				pm.Tag{"type", "virt"}, pm.Tag{"name", net.Name},
@@ -1427,25 +1426,25 @@ func (m *kvmManager) monitor(cmd *core.Command) (interface{}, error) {
 		}
 
 		for _, block := range info.Block {
-			p.Aggregate(
+			pm.Aggregate(
 				pm.AggreagteDifference,
 				"kvm.disk.rdbytes", float64(block.RdBytes), block.Name,
 				pm.Tag{"type", "virt"}, pm.Tag{"name", block.Name},
 			)
 
-			p.Aggregate(
+			pm.Aggregate(
 				pm.AggreagteDifference,
 				"kvm.disk.rdtimes", float64(block.RdTimes), block.Name,
 				pm.Tag{"type", "virt"}, pm.Tag{"name", block.Name},
 			)
 
-			p.Aggregate(
+			pm.Aggregate(
 				pm.AggreagteDifference,
 				"kvm.disk.wrbytes", float64(block.WrBytes), block.Name,
 				pm.Tag{"type", "virt"}, pm.Tag{"name", block.Name},
 			)
 
-			p.Aggregate(
+			pm.Aggregate(
 				pm.AggreagteDifference,
 				"kvm.disk.wrtimes", float64(block.WrTimes), block.Name,
 				pm.Tag{"type", "virt"}, pm.Tag{"name", block.Name},
@@ -1462,7 +1461,7 @@ func (m *kvmManager) infops(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	runner, err := pm.GetManager().RunCmd(&core.Command{
+	job, err := pm.Run(&core.Command{
 		ID:      uuid.New(),
 		Command: "aggregator.query",
 		Arguments: core.MustArguments(core.M{
@@ -1476,7 +1475,7 @@ func (m *kvmManager) infops(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	result := runner.Wait()
+	result := job.Wait()
 	if result.State != core.StateSuccess {
 		return nil, err
 	}

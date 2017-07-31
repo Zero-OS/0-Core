@@ -43,15 +43,15 @@ func jobList(cmd *core.Command) (interface{}, error) {
 	var runners []pm.Job
 
 	if data.ID != "" {
-		runner, ok := pm.GetManager().Runner(data.ID)
+		job, ok := pm.JobOf(data.ID)
 
 		if !ok {
 			return nil, fmt.Errorf("Process with id '%s' doesn't exist", data.ID)
 		}
 
-		runners = []pm.Job{runner}
+		runners = []pm.Job{job}
 	} else {
-		for _, runner := range pm.GetManager().Runners() {
+		for _, runner := range pm.Jobs() {
 			runners = append(runners, runner)
 		}
 	}
@@ -96,19 +96,19 @@ func jobKill(cmd *core.Command) (interface{}, error) {
 		data.Signal = syscall.SIGTERM
 	}
 
-	runner, ok := pm.GetManager().Runner(data.ID)
+	job, ok := pm.JobOf(data.ID)
 	if !ok {
 		return false, nil
 	}
 
-	if ps, ok := runner.Process().(process.Signaler); ok {
+	if ps, ok := job.Process().(process.Signaler); ok {
 		if err := ps.Signal(data.Signal); err != nil {
 			return false, err
 		}
 	}
 
 	if data.Signal == syscall.SIGTERM || data.Signal == syscall.SIGKILL {
-		runner.Terminate()
+		job.Terminate()
 	}
 
 	return true, nil
@@ -116,6 +116,6 @@ func jobKill(cmd *core.Command) (interface{}, error) {
 }
 
 func jobKillAll(cmd *core.Command) (interface{}, error) {
-	pm.GetManager().Killall()
+	pm.Killall()
 	return true, nil
 }

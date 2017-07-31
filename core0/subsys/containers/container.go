@@ -93,8 +93,6 @@ func (c *container) Start() (runner pm.Job, err error) {
 		args = append(args, "-unprivileged")
 	}
 
-	mgr := pm.GetManager()
-
 	//Set a Default Env and merge it with environment map from args
 	env := map[string]string{
 		"PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
@@ -113,7 +111,7 @@ func (c *container) Start() (runner pm.Job, err error) {
 				Dir:         "/",
 				HostNetwork: c.Args.HostNetwork,
 				Args:        args,
-				Env: 	     env,
+				Env:         env,
 			},
 		),
 	}
@@ -126,7 +124,8 @@ func (c *container) Start() (runner pm.Job, err error) {
 		Action: c.onExit,
 	}
 
-	runner, err = mgr.NewRunner(extCmd, process.NewContainerProcess, onpid, onexit)
+	panic("need to start runner, or another way to do it.")
+	runner, err = pm.NewRunner(extCmd, process.NewContainerProcess, onpid, onexit)
 	if err != nil {
 		log.Errorf("error in container runner: %s", err)
 		return
@@ -205,7 +204,7 @@ func (c *container) cleanup() {
 
 func (c *container) cleanSandbox() {
 	if c.getFSType(BackendBaseDir) == "btrfs" {
-		pm.GetManager().System("btrfs", "subvolume", "delete", path.Join(BackendBaseDir, c.name()))
+		pm.System("btrfs", "subvolume", "delete", path.Join(BackendBaseDir, c.name()))
 	} else {
 		os.RemoveAll(path.Join(BackendBaseDir, c.name()))
 	}

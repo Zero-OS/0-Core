@@ -38,7 +38,7 @@ func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
 		),
 	}
 
-	job, err := pm.GetManager().RunCmd(cmd)
+	job, err := pm.Run(cmd)
 	if err != nil {
 		return err
 	}

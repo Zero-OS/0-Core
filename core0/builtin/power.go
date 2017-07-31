@@ -19,14 +19,14 @@ func init() {
 }
 
 func restart(cmd *core.Command) (interface{}, error) {
-	pm.GetManager().Killall()
+	pm.Killall()
 	syscall.Sync()
 	syscall.Reboot(syscall.LINUX_REBOOT_CMD_RESTART)
 	return nil, nil
 }
 
 func poweroff(cmd *core.Command) (interface{}, error) {
-	pm.GetManager().Killall()
+	pm.Killall()
 	syscall.Sync()
 	syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
 	return nil, nil

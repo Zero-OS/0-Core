@@ -21,16 +21,16 @@ func subscribe(ctx *process.Context) (interface{}, error) {
 		return nil, err
 	}
 
-	runner, ok := pm.GetManager().Runner(args.ID)
+	job, ok := pm.JobOf(args.ID)
 
 	if !ok {
 		return nil, fmt.Errorf("job '%s' does not exist", args.ID)
 	}
 
-	runner.Subscribe(func(msg *stream.Message) {
+	job.Subscribe(func(msg *stream.Message) {
 		ctx.Message(msg)
 	})
 
-	runner.Wait()
+	job.Wait()
 	return nil, nil
 }

@@ -62,7 +62,7 @@ func (c *container) zerotierDaemon() error {
 				log.Info("checking for zt availability")
 				var err error
 				for i := 0; i < 10; i++ {
-					_, err = pm.GetManager().System("ip", "netns", "exec", fmt.Sprint(c.ID()), "zerotier-cli", fmt.Sprintf("-D%s", home), "listnetworks")
+					_, err = pm.System("ip", "netns", "exec", fmt.Sprint(c.ID()), "zerotier-cli", fmt.Sprintf("-D%s", home), "listnetworks")
 					if err == nil {
 						break
 					}
@@ -84,7 +84,7 @@ func (c *container) zerotierDaemon() error {
 			},
 		}
 
-		c.zt, c.zterr = pm.GetManager().RunCmd(&core.Command{
+		c.zt, c.zterr = pm.Run(&core.Command{
 			ID:      uuid.New(),
 			Command: process.CommandSystem,
 			Arguments: core.MustArguments(
@@ -124,7 +124,7 @@ func (c *container) joinZerotierNetwork(idx int, netID string) error {
 	}
 
 	home := c.zerotierHome()
-	_, err := pm.GetManager().System("ip", "netns", "exec", fmt.Sprint(c.ID()), "zerotier-cli", fmt.Sprintf("-D%s", home), "join", netID)
+	_, err := pm.System("ip", "netns", "exec", fmt.Sprint(c.ID()), "zerotier-cli", fmt.Sprintf("-D%s", home), "join", netID)
 	return err
 }
 
@@ -134,7 +134,7 @@ func (c *container) leaveZerotierNetwork(idx int, netID string) error {
 	}
 
 	home := c.zerotierHome()
-	_, err := pm.GetManager().System("ip", "netns", "exec", fmt.Sprint(c.ID()), "zerotier-cli", fmt.Sprintf("-D%s", home), "leave", netID)
+	_, err := pm.System("ip", "netns", "exec", fmt.Sprint(c.ID()), "zerotier-cli", fmt.Sprintf("-D%s", home), "leave", netID)
 	return err
 }
 
@@ -158,7 +158,7 @@ func (c *container) postBridge(dev string, index int, n *Nic) error {
 	//	return fmt.Errorf("set link name: %s", err)
 	//}
 
-	_, err = pm.GetManager().System("ip", "netns", "exec", fmt.Sprintf("%v", c.id), "ip", "link", "set", peerName, "name", dev)
+	_, err = pm.System("ip", "netns", "exec", fmt.Sprintf("%v", c.id), "ip", "link", "set", peerName, "name", dev)
 	if err != nil {
 		return fmt.Errorf("failed to rename device: %s", err)
 	}
@@ -183,14 +183,14 @@ func (c *container) postBridge(dev string, index int, n *Nic) error {
 				},
 			),
 		}
-		pm.GetManager().RunCmd(dhcpc)
+		pm.Run(dhcpc)
 	} else if n.Config.CIDR != "" {
 		if _, _, err := net.ParseCIDR(n.Config.CIDR); err != nil {
 			return err
 		}
 
 		//putting the interface up
-		_, err := pm.GetManager().System("ip", "netns",
+		_, err := pm.System("ip", "netns",
 			"exec",
 			fmt.Sprintf("%v", c.id),
 			"ip", "link", "set", "dev", dev, "up")
@@ -200,7 +200,7 @@ func (c *container) postBridge(dev string, index int, n *Nic) error {
 		}
 
 		//setting the ip address
-		_, err = pm.GetManager().System("ip", "netns", "exec", fmt.Sprintf("%v", c.id), "ip", "address", "add", n.Config.CIDR, "dev", dev)
+		_, err = pm.System("ip", "netns", "exec", fmt.Sprintf("%v", c.id), "ip", "address", "add", n.Config.CIDR, "dev", dev)
 		if err != nil {
 			return fmt.Errorf("error settings interface ip: %v", err)
 		}
@@ -318,7 +318,7 @@ func (c *container) forwardId(host int, container int) string {
 
 func (c *container) unPortForward() {
 	for host, container := range c.Args.Port {
-		pm.GetManager().Kill(c.forwardId(host, container))
+		pm.Kill(c.forwardId(host, container))
 	}
 }
 
@@ -348,7 +348,7 @@ func (c *container) setPortForwards() error {
 			},
 		}
 
-		pm.GetManager().RunCmd(cmd, onExit)
+		pm.Run(cmd, onExit)
 	}
 
 	return nil
@@ -356,7 +356,7 @@ func (c *container) setPortForwards() error {
 
 func (c *container) setGateway(dev string, gw string) error {
 	////setting the ip address
-	_, err := pm.GetManager().System("ip", "netns", "exec", fmt.Sprintf("%v", c.id),
+	_, err := pm.System("ip", "netns", "exec", fmt.Sprintf("%v", c.id),
 		"ip", "route", "add", "metric", "1000", "default", "via", gw, "dev", dev)
 
 	if err != nil {

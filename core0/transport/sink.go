@@ -18,7 +18,6 @@ const (
 )
 
 type Sink struct {
-	mgr    *pm.PM
 	ch     *channel
 	server *server.App
 	db     *ledis.DB
@@ -32,7 +31,7 @@ func (c *SinkConfig) Local() string {
 	return fmt.Sprintf("127.0.0.1:%d", c.Port)
 }
 
-func NewSink(mgr *pm.PM, c SinkConfig) (*Sink, error) {
+func NewSink(c SinkConfig) (*Sink, error) {
 	cfg := config.NewConfigDefault()
 	cfg.DBName = "memory"
 	cfg.DataDir = "/var/core0"
@@ -68,7 +67,6 @@ func NewSink(mgr *pm.PM, c SinkConfig) (*Sink, error) {
 	}
 
 	sink := &Sink{
-		mgr:    mgr,
 		server: server,
 		db:     db,
 		ch:     newChannel(db),
@@ -88,7 +86,7 @@ func (sink *Sink) handlePublic(cmd *core.Command, result *core.JobResult) {
 }
 
 func (sink *Sink) process() {
-	sink.mgr.AddResultHandler(sink.handlePublic)
+	pm.AddResultHandler(sink.handlePublic)
 
 	for {
 		var command core.Command
@@ -107,7 +105,9 @@ func (sink *Sink) process() {
 		sink.ch.Flag(command.ID)
 		log.Debugf("Starting command %s", &command)
 
-		sink.mgr.PushCmd(&command)
+		if _, err := pm.Run(&command); err != nil {
+			log.Errorf("ERROR RUNNING COMMAND NEED TO BE HANDLED: %s", err)
+		}
 	}
 }
 

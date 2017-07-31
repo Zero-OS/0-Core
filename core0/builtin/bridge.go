@@ -208,7 +208,7 @@ func (b *bridgeMgr) bridgeStaticNetworking(bridge *netlink.Bridge, network *Brid
 	}
 
 	log.Debugf("dnsmasq(%s): %s", bridge.Name, args)
-	_, err = pm.GetManager().RunCmd(cmd, onExit)
+	_, err = pm.Run(cmd, onExit)
 
 	if err != nil {
 		return nil, err
@@ -292,7 +292,7 @@ func (b *bridgeMgr) bridgeDnsMasqNetworking(bridge *netlink.Bridge, network *Bri
 	}
 
 	log.Debugf("dnsmasq(%s): %s", bridge.Name, args)
-	_, err = pm.GetManager().RunCmd(cmd, onExit)
+	_, err = pm.Run(cmd, onExit)
 
 	if err != nil {
 		return nil, err
@@ -308,7 +308,7 @@ func (b *bridgeMgr) addHost(cmd *core.Command) (interface{}, error) {
 	}
 
 	name := b.dnsmasqPName(args.Bridge)
-	runner, ok := pm.GetManager().Runner(name)
+	job, ok := pm.JobOf(name)
 	if !ok {
 		//either no bridge with that name, or this bridge does't have dnsmasq settings.
 		return nil, fmt.Errorf("not supported no dnsmasq process found")
@@ -323,7 +323,7 @@ func (b *bridgeMgr) addHost(cmd *core.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	if ps, ok := runner.Process().(process.Signaler); ok {
+	if ps, ok := job.Process().(process.Signaler); ok {
 		if err := ps.Signal(syscall.SIGHUP); err != nil {
 			return nil, err
 		}
@@ -377,7 +377,7 @@ func (b *bridgeMgr) setNAT(addr *netlink.Addr) error {
 
 func (b *bridgeMgr) unsetNAT(addr []netlink.Addr) error {
 	//enable nat-ting
-	job, err := pm.GetManager().System("nft", "list", "ruleset", "-a")
+	job, err := pm.System("nft", "list", "ruleset", "-a")
 	if err != nil {
 		return err
 	}
@@ -393,7 +393,7 @@ func (b *bridgeMgr) unsetNAT(addr []netlink.Addr) error {
 		ip := line[1]
 		handle := line[2]
 		if utils.InString(ips, ip) {
-			pm.GetManager().System("nft", "delete", "rule", "nat", "post", "handle", handle)
+			pm.System("nft", "delete", "rule", "nat", "post", "handle", handle)
 		}
 	}
 
@@ -566,7 +566,7 @@ func (b *bridgeMgr) delete(cmd *core.Command) (interface{}, error) {
 	}
 
 	//make sure to stop dnsmasq, just in case it's running
-	pm.GetManager().Kill(fmt.Sprintf("dnsmasq-%s", link.Attrs().Name))
+	pm.Kill(fmt.Sprintf("dnsmasq-%s", link.Attrs().Name))
 
 	addresses, err := netlink.AddrList(link, netlink.FAMILY_V4)
 	if err != nil {

@@ -144,7 +144,7 @@ func (m *btrfsManager) Create(cmd *core.Command) (interface{}, error) {
 	}
 	opts = append(opts, args.Devices...)
 
-	_, err := pm.GetManager().System("mkfs.btrfs", opts...)
+	_, err := pm.System("mkfs.btrfs", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +347,7 @@ func (m *btrfsManager) SubvolList(cmd *core.Command) (interface{}, error) {
 }
 
 func (m *btrfsManager) btrfs(args ...string) (*core.JobResult, error) {
-	return pm.GetManager().System("btrfs", args...)
+	return pm.System("btrfs", args...)
 }
 
 func (m *btrfsManager) parseSubvolList(out string) ([]btrfsSubvol, error) {

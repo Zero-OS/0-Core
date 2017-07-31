@@ -128,22 +128,23 @@ func main() {
 
 	var config = settings.Settings
 
-	pm.New(config.Main.MaxJobs)
+	pm.MaxJobs = config.Main.MaxJobs
+
+	pm.New()
 
 	//start process mgr.
 	log.Infof("Starting process manager")
-	mgr := pm.GetManager()
 
-	mgr.AddResultHandler(func(cmd *pmcore.Command, result *pmcore.JobResult) {
+	pm.AddResultHandler(func(cmd *pmcore.Command, result *pmcore.JobResult) {
 		log.Debugf("Job result for command '%s' is '%s'", cmd, result.State)
 	})
 
-	mgr.Run()
+	pm.Start()
 
 	//configure logging handlers from configurations
 	log.Infof("Configure logging")
 	cfg := transport.SinkConfig{Port: 6379}
-	sink, err := transport.NewSink(mgr, cfg)
+	sink, err := transport.NewSink(cfg)
 	if err != nil {
 		log.Errorf("failed to start command sink: %s", err)
 	}
@@ -188,7 +189,7 @@ func main() {
 
 	if config.Stats.Enabled {
 		aggregator := stats.NewLedisStatsAggregator(sink.DB())
-		mgr.AddStatsHandler(aggregator.Aggregate)
+		pm.AddStatsHandler(aggregator.Aggregate)
 	}
 
 	//wait

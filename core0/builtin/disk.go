@@ -117,7 +117,7 @@ func (d *diskMgr) readUInt64(p string) (uint64, error) {
 }
 
 func (d *diskMgr) lsblk(dev string) (*lsblkResult, error) {
-	result, err := pm.GetManager().System("lsblk", "-O", "-J", fmt.Sprintf("/dev/%s", dev))
+	result, err := pm.System("lsblk", "-O", "-J", fmt.Sprintf("/dev/%s", dev))
 
 	if err != nil {
 		return nil, err
@@ -144,7 +144,7 @@ func (d *diskMgr) blockSize(dev string) (uint64, error) {
 
 func (d *diskMgr) getTableInfo(disk string) (string, []DiskFreeBlock, error) {
 	blocks := make([]DiskFreeBlock, 0)
-	result, err := pm.GetManager().System("parted", fmt.Sprintf("/dev/%s", disk), "unit", "B", "print", "free")
+	result, err := pm.System("parted", fmt.Sprintf("/dev/%s", disk), "unit", "B", "print", "free")
 
 	if err != nil {
 		return "", blocks, err
@@ -254,7 +254,7 @@ func (d *diskMgr) info(cmd *core.Command) (interface{}, error) {
 }
 
 func (d *diskMgr) list(cmd *core.Command) (interface{}, error) {
-	result, err := pm.GetManager().System("lsblk", "--json", "--output-all", "--bytes", "--exclude", "1,2")
+	result, err := pm.System("lsblk", "--json", "--output-all", "--bytes", "--exclude", "1,2")
 	if err != nil {
 		return nil, err
 	}

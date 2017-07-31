@@ -11,7 +11,7 @@ import (
 )
 
 func Get() (Nft, error) {
-	job, err := pm.GetManager().System("nft", "--handle", "list", "ruleset", "--numeric", "--numeric")
+	job, err := pm.System("nft", "--handle", "list", "ruleset", "--numeric", "--numeric")
 	if err != nil {
 		return nil, err
 	}

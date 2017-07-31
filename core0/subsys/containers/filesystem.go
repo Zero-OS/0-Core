@@ -232,7 +232,7 @@ func (c *container) mountPList(src string, target string, hooks ...pm.RunnerHook
 		},
 	})
 
-	pm.GetManager().RunCmd(cmd, hooks...)
+	pm.Run(cmd, hooks...)
 
 	//wait for either of the hooks (ready or exit)
 	wg.Wait()
@@ -306,8 +306,8 @@ func (c *container) sandbox() error {
 
 	if fstype == "btrfs" {
 		//make sure we delete it if sub volume exists
-		pm.GetManager().System("btrfs", "subvolume", "delete", path.Join(BackendBaseDir, c.name()))
-		pm.GetManager().System("btrfs", "subvolume", "create", path.Join(BackendBaseDir, c.name()))
+		pm.System("btrfs", "subvolume", "delete", path.Join(BackendBaseDir, c.name()))
+		pm.System("btrfs", "subvolume", "create", path.Join(BackendBaseDir, c.name()))
 	}
 
 	root := c.root()

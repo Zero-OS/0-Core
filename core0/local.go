@@ -59,13 +59,13 @@ func (l *Local) container(x string) containers.Container {
 
 func (l *Local) server(con net.Conn) {
 	//read command
-	job := &core.JobResult{
+	result := &core.JobResult{
 		State: core.StateError,
 	}
 
 	defer func() {
 		//send result
-		m, _ := json.Marshal(job)
+		m, _ := json.Marshal(result)
 		if _, err := con.Write(m); err != nil {
 			log.Errorf("Failed to write response to local transport: %s", err)
 		}
@@ -76,42 +76,42 @@ func (l *Local) server(con net.Conn) {
 	var lcmd LocalCmd
 
 	if err := decoder.Decode(&lcmd); err != nil {
-		job.Streams = core.Streams{"", fmt.Sprintf("Failed to decode message: %s", err)}
+		result.Streams = core.Streams{"", fmt.Sprintf("Failed to decode message: %s", err)}
 		return
 	}
 
 	cmd, err := core.LoadCmd(lcmd.Content)
 	if err != nil {
-		job.Streams = core.Streams{"", fmt.Sprintf("Failed to extract command: %s", err)}
+		result.Streams = core.Streams{"", fmt.Sprintf("Failed to extract command: %s", err)}
 		return
 	}
 
 	container := l.container(lcmd.Container)
 
 	if lcmd.Container != "" && container == nil {
-		job.Streams = core.Streams{"", fmt.Sprintf("couldn't match any containers with '%s'", lcmd.Container)}
+		result.Streams = core.Streams{"", fmt.Sprintf("couldn't match any containers with '%s'", lcmd.Container)}
 		return
 	}
 
 	if container == nil {
-		runner, err := pm.GetManager().RunCmd(cmd)
+		job, err := pm.Run(cmd)
 		if err != nil {
-			job.Streams = core.Streams{"", fmt.Sprintf("Failed to get job runner for command(%s): %s", cmd.Command, err)}
+			result.Streams = core.Streams{"", fmt.Sprintf("Failed to get result job for command(%s): %s", cmd.Command, err)}
 			return
 		}
 
 		if lcmd.Sync {
-			job = runner.Wait()
+			result = job.Wait()
 		}
 
 		return
 	} else {
 		contjob, err := l.mgr.Dispatch(container.ID(), cmd)
 		if err != nil {
-			job.Streams = core.Streams{"", fmt.Sprintf("Failed to dispatch command (%s): %s", cmd.Command, err)}
+			result.Streams = core.Streams{"", fmt.Sprintf("Failed to dispatch command (%s): %s", cmd.Command, err)}
 			return
 		}
-		job = contjob
+		result = contjob
 	}
 }
 

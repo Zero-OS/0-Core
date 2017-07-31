@@ -35,5 +35,5 @@ func ConfigureLogging(db *ledis.DB) {
 		NewStreamLogger(db, 0),
 	)
 
-	pm.GetManager().AddMessageHandler(Current.log)
+	pm.AddMessageHandler(Current.log)
 }

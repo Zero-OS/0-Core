@@ -169,7 +169,7 @@ func (b *Bootstrap) startup() error {
 		return fmt.Errorf("failed to build startup tree: %v", errs)
 	}
 
-	pm.GetManager().RunSlice(tree.Slice(settings.AfterInit.Weight(), settings.ToTheEnd.Weight()))
+	pm.RunSlice(tree.Slice(settings.AfterInit.Weight(), settings.ToTheEnd.Weight()))
 
 	return nil
 }
@@ -195,7 +195,7 @@ func (b *Bootstrap) Bootstrap(hostname string) error {
 	}
 
 	if options.Options.Unprivileged() {
-		pm.GetManager().SetUnprivileged()
+		pm.SetUnprivileged()
 		if err := b.revokePrivileges(); err != nil {
 			return err
 		}

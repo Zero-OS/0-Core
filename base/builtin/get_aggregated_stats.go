@@ -32,7 +32,7 @@ func init() {
 func (mgr *aggregatedStatsMgr) getAggregatedStats(cmd *core.Command) (interface{}, error) {
 	stat := process.ProcessStats{}
 
-	for _, runner := range pm.GetManager().Runners() {
+	for _, runner := range pm.Jobs() {
 		ps := runner.Process()
 		if ps == nil {
 			continue

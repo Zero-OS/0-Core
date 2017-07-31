@@ -81,27 +81,26 @@ func (m *monitor) disk() error {
 		return err
 	}
 
-	p := pm.GetManager()
 	for name, counter := range counters {
-		p.Aggregate(pm.AggreagteDifference,
+		pm.Aggregate(pm.AggreagteDifference,
 			"disk.iops.read",
 			float64(counter.ReadCount),
 			name, pm.Tag{"type", "phys"},
 		)
 
-		p.Aggregate(pm.AggreagteDifference,
+		pm.Aggregate(pm.AggreagteDifference,
 			"disk.iops.write",
 			float64(counter.WriteCount),
 			name, pm.Tag{"type", "phys"},
 		)
 
-		p.Aggregate(pm.AggreagteDifference,
+		pm.Aggregate(pm.AggreagteDifference,
 			"disk.throughput.read",
 			float64(counter.ReadBytes/1024),
 			name, pm.Tag{"type", "phys"},
 		)
 
-		p.Aggregate(pm.AggreagteDifference,
+		pm.Aggregate(pm.AggreagteDifference,
 			"disk.throughput.write",
 			float64(counter.WriteBytes/1024),
 			name, pm.Tag{"type", "phys"},
@@ -127,7 +126,7 @@ func (m *monitor) disk() error {
 			continue
 		}
 
-		p.Aggregate(pm.AggreagteAverage,
+		pm.Aggregate(pm.AggreagteAverage,
 			"disk.size.total",
 			float64(usage.Total),
 			name,
@@ -135,7 +134,7 @@ func (m *monitor) disk() error {
 			pm.Tag{"fs", usage.Fstype},
 		)
 
-		p.Aggregate(pm.AggreagteAverage,
+		pm.Aggregate(pm.AggreagteAverage,
 			"disk.size.free",
 			float64(usage.Free),
 			name,
@@ -153,10 +152,8 @@ func (m *monitor) cpu() error {
 		return err
 	}
 
-	p := pm.GetManager()
-
 	for nr, t := range times {
-		p.Aggregate(pm.AggreagteDifference,
+		pm.Aggregate(pm.AggreagteDifference,
 			"machine.CPU.utilisation",
 			t.System+t.User,
 			fmt.Sprint(nr), pm.Tag{"type", "phys"},
@@ -169,7 +166,7 @@ func (m *monitor) cpu() error {
 	}
 
 	for nr, v := range percent {
-		p.Aggregate(pm.AggreagteAverage,
+		pm.Aggregate(pm.AggreagteAverage,
 			"machine.CPU.percent",
 			v,
 			fmt.Sprint(nr), pm.Tag{"type", "phys"},
@@ -192,7 +189,7 @@ func (m *monitor) cpu() error {
 
 	if ctxt, ok := statmap["ctxt"]; ok {
 		v, _ := strconv.ParseFloat(ctxt, 64)
-		p.Aggregate(pm.AggreagteDifference,
+		pm.Aggregate(pm.AggreagteDifference,
 			"machine.CPU.contextswitch",
 			v,
 			"", pm.Tag{"type", "phys"},
@@ -201,7 +198,7 @@ func (m *monitor) cpu() error {
 
 	if intr, ok := statmap["intr"]; ok {
 		v, _ := strconv.ParseFloat(intr, 64)
-		p.Aggregate(pm.AggreagteDifference,
+		pm.Aggregate(pm.AggreagteDifference,
 			"machine.CPU.interrupts",
 			v,
 			"", pm.Tag{"type", "phys"},
@@ -222,7 +219,7 @@ func (m *monitor) cpu() error {
 		}
 	}
 
-	p.Aggregate(pm.AggreagteAverage, "machine.process.threads", float64(threads), "", pm.Tag{"type", "phys"})
+	pm.Aggregate(pm.AggreagteAverage, "machine.process.threads", float64(threads), "", pm.Tag{"type", "phys"})
 
 	return nil
 }
@@ -233,9 +230,7 @@ func (m *monitor) memory() error {
 		return err
 	}
 
-	p := pm.GetManager()
-
-	p.Aggregate(pm.AggreagteAverage,
+	pm.Aggregate(pm.AggreagteAverage,
 		"machine.memory.ram.available",
 		float64(virt.Available)/(1024.*1024.),
 		"", pm.Tag{"type", "phys"},
@@ -246,13 +241,13 @@ func (m *monitor) memory() error {
 		return err
 	}
 
-	p.Aggregate(pm.AggreagteAverage,
+	pm.Aggregate(pm.AggreagteAverage,
 		"machine.memory.swap.left",
 		float64(swap.Free)/(1024.*1024.),
 		"", pm.Tag{"type", "phys"},
 	)
 
-	p.Aggregate(pm.AggreagteAverage,
+	pm.Aggregate(pm.AggreagteAverage,
 		"machine.memory.swap.used",
 		float64(swap.Used)/(1024.*1024.),
 		"", pm.Tag{"type", "phys"},
@@ -266,8 +261,6 @@ func (m *monitor) network() error {
 	if err != nil {
 		return err
 	}
-
-	p := pm.GetManager()
 
 	for _, counter := range counters {
 		link, err := netlink.LinkByName(counter.Name)
@@ -284,28 +277,28 @@ func (m *monitor) network() error {
 			continue
 		}
 
-		p.Aggregate(pm.AggreagteDifference,
+		pm.Aggregate(pm.AggreagteDifference,
 			"network.throughput.outgoing",
 			float64(counter.BytesSent)/(1024.*1024.),
 			counter.Name,
 			pm.Tag{"type", "phys"}, pm.Tag{"kind", link.Type()},
 		)
 
-		p.Aggregate(pm.AggreagteDifference,
+		pm.Aggregate(pm.AggreagteDifference,
 			"network.throughput.incoming",
 			float64(counter.BytesRecv)/(1024.*1024.),
 			counter.Name,
 			pm.Tag{"type", "phys"}, pm.Tag{"kind", link.Type()},
 		)
 
-		p.Aggregate(pm.AggreagteDifference,
+		pm.Aggregate(pm.AggreagteDifference,
 			"network.packets.tx",
 			float64(counter.PacketsSent),
 			counter.Name,
 			pm.Tag{"type", "phys"}, pm.Tag{"kind", link.Type()},
 		)
 
-		p.Aggregate(pm.AggreagteDifference,
+		pm.Aggregate(pm.AggreagteDifference,
 			"network.packets.rx",
 			float64(counter.PacketsRecv),
 			counter.Name,
