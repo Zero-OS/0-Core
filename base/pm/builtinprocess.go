@@ -117,25 +117,23 @@ func (process *internalProcess) Run() (<-chan *stream.Message, error) {
 			value, err = runnable(&process.ctx)
 		}
 
-		msg := stream.Message{
-			Meta: stream.NewMeta(stream.LevelResultJSON),
-		}
+		var msg *stream.Message
 
 		if err != nil {
 			m, _ := json.Marshal(err.Error())
-			msg.Message = string(m)
+			msg = &stream.Message{
+				Meta:    stream.NewMeta(stream.LevelResultJSON, stream.ExitErrorFlag),
+				Message: string(m),
+			}
 		} else {
 			m, _ := json.Marshal(value)
-			msg.Message = string(m)
+			msg = &stream.Message{
+				Meta:    stream.NewMeta(stream.LevelResultJSON, stream.ExitSuccessFlag),
+				Message: string(m),
+			}
 		}
 
-		channel <- &msg
-		if err != nil {
-			channel <- stream.MessageExitError
-		} else {
-			channel <- stream.MessageExitSuccess
-		}
-
+		channel <- msg
 	}(channel)
 
 	return channel, nil

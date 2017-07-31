@@ -227,7 +227,9 @@ loop:
 				jobresult.State = StateSuccess
 			} else if message.Meta.Is(stream.ExitErrorFlag) {
 				jobresult.State = StateError
-			} else if message.Meta.Assert(stream.ResultMessageLevels...) {
+			}
+
+			if message.Meta.Assert(stream.ResultMessageLevels...) {
 				//a result message.
 				result = message
 			} else if message.Meta.Assert(stream.LevelStdout) {
