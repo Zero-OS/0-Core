@@ -55,7 +55,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	pm.InitProcessManager(opt.MaxJobs())
+	pm.New(opt.MaxJobs())
 
 	input := os.NewFile(3, "|input")
 	output := os.NewFile(4, "|output")

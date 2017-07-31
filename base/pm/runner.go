@@ -21,7 +21,7 @@ const (
 	meterPeriod = 30 * time.Second
 )
 
-type Runner interface {
+type Job interface {
 	Command() *core.Command
 	Terminate()
 	Process() process.Process
@@ -32,8 +32,7 @@ type Runner interface {
 	start(unprivileged bool)
 }
 
-type runnerImpl struct {
-	manager *PM
+type jobImb struct {
 	command *core.Command
 	factory process.ProcessFactory
 	kill    chan int
@@ -44,31 +43,30 @@ type runnerImpl struct {
 	backlog     *stream.Buffer
 	subscribers []stream.MessageHandler
 
-	waitOnce sync.Once
-	result   *core.JobResult
-	wg       sync.WaitGroup
+	o      sync.Once
+	result *core.JobResult
+	wg     sync.WaitGroup
 }
 
 /*
-NewRunner creates a new runner object that is bind to this PM instance.
+NewRunner creates a new r object that is bind to this PM instance.
 
-:manager: Bind this runner to this PM instance
+:manager: Bind this r to this PM instance
 :command: Command to run
 :factory: Process factory associated with command type.
-:hooksDelay: Fire the hooks after this delay in seconds if the process is still running. Basically it's a delay for if the
+:hooksDelay: Fire the hooks after this delay in seconds if the r is still running. Basically it's a delay for if the
             command didn't exit by then we assume it's running successfully
             values are:
             	- 1 means hooks are only called when the command exits
             	0   means use default delay (default is 2 seconds)
             	> 0 Use that delay
 
-:hooks: Optionals hooks that are called if the process is considered RUNNING successfully.
-        The process is considered running, if it ran with no errors for 2 seconds, or exited before the 2 seconds passes
+:hooks: Optionals hooks that are called if the r is considered RUNNING successfully.
+        The r is considered running, if it ran with no errors for 2 seconds, or exited before the 2 seconds passes
         with SUCCESS exit code.
 */
-func NewRunner(manager *PM, command *core.Command, factory process.ProcessFactory, hooks ...RunnerHook) Runner {
-	runner := &runnerImpl{
-		manager: manager,
+func newRunner(command *core.Command, factory process.ProcessFactory, hooks ...RunnerHook) Job {
+	runner := &jobImb{
 		command: command,
 		factory: factory,
 		kill:    make(chan int),
@@ -80,21 +78,21 @@ func NewRunner(manager *PM, command *core.Command, factory process.ProcessFactor
 	return runner
 }
 
-func (runner *runnerImpl) Command() *core.Command {
-	return runner.command
+func (r *jobImb) Command() *core.Command {
+	return r.command
 }
 
-func (runner *runnerImpl) timeout() <-chan time.Time {
+func (r *jobImb) timeout() <-chan time.Time {
 	var timeout <-chan time.Time
-	if runner.command.MaxTime > 0 {
-		timeout = time.After(time.Duration(runner.command.MaxTime) * time.Second)
+	if r.command.MaxTime > 0 {
+		timeout = time.After(time.Duration(r.command.MaxTime) * time.Second)
 	}
 	return timeout
 }
 
 //set the bounding set for current thread, of course this is un-reversable once set on the
 //pm it affects all threads from now on.
-func (process *runnerImpl) setUnprivileged() {
+func (r *jobImb) setUnprivileged() {
 	//drop bounding set for children.
 	bound := []uintptr{
 		C.CAP_SETPCAP,
@@ -129,19 +127,19 @@ func (process *runnerImpl) setUnprivileged() {
 	}
 }
 
-func (runner *runnerImpl) Subscribe(listener stream.MessageHandler) {
+func (r *jobImb) Subscribe(listener stream.MessageHandler) {
 	//TODO: a race condition might happen here because, while we send the backlog
 	//a new message might arrive and missed by this listener
-	for l := runner.backlog.Front(); l != nil; l = l.Next() {
+	for l := r.backlog.Front(); l != nil; l = l.Next() {
 		switch v := l.Value.(type) {
 		case *stream.Message:
 			listener(v)
 		}
 	}
-	runner.subscribers = append(runner.subscribers, listener)
+	r.subscribers = append(r.subscribers, listener)
 }
 
-func (runner *runnerImpl) callback(msg *stream.Message) {
+func (r *jobImb) callback(msg *stream.Message) {
 	defer func() {
 		//protection against subscriber crashes.
 		if err := recover(); err != nil {
@@ -150,22 +148,22 @@ func (runner *runnerImpl) callback(msg *stream.Message) {
 	}()
 
 	//check subscribers here.
-	runner.manager.msgCallback(runner.command, msg)
-	for _, sub := range runner.subscribers {
+	msgCallback(r.command, msg)
+	for _, sub := range r.subscribers {
 		sub(msg)
 	}
 }
 
-func (runner *runnerImpl) run(unprivileged bool) (jobresult *core.JobResult) {
-	runner.startTime = time.Now()
-	jobresult = core.NewBasicJobResult(runner.command)
+func (r *jobImb) run(unprivileged bool) (jobresult *core.JobResult) {
+	r.startTime = time.Now()
+	jobresult = core.NewBasicJobResult(r.command)
 	jobresult.State = core.StateError
 
 	defer func() {
-		jobresult.StartTime = int64(time.Duration(runner.startTime.UnixNano()) / time.Millisecond)
+		jobresult.StartTime = int64(time.Duration(r.startTime.UnixNano()) / time.Millisecond)
 		endtime := time.Now()
 
-		jobresult.Time = endtime.Sub(runner.startTime).Nanoseconds() / int64(time.Millisecond)
+		jobresult.Time = endtime.Sub(r.startTime).Nanoseconds() / int64(time.Millisecond)
 
 		if err := recover(); err != nil {
 			jobresult.State = core.StateError
@@ -173,18 +171,18 @@ func (runner *runnerImpl) run(unprivileged bool) (jobresult *core.JobResult) {
 		}
 	}()
 
-	runner.process = runner.factory(runner, runner.command)
+	r.process = r.factory(r, r.command)
 
-	ps := runner.process
+	ps := r.process
 	runtime.LockOSThread()
 	if unprivileged {
-		runner.setUnprivileged()
+		r.setUnprivileged()
 	}
 	channel, err := ps.Run()
 	runtime.UnlockOSThread()
 
 	if err != nil {
-		//this basically means process couldn't spawn
+		//this basically means r couldn't spawn
 		//which indicates a problem with the command itself. So restart won't
 		//do any good. It's better to terminate it immediately.
 		jobresult.Data = err.Error()
@@ -197,34 +195,34 @@ func (runner *runnerImpl) run(unprivileged bool) (jobresult *core.JobResult) {
 	stdout := stream.NewBuffer(StandardStreamBufferSize)
 	stderr := stream.NewBuffer(StandardStreamBufferSize)
 
-	timeout := runner.timeout()
+	timeout := r.timeout()
 
 	handlersTicker := time.NewTicker(1 * time.Second)
 	defer handlersTicker.Stop()
 loop:
 	for {
 		select {
-		case <-runner.kill:
+		case <-r.kill:
 			if ps, ok := ps.(process.Signaler); ok {
 				ps.Signal(syscall.SIGTERM)
 			}
 			jobresult.State = core.StateKilled
-			runner.callback(stream.MessageExitError)
+			r.callback(stream.MessageExitError)
 			break loop
 		case <-timeout:
 			if ps, ok := ps.(process.Signaler); ok {
 				ps.Signal(syscall.SIGKILL)
 			}
 			jobresult.State = core.StateTimeout
-			runner.callback(stream.MessageExitError)
+			r.callback(stream.MessageExitError)
 			break loop
 		case <-handlersTicker.C:
-			d := time.Now().Sub(runner.startTime)
-			for _, hook := range runner.hooks {
+			d := time.Now().Sub(r.startTime)
+			for _, hook := range r.hooks {
 				go hook.Tick(d)
 			}
 		case message := <-channel:
-			runner.backlog.Append(message)
+			r.backlog.Append(message)
 
 			//messages with Exit flags are always the last.
 			if message.Meta.Is(stream.ExitSuccessFlag) {
@@ -242,21 +240,21 @@ loop:
 				critical = message.Message
 			}
 
-			for _, hook := range runner.hooks {
+			for _, hook := range r.hooks {
 				go hook.Message(message)
 			}
 
 			//by default, all messages are forwarded to the manager for further processing.
-			runner.callback(message)
+			r.callback(message)
 			if message.Meta.Is(stream.ExitSuccessFlag | stream.ExitErrorFlag) {
 				break loop
 			}
 		}
 	}
 
-	runner.process = nil
+	r.process = nil
 
-	//consume channel to the end to allow process to cleanup properly
+	//consume channel to the end to allow r to cleanup properly
 	for range channel {
 		//noop.
 	}
@@ -276,64 +274,64 @@ loop:
 	return jobresult
 }
 
-func (runner *runnerImpl) start(unprivileged bool) {
+func (r *jobImb) start(unprivileged bool) {
 	runs := 0
 	var result *core.JobResult
 	defer func() {
 		if result != nil {
-			runner.result = result
-			runner.manager.resultCallback(runner.command, result)
+			r.result = result
+			callback(r.command, result)
 
-			runner.waitOnce.Do(func() {
-				runner.wg.Done()
+			r.o.Do(func() {
+				r.wg.Done()
 			})
 		}
 
-		runner.manager.cleanUp(runner)
+		cleanUp(r)
 	}()
 
 loop:
 	for {
-		result = runner.run(unprivileged)
+		result = r.run(unprivileged)
 
-		for _, hook := range runner.hooks {
+		for _, hook := range r.hooks {
 			hook.Exit(result.State)
 		}
 
-		if runner.command.Protected {
+		if r.command.Protected {
 			//immediate restart
-			log.Debugf("Respawning protected service")
+			log.Debugf("Re-spawning protected service")
 			continue
 		}
 
 		if result.State == core.StateKilled {
-			//we never restart a killed process.
+			//we never restart a killed r.
 			break
 		}
 
 		restarting := false
 		var restartIn time.Duration
 
-		if result.State != core.StateSuccess && runner.command.MaxRestart > 0 {
+		if result.State != core.StateSuccess && r.command.MaxRestart > 0 {
 			runs++
-			if runs < runner.command.MaxRestart {
-				log.Debugf("Restarting '%s' due to upnormal exit status, trials: %d/%d", runner.command, runs+1, runner.command.MaxRestart)
+			if runs < r.command.MaxRestart {
+				log.Debugf("Restarting '%s' due to upnormal exit status, trials: %d/%d", r.command, runs+1, r.command.MaxRestart)
 				restarting = true
 				restartIn = 1 * time.Second
 			}
 		}
 
-		if runner.command.RecurringPeriod > 0 {
+		if r.command.RecurringPeriod > 0 {
 			restarting = true
-			restartIn = time.Duration(runner.command.RecurringPeriod) * time.Second
+			restartIn = time.Duration(r.command.RecurringPeriod) * time.Second
 		}
 
 		if restarting {
-			log.Debugf("Recurring '%s' in %s", runner.command, restartIn)
+			log.Debugf("Recurring '%s' in %s", r.command, restartIn)
 			select {
 			case <-time.After(restartIn):
-			case <-runner.kill:
-				log.Infof("Command %s Killed during scheduler sleep", runner.command)
+			case <-r.kill:
+				log.Infof("Command %s Killed during scheduler sleep", r.command)
 				result.State = core.StateKilled
 				break loop
 			}
@@ -343,29 +341,29 @@ loop:
 	}
 }
 
-func (runner *runnerImpl) Terminate() {
-	runner.kill <- 1
+func (r *jobImb) Terminate() {
+	r.kill <- 1
 }
 
-func (runner *runnerImpl) Process() process.Process {
-	return runner.process
+func (r *jobImb) Process() process.Process {
+	return r.process
 }
 
-func (runner *runnerImpl) Wait() *core.JobResult {
-	runner.wg.Wait()
-	return runner.result
+func (r *jobImb) Wait() *core.JobResult {
+	r.wg.Wait()
+	return r.result
 }
 
 //implement PIDTable
 //intercept pid registration to fire the correct hooks.
-func (runner *runnerImpl) Register(g process.GetPID) error {
-	return runner.manager.Register(func() (int, error) {
+func (r *jobImb) Register(g process.GetPID) error {
+	return Register(func() (int, error) {
 		pid, err := g()
 		if err != nil {
 			return 0, err
 		}
 
-		for _, hook := range runner.hooks {
+		for _, hook := range r.hooks {
 			go hook.PID(pid)
 		}
 
@@ -373,10 +371,10 @@ func (runner *runnerImpl) Register(g process.GetPID) error {
 	})
 }
 
-func (runner *runnerImpl) WaitPID(pid int) syscall.WaitStatus {
-	return runner.manager.WaitPID(pid)
+func (r *jobImb) WaitPID(pid int) syscall.WaitStatus {
+	return WaitPID(pid)
 }
 
-func (runner *runnerImpl) StartTime() int64 {
-	return int64(time.Duration(runner.startTime.UnixNano()) / time.Millisecond)
+func (r *jobImb) StartTime() int64 {
+	return int64(time.Duration(r.startTime.UnixNano()) / time.Millisecond)
 }

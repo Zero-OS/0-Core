@@ -40,7 +40,7 @@ func jobList(cmd *core.Command) (interface{}, error) {
 	}
 
 	var stats []processData
-	var runners []pm.Runner
+	var runners []pm.Job
 
 	if data.ID != "" {
 		runner, ok := pm.GetManager().Runner(data.ID)
@@ -49,7 +49,7 @@ func jobList(cmd *core.Command) (interface{}, error) {
 			return nil, fmt.Errorf("Process with id '%s' doesn't exist", data.ID)
 		}
 
-		runners = []pm.Runner{runner}
+		runners = []pm.Job{runner}
 	} else {
 		for _, runner := range pm.GetManager().Runners() {
 			runners = append(runners, runner)

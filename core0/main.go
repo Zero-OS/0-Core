@@ -128,7 +128,7 @@ func main() {
 
 	var config = settings.Settings
 
-	pm.InitProcessManager(config.Main.MaxJobs)
+	pm.New(config.Main.MaxJobs)
 
 	//start process mgr.
 	log.Infof("Starting process manager")

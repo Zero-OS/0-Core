@@ -24,13 +24,13 @@ var (
 
 type container struct {
 	id     uint16
-	runner pm.Runner
+	runner pm.Job
 	mgr    *containerManager
 	Args   ContainerCreateArguments `json:"arguments"`
 	Root   string                   `json:"root"`
 	PID    int                      `json:"pid"`
 
-	zt    pm.Runner
+	zt    pm.Job
 	zterr error
 	zto   sync.Once
 
@@ -66,7 +66,7 @@ func (c *container) Arguments() ContainerCreateArguments {
 	return c.Args
 }
 
-func (c *container) Start() (runner pm.Runner, err error) {
+func (c *container) Start() (runner pm.Job, err error) {
 	coreID := fmt.Sprintf("core-%d", c.id)
 
 	defer func() {
