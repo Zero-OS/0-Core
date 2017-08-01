@@ -203,13 +203,13 @@ loop:
 		case <-r.kill:
 			if ps, ok := ps.(Signaler); ok {
 				ps.Signal(syscall.SIGTERM)
+				jobresult.State = StateKilled
 			}
-			jobresult.State = StateKilled
 		case <-timeout:
 			if ps, ok := ps.(Signaler); ok {
 				ps.Signal(syscall.SIGKILL)
+				jobresult.State = StateTimeout
 			}
-			jobresult.State = StateTimeout
 		case <-handlersTicker.C:
 			d := time.Now().Sub(r.startTime)
 			for _, hook := range r.hooks {
