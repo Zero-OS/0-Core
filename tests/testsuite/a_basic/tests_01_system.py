@@ -25,7 +25,7 @@ class SystemTests(BaseTest):
 
     def getNicInfo(self, client):
         r = client.bash('ip -br a').get().stdout
-        nics = [x.split()[0] for x in r.splitlines()]
+        nics = [x.split()[0] for x in r.splitlines() if x.strip() != '']
         nicInfo = []
         for nic in nics:
             if '@' in nic:
@@ -70,6 +70,10 @@ class SystemTests(BaseTest):
         lines = response.splitlines()
         disks = []
         for line in lines:
+            line = line.strip()
+            if line == '':
+                continue
+
             line = line.split()
             diskInfo = {'mountpoint': [], 'fstype': [], 'device': [], 'opts': []}
             diskInfo['mountpoint'] = line[2]
