@@ -160,7 +160,7 @@ func processWait() {
 	}
 }
 
-func RegisterPID(g GetPID) error {
+func registerPID(g GetPID) error {
 	pidsMux.Lock()
 	defer pidsMux.Unlock()
 	pid, err := g()
@@ -174,7 +174,7 @@ func RegisterPID(g GetPID) error {
 	return nil
 }
 
-func WaitPID(pid int) syscall.WaitStatus {
+func waitPID(pid int) syscall.WaitStatus {
 	pidsMux.Lock()
 	c, ok := pids[pid]
 	pidsMux.Unlock()
@@ -218,7 +218,7 @@ func RunSlice(slice settings.StartupSlice) {
 		all = append(all, startup.Key())
 	}
 
-	state := NewStateMachine(all...)
+	state := newStateMachine(all...)
 	cmdline := utils.GetKernelOptions().GetLast()
 
 	for _, startup := range slice {

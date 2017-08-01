@@ -15,8 +15,6 @@ import (
 const (
 	StandardStreamBufferSize = 1000 //buffer size for each of stdout and stderr
 	GenericStreamBufferSize  = 100  //we only keep last 100 message of all types.
-
-	meterPeriod = 30 * time.Second
 )
 
 type Job interface {
@@ -154,7 +152,7 @@ func (r *jobImb) callback(msg *stream.Message) {
 
 func (r *jobImb) run(unprivileged bool) (jobresult *JobResult) {
 	r.startTime = time.Now()
-	jobresult = NewBasicJobResult(r.command)
+	jobresult = NewJobResult(r.command)
 	jobresult.State = StateError
 
 	defer func() {
@@ -356,7 +354,7 @@ func (r *jobImb) Wait() *JobResult {
 //implement PIDTable
 //intercept pid registration to fire the correct hooks.
 func (r *jobImb) RegisterPID(g GetPID) error {
-	return RegisterPID(func() (int, error) {
+	return registerPID(func() (int, error) {
 		pid, err := g()
 		if err != nil {
 			return 0, err
@@ -371,7 +369,7 @@ func (r *jobImb) RegisterPID(g GetPID) error {
 }
 
 func (r *jobImb) WaitPID(pid int) syscall.WaitStatus {
-	return WaitPID(pid)
+	return waitPID(pid)
 }
 
 func (r *jobImb) StartTime() int64 {

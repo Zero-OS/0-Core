@@ -48,8 +48,8 @@ type JobResult struct {
 	Container uint64   `json:"container"`
 }
 
-//NewBasicJobResult creates a new job result from command
-func NewBasicJobResult(cmd *Command) *JobResult {
+//NewJobResult creates a new job result from command
+func NewJobResult(cmd *Command) *JobResult {
 	return &JobResult{
 		ID:      cmd.ID,
 		Command: cmd.Command,

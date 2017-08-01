@@ -17,13 +17,13 @@ type stateW struct {
 	s  bool
 }
 
-type StateMachine interface {
+type stateMachine interface {
 	Wait(key ...string) bool
 	WaitAll()
 	Release(ket string, state bool) error
 }
 
-func NewStateMachine(keys ...string) StateMachine {
+func newStateMachine(keys ...string) stateMachine {
 	s := &waitMachineImpl{
 		keys: make(map[string]*stateW),
 	}

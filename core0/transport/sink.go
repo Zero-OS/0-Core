@@ -108,7 +108,7 @@ func (sink *Sink) process() {
 		_, err = pm.Run(&command)
 
 		if err == pm.UnknownCommandErr {
-			result := pm.NewBasicJobResult(&command)
+			result := pm.NewJobResult(&command)
 			result.State = pm.StateUnknownCmd
 			sink.Forward(result)
 		} else if err != nil {
