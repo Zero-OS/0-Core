@@ -19,6 +19,7 @@ func TestQueue_Push(t *testing.T) {
 	var q Queue
 	ch := q.Start()
 
+	lock := make(chan int)
 	failed := true
 	go func() {
 		select {
@@ -26,9 +27,11 @@ func TestQueue_Push(t *testing.T) {
 			failed = false
 		case <-time.After(1 * time.Second):
 		}
+		lock <- 0
 	}()
 
 	q.Push(&jobImb{command: &Command{}})
+	<-lock
 
 	if ok := assert.False(t, failed); !ok {
 		t.Fatal()
