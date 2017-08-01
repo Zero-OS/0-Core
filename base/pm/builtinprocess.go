@@ -143,7 +143,7 @@ func (process *internalProcess) Run() (<-chan *stream.Message, error) {
 Kill kills internal process (not implemented)
 */
 func (process *internalProcess) Kill() error {
-	//you can't kill an internal process.
+	//you can't signal an internal process.
 	return nil
 }
 

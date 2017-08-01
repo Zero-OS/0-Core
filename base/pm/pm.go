@@ -333,7 +333,7 @@ func Killall() {
 		if v.Command().Protected {
 			continue
 		}
-		v.Terminate()
+		v.Signal(syscall.SIGTERM)
 	}
 }
 
@@ -345,7 +345,7 @@ func Kill(cmdID string) error {
 	if !ok {
 		return fmt.Errorf("not found")
 	}
-	v.Terminate()
+	v.Signal(syscall.SIGTERM)
 	return nil
 }
 

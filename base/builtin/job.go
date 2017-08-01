@@ -99,14 +99,8 @@ func jobKill(cmd *pm.Command) (interface{}, error) {
 		return false, nil
 	}
 
-	if ps, ok := job.Process().(pm.Signaler); ok {
-		if err := ps.Signal(data.Signal); err != nil {
-			return false, err
-		}
-	}
-
-	if data.Signal == syscall.SIGTERM || data.Signal == syscall.SIGKILL {
-		job.Terminate()
+	if err := job.Signal(data.Signal); err != nil {
+		return false, err
 	}
 
 	return true, nil

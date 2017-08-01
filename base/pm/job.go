@@ -21,7 +21,7 @@ const (
 
 type Job interface {
 	Command() *Command
-	Terminate()
+	Signal(sig syscall.Signal) error
 	Process() Process
 	Wait() *JobResult
 	StartTime() int64
@@ -33,7 +33,7 @@ type Job interface {
 type jobImb struct {
 	command *Command
 	factory ProcessFactory
-	kill    chan int
+	signal  chan syscall.Signal
 
 	process     Process
 	hooks       []RunnerHook
@@ -64,16 +64,16 @@ NewRunner creates a new r object that is bind to this PM instance.
         with SUCCESS exit code.
 */
 func newJob(command *Command, factory ProcessFactory, hooks ...RunnerHook) Job {
-	runner := &jobImb{
+	job := &jobImb{
 		command: command,
 		factory: factory,
-		kill:    make(chan int),
+		signal:  make(chan syscall.Signal),
 		hooks:   hooks,
 		backlog: stream.NewBuffer(GenericStreamBufferSize),
 	}
 
-	runner.wg.Add(1)
-	return runner
+	job.wg.Add(1)
+	return job
 }
 
 func (r *jobImb) Command() *Command {
@@ -200,10 +200,9 @@ func (r *jobImb) run(unprivileged bool) (jobresult *JobResult) {
 loop:
 	for {
 		select {
-		case <-r.kill:
+		case sig := <-r.signal:
 			if ps, ok := ps.(Signaler); ok {
-				ps.Signal(syscall.SIGTERM)
-				jobresult.State = StateKilled
+				ps.Signal(sig)
 			}
 		case <-timeout:
 			if ps, ok := ps.(Signaler); ok {
@@ -272,6 +271,7 @@ func (r *jobImb) start(unprivileged bool) {
 	runs := 0
 	var result *JobResult
 	defer func() {
+		close(r.signal)
 		if result != nil {
 			r.result = result
 			callback(r.command, result)
@@ -324,7 +324,7 @@ loop:
 			log.Debugf("Recurring '%s' in %s", r.command, restartIn)
 			select {
 			case <-time.After(restartIn):
-			case <-r.kill:
+			case <-r.signal:
 				log.Infof("Command %s Killed during scheduler sleep", r.command)
 				result.State = StateKilled
 				break loop
@@ -335,8 +335,13 @@ loop:
 	}
 }
 
-func (r *jobImb) Terminate() {
-	r.kill <- 1
+func (r *jobImb) Signal(sig syscall.Signal) error {
+	select {
+	case r.signal <- sig:
+		return nil
+	default: //TODO: may be use a delay!
+		return fmt.Errorf("job not receiving singnals")
+	}
 }
 
 func (r *jobImb) Process() Process {

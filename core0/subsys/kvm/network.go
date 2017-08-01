@@ -12,6 +12,7 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/vishvananda/netlink"
 	"github.com/zero-os/0-core/base/pm"
+	"syscall"
 )
 
 const (
@@ -303,9 +304,9 @@ func (m *kvmManager) forwardId(uuid string, host int) string {
 }
 
 func (m *kvmManager) unPortForward(uuid string) {
-	for key, runner := range pm.Jobs() {
+	for key, job := range pm.Jobs() {
 		if strings.HasPrefix(key, fmt.Sprintf("kvm-socat-%s", uuid)) {
-			runner.Terminate()
+			job.Signal(syscall.SIGTERM)
 		}
 	}
 }

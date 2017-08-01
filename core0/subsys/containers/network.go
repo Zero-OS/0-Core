@@ -612,7 +612,7 @@ func (c *container) destroyNetwork() {
 	}
 
 	if c.zt != nil {
-		c.zt.Terminate()
+		c.zt.Signal(syscall.SIGTERM)
 	}
 
 	//clean up namespace

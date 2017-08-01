@@ -136,7 +136,7 @@ func (c *container) Terminate() error {
 	if c.runner == nil {
 		return fmt.Errorf("container was not started")
 	}
-	c.runner.Terminate()
+	c.runner.Signal(syscall.SIGTERM)
 	c.runner.Wait()
 	return nil
 }
@@ -158,7 +158,7 @@ func (c *container) onStart(pid int) {
 	ps := c.runner.Process()
 	if ps, ok := ps.(pm.ContainerProcess); !ok {
 		log.Errorf("not a valid container process")
-		c.runner.Terminate()
+		c.runner.Signal(syscall.SIGTERM)
 		return
 	} else {
 		c.channel = ps.Channel()

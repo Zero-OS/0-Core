@@ -321,13 +321,7 @@ func (b *bridgeMgr) addHost(cmd *pm.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	if ps, ok := job.Process().(pm.Signaler); ok {
-		if err := ps.Signal(syscall.SIGHUP); err != nil {
-			return nil, err
-		}
-	}
-
-	return nil, nil
+	return nil, job.Signal(syscall.SIGHUP)
 }
 
 func (b *bridgeMgr) bridgeNetworking(bridge *netlink.Bridge, network *BridgeNetwork) error {
