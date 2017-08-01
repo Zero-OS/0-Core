@@ -269,7 +269,6 @@ func (r *jobImb) start(unprivileged bool) {
 	runs := 0
 	var result *JobResult
 	defer func() {
-		close(r.signal)
 		if result != nil {
 			r.result = result
 			callback(r.command, result)
@@ -336,6 +335,9 @@ loop:
 func (r *jobImb) Signal(sig syscall.Signal) error {
 	select {
 	case r.signal <- sig:
+		if sig == syscall.SIGKILL {
+			close(r.signal)
+		}
 		return nil
 	default: //TODO: may be use a delay!
 		return fmt.Errorf("job not receiving singnals")

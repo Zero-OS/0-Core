@@ -83,6 +83,15 @@ func main() {
 			log.Errorf("failed to decode command message: %s", err)
 
 		}
-		pm.Run(&cmd)
+
+		_, err := pm.Run(&cmd)
+
+		if err == pm.UnknownCommandErr {
+			result := pm.NewJobResult(&cmd)
+			result.State = pm.StateUnknownCmd
+			dispatcher.Result(&cmd, result)
+		} else if err != nil {
+			log.Errorf("unknown error while queueing command: %s", err)
+		}
 	}
 }

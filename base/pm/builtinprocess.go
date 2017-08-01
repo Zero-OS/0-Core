@@ -139,14 +139,6 @@ func (process *internalProcess) Run() (<-chan *stream.Message, error) {
 	return channel, nil
 }
 
-/*
-Kill kills internal process (not implemented)
-*/
-func (process *internalProcess) Kill() error {
-	//you can't signal an internal process.
-	return nil
-}
-
 func (process *internalProcess) Signal(sig syscall.Signal) error {
 	return nil
 }
