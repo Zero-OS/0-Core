@@ -40,10 +40,10 @@ class DisksTests(BaseTest):
             for line in lines:
                 if key == line[:line.find('=')]:
                     value = line[line.find('=')+2:-1]
-                    if value == '':
-                        value = None
                     if key in upper_values:
                         value = value.upper()
+                    if value == '':
+                        value = None
                     diskinf[key] = value
                     break
 
