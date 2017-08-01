@@ -2,7 +2,6 @@ package pm
 
 import (
 	"github.com/stretchr/testify/assert"
-	"github.com/zero-os/0-core/base/pm/core"
 	"testing"
 	"time"
 )
@@ -29,7 +28,7 @@ func TestQueue_Push(t *testing.T) {
 		}
 	}()
 
-	q.Push(&jobImb{command: &pm.Command{}})
+	q.Push(&jobImb{command: &Command{}})
 
 	if ok := assert.False(t, failed); !ok {
 		t.Fatal()
@@ -52,11 +51,11 @@ func TestQueue_PushQueued(t *testing.T) {
 		lock <- 0
 	}()
 
-	q.Push(&jobImb{command: &pm.Command{
+	q.Push(&jobImb{command: &Command{
 		Queue: "test",
 	}})
 
-	q.Push(&jobImb{command: &pm.Command{
+	q.Push(&jobImb{command: &Command{
 		Queue: "test",
 	}})
 
@@ -99,7 +98,7 @@ func TestQueue_PushQueued(t *testing.T) {
 		lock <- 0
 	}()
 
-	q.Notify(&jobImb{command: &pm.Command{
+	q.Notify(&jobImb{command: &Command{
 		Queue: "test",
 	}})
 
