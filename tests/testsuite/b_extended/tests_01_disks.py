@@ -297,15 +297,16 @@ class DisksTests(BaseTest):
         with self.assertRaises(RuntimeError):
             self.client.disk.mount(loop_dev_list[0], mount_point, [""])
 
-        self.lg('unmount the disk, shouldn\'t be found in the disks list')
-
-        self.client.disk.umount(loop_dev_list[0])
-        disks = self.client.bash(' lsblk -n -io NAME ').get().stdout
-        disks = disks.splitlines()
-        result = [disk in loop_dev_list[0] for disk in disks]
-        self.assertFalse(True in result)
-
-        self.lg('{} ENDED'.format(self._testID))
+        self.lg('no, unmounting a disk does not remove the loop device')
+        # self.lg('unmount the disk, shouldn\'t be found in the disks list')
+        #
+        # self.client.disk.umount(loop_dev_list[0])
+        # disks = self.client.bash(' lsblk -n -io NAME ').get().stdout
+        # disks = disks.splitlines()
+        # result = [disk in loop_dev_list[0] for disk in disks]
+        # self.assertFalse(True in result)
+        #
+        # self.lg('{} ENDED'.format(self._testID))
 
     def test006_disk_partitions(self):
 
@@ -479,7 +480,7 @@ class DisksTests(BaseTest):
         self.lg('Try to write file inside that directory exceeding L1, should fail')
         rs = self.client.bash('cd {}; fallocate -l 200M {}'.format(sv1_path, self.rand_str()))
         self.assertEqual(rs.get().state, 'ERROR')
-        self.assertEqual(rs.get().stderr, 'fallocate: fallocate failed: Disk quota exceeded\n')
+        self.assertEqual(rs.get().stderr.strip(), 'fallocate: fallocate failed: Disk quota exceeded')
 
         self.lg('Destroy this btrfs filesystem')
         self.destroy_btrfs()
@@ -519,7 +520,7 @@ class DisksTests(BaseTest):
         self.lg('Add device (D1) to the (Bfs1) mount point, should succeed')
         self.client.btrfs.device_add(self.mount_point, d1)
         rs = self.client.bash('btrfs filesystem show | grep -o "loop0"')
-        self.assertEqual(rs.get().stdout, 'loop0\n')
+        self.assertEqual(rs.get().stdout.strip(), 'loop0')
         self.assertEqual(rs.get().state, 'SUCCESS')
 
         self.lg('Add (D1) again to the (Bfs1) mount point, should fail')

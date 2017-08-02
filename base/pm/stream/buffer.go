@@ -21,13 +21,15 @@ func NewBuffer(size int) *Buffer {
 func (b *Buffer) String() string {
 	var strbuf bytes.Buffer
 	for l := b.Front(); l != nil; l = l.Next() {
+		if strbuf.Len() > 0 {
+			strbuf.WriteString("\n")
+		}
 		switch v := l.Value.(type) {
 		case string:
 			strbuf.WriteString(v)
 		default:
 			strbuf.WriteString(fmt.Sprintf("%v", l))
 		}
-		strbuf.WriteString("\n")
 	}
 
 	return strbuf.String()
