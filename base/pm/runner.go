@@ -207,17 +207,13 @@ loop:
 		case <-runner.kill:
 			if ps, ok := ps.(process.Signaler); ok {
 				ps.Signal(syscall.SIGTERM)
+				jobresult.State = core.StateKilled
 			}
-			jobresult.State = core.StateKilled
-			runner.callback(stream.MessageExitError)
-			break loop
 		case <-timeout:
 			if ps, ok := ps.(process.Signaler); ok {
 				ps.Signal(syscall.SIGKILL)
+				jobresult.State = core.StateTimeout
 			}
-			jobresult.State = core.StateTimeout
-			runner.callback(stream.MessageExitError)
-			break loop
 		case <-handlersTicker.C:
 			d := time.Now().Sub(runner.startTime)
 			for _, hook := range runner.hooks {
@@ -229,9 +225,9 @@ loop:
 			//messages with Exit flags are always the last.
 			if message.Meta.Is(stream.ExitSuccessFlag) {
 				jobresult.State = core.StateSuccess
-			} else if message.Meta.Is(stream.ExitErrorFlag) {
-				jobresult.State = core.StateError
-			} else if message.Meta.Assert(stream.ResultMessageLevels...) {
+			}
+
+			if message.Meta.Assert(stream.ResultMessageLevels...) {
 				//a result message.
 				result = message
 			} else if message.Meta.Assert(stream.LevelStdout) {

@@ -19,9 +19,12 @@ func (m *kvmManager) handle(conn *libvirt.Connect, domain *libvirt.Domain, event
 	}()
 
 	uuid, _ := domain.GetUUIDString()
+	name, _ := domain.GetName()
+
 	parts, _ := shlex.Split(event.String())
 	data := map[string]interface{}{
 		"uuid": uuid,
+		"name": name,
 	}
 
 	for _, part := range parts {

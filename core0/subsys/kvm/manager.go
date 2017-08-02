@@ -1380,7 +1380,7 @@ func (m *kvmManager) monitor(cmd *core.Command) (interface{}, error) {
 
 	p := pm.GetManager()
 	for _, info := range infos {
-		uuid, err := info.Domain.GetUUIDString()
+		name, err := info.Domain.GetName()
 		if err != nil {
 			return nil, err
 		}
@@ -1389,13 +1389,13 @@ func (m *kvmManager) monitor(cmd *core.Command) (interface{}, error) {
 			nr := fmt.Sprintf("%d", i)
 			p.Aggregate(
 				pm.AggreagteAverage,
-				"kvm.vcpu.state", float64(vcpu.State), uuid,
+				"kvm.vcpu.state", float64(vcpu.State), name,
 				pm.Tag{"type", "virt"}, pm.Tag{"nr", nr},
 			)
 
 			p.Aggregate(
 				pm.AggreagteAverage,
-				"kvm.vcpu.time", float64(vcpu.Time)/1000000000., uuid,
+				"kvm.vcpu.time", float64(vcpu.Time)/1000000000., name,
 				pm.Tag{"type", "virt"}, pm.Tag{"nr", nr},
 			)
 		}
@@ -1403,25 +1403,25 @@ func (m *kvmManager) monitor(cmd *core.Command) (interface{}, error) {
 		for _, net := range info.Net {
 			p.Aggregate(
 				pm.AggreagteDifference,
-				"kvm.net.rxbytes", float64(net.RxBytes), uuid,
+				"kvm.net.rxbytes", float64(net.RxBytes), name,
 				pm.Tag{"type", "virt"}, pm.Tag{"name", net.Name},
 			)
 
 			p.Aggregate(
 				pm.AggreagteDifference,
-				"kvm.net.rxpackets", float64(net.RxPkts), uuid,
+				"kvm.net.rxpackets", float64(net.RxPkts), name,
 				pm.Tag{"type", "virt"}, pm.Tag{"name", net.Name},
 			)
 
 			p.Aggregate(
 				pm.AggreagteDifference,
-				"kvm.net.txbytes", float64(net.TxBytes), uuid,
+				"kvm.net.txbytes", float64(net.TxBytes), name,
 				pm.Tag{"type", "virt"}, pm.Tag{"name", net.Name},
 			)
 
 			p.Aggregate(
 				pm.AggreagteDifference,
-				"kvm.net.txpackets", float64(net.TxPkts), uuid,
+				"kvm.net.txpackets", float64(net.TxPkts), name,
 				pm.Tag{"type", "virt"}, pm.Tag{"name", net.Name},
 			)
 		}
