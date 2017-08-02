@@ -81,6 +81,7 @@ class AdvancedNetworking(BaseTest):
 
         self.lg('Delete the vxlan bridge (vx1), should succeed')
         vxbridge = 'vxlbr' + vx1_id
+        self.lg('ovs-vsctl output: %s' % self.ovscl.system('ovs-vsctl show').get().stdout)
         self.ovscl.json('ovs.bridge-del', {"bridge": vxbridge})
 
         self.lg('Check if (c1) can reach (c2), shouldn\'t be reachable')
