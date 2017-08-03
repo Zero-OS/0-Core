@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pborman/uuid"
-	"github.com/siddontang/ledisdb/ledis"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/stream"
+	"github.com/zero-os/0-core/core0/transport"
 	"sync"
 )
 
@@ -16,7 +16,7 @@ const (
 
 // redisLogger send Message to redis queue
 type redisLogger struct {
-	db       *ledis.DB
+	sink     *transport.Sink
 	defaults []uint16
 	size     int64
 	buffer   *stream.Buffer
@@ -27,13 +27,13 @@ type redisLogger struct {
 }
 
 // NewRedisLogger creates new redis logger handler
-func NewLedisLogger(db *ledis.DB, defaults []uint16, size int64) Logger {
+func NewLedisLogger(sink *transport.Sink, defaults []uint16, size int64) Logger {
 	if size == 0 {
 		size = MaxRedisQueueSize
 	}
 
 	rl := &redisLogger{
-		db:       db,
+		sink:     sink,
 		defaults: defaults,
 		size:     size,
 		buffer:   stream.NewBuffer(MaxStreamRedisQueueSize),
@@ -127,12 +127,12 @@ func (l *redisLogger) Subscribe(queue string) error {
 			continue
 		}
 
-		if _, err := l.db.RPush([]byte(queue), bytes); err != nil {
+		if _, err := l.sink.RPush([]byte(queue), bytes); err != nil {
 			return err
 		}
 	}
 
-	if err := l.db.LTrim([]byte(queue), -1*l.size, -1); err != nil {
+	if err := l.sink.LTrim([]byte(queue), -1*l.size, -1); err != nil {
 		return err
 	}
 
@@ -153,11 +153,11 @@ func (l *redisLogger) pushQueues(record *LogRecord) error {
 	}
 
 	for queue := range l.queues {
-		if _, err := l.db.RPush([]byte(queue), bytes); err != nil {
+		if _, err := l.sink.RPush([]byte(queue), bytes); err != nil {
 			return err
 		}
 
-		if err := l.db.LTrim([]byte(queue), -1*l.size, -1); err != nil {
+		if err := l.sink.LTrim([]byte(queue), -1*l.size, -1); err != nil {
 			return err
 		}
 	}

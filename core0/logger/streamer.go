@@ -3,8 +3,8 @@ package logger
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/siddontang/ledisdb/ledis"
 	"github.com/zero-os/0-core/base/pm/stream"
+	"github.com/zero-os/0-core/core0/transport"
 )
 
 const (
@@ -14,20 +14,20 @@ const (
 
 // redisLogger send Message to redis queue
 type streamLogger struct {
-	db   *ledis.DB
+	sink *transport.Sink
 	size int64
 
 	ch chan *LogRecord
 }
 
 // NewRedisLogger creates new redis logger handler
-func NewStreamLogger(db *ledis.DB, size int64) Logger {
+func NewStreamLogger(db *transport.Sink, size int64) Logger {
 	if size == 0 {
 		size = MaxStreamRedisQueueSize
 	}
 
 	rl := &streamLogger{
-		db:   db,
+		sink: db,
 		size: size,
 		ch:   make(chan *LogRecord, MaxStreamRedisQueueSize),
 	}
@@ -62,14 +62,14 @@ func (l *streamLogger) push() error {
 		}
 
 		queue := fmt.Sprintf("stream:%s", record.Command)
-		if _, err := l.db.RPush([]byte(queue), bytes); err != nil {
+		if _, err := l.sink.RPush([]byte(queue), bytes); err != nil {
 			return err
 		}
 
-		if err := l.db.LTrim([]byte(queue), -1*l.size, -1); err != nil {
+		if err := l.sink.LTrim([]byte(queue), -1*l.size, -1); err != nil {
 			return err
 		}
 
-		l.db.LExpire([]byte(queue), StreamRedisQueueTTL)
+		l.sink.LExpire([]byte(queue), StreamRedisQueueTTL)
 	}
 }

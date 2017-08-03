@@ -8,6 +8,7 @@ import (
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/core0/assets"
 	"github.com/zero-os/0-core/core0/options"
+	"sync"
 	"time"
 )
 
@@ -20,6 +21,8 @@ type Sink struct {
 	ch     *channel
 	server *server.App
 	db     *ledis.DB
+
+	l sync.RWMutex
 }
 
 type SinkConfig struct {
@@ -71,11 +74,45 @@ func NewSink(c SinkConfig) (*Sink, error) {
 		ch:     newChannel(db),
 	}
 
+	pm.AddHandle(sink)
+
 	return sink, nil
 }
 
-func (sink *Sink) DB() *ledis.DB {
-	return sink.db
+func (sink *Sink) RPush(key []byte, args ...[]byte) (int64, error) {
+	sink.l.RLock()
+	defer sink.l.RUnlock()
+	return sink.db.RPush(key, args...)
+}
+
+func (sink *Sink) LTrim(key []byte, start, stop int64) error {
+	sink.l.RLock()
+	defer sink.l.RUnlock()
+	return sink.db.LTrim(key, start, stop)
+}
+
+func (sink *Sink) Get(key []byte) ([]byte, error) {
+	sink.l.RLock()
+	defer sink.l.RUnlock()
+	return sink.db.Get(key)
+}
+
+func (sink *Sink) Set(key []byte, value []byte) error {
+	sink.l.RLock()
+	defer sink.l.RUnlock()
+	return sink.db.Set(key, value)
+}
+
+func (sink *Sink) Del(keys ...[]byte) (int64, error) {
+	sink.l.RLock()
+	defer sink.l.RUnlock()
+	return sink.db.Del(keys...)
+}
+
+func (sink *Sink) LExpire(key []byte, duration int64) (int64, error) {
+	sink.l.RLock()
+	defer sink.l.RUnlock()
+	return sink.db.LExpire(key, duration)
 }
 
 //ResultHandler implementation
@@ -86,7 +123,6 @@ func (sink *Sink) Result(cmd *pm.Command, result *pm.JobResult) {
 }
 
 func (sink *Sink) process() {
-	pm.AddHandle(sink)
 
 	for {
 		var command pm.Command

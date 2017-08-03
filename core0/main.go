@@ -151,7 +151,7 @@ func main() {
 		log.Errorf("failed to start command sink: %s", err)
 	}
 
-	logger.ConfigureLogging(sink.DB())
+	logger.ConfigureLogging(sink)
 
 	bs := bootstrap.NewBootstrap()
 	bs.First()
@@ -190,7 +190,7 @@ func main() {
 	screen.Refresh()
 
 	if config.Stats.Enabled {
-		aggregator := stats.NewLedisStatsAggregator(sink.DB())
+		aggregator := stats.NewLedisStatsAggregator(sink)
 		pm.AddHandle(aggregator)
 	}
 

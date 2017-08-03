@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"github.com/op/go-logging"
 	"github.com/patrickmn/go-cache"
-	"github.com/siddontang/ledisdb/ledis"
 	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/core0/transport"
 	"sort"
 	"strings"
 	"time"
@@ -57,18 +57,18 @@ type Stats struct {
 }
 
 type redisStatsBuffer struct {
-	db    *ledis.DB
+	db    *transport.Sink
 	cache *cache.Cache
 }
 
-func NewLedisStatsAggregator(db *ledis.DB) pm.StatsHandler {
+func NewLedisStatsAggregator(sink *transport.Sink) pm.StatsHandler {
 	redisBuffer := &redisStatsBuffer{
-		db:    db,
+		db:    sink,
 		cache: cache.New(1*time.Hour, 5*time.Minute),
 	}
 
 	redisBuffer.cache.OnEvicted(func(key string, _ interface{}) {
-		if _, err := db.Del([]byte(key)); err != nil {
+		if _, err := sink.Del([]byte(key)); err != nil {
 			log.Errorf("failed to evict stats key %s", key)
 		}
 	})

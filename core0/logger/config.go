@@ -1,10 +1,10 @@
 package logger
 
 import (
-	"github.com/siddontang/ledisdb/ledis"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/stream"
 	"github.com/zero-os/0-core/base/settings"
+	"github.com/zero-os/0-core/core0/transport"
 )
 
 var (
@@ -28,11 +28,11 @@ func (l Loggers) LogRecord(record *LogRecord) {
 }
 
 // ConfigureLogging attachs the correct message handler on top the process manager from the configurations
-func ConfigureLogging(db *ledis.DB) {
+func ConfigureLogging(sink *transport.Sink) {
 	Current = append(Current,
 		NewConsoleLogger(settings.Settings.Logging.File.Levels),
-		NewLedisLogger(db, settings.Settings.Logging.Ledis.Levels, settings.Settings.Logging.Ledis.Size),
-		NewStreamLogger(db, 0),
+		NewLedisLogger(sink, settings.Settings.Logging.Ledis.Levels, settings.Settings.Logging.Ledis.Size),
+		NewStreamLogger(sink, 0),
 	)
 
 	pm.AddHandle(Current)
