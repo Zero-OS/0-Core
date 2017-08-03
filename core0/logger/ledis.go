@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	MaxRedisQueueSize = 100000
+	MaxRedisQueueSize = 1000
 )
 
 // redisLogger send Message to redis queue

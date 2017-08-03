@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	StandardStreamBufferSize = 1000 //buffer size for each of stdout and stderr
-	GenericStreamBufferSize  = 100  //we only keep last 100 message of all types.
+	StandardStreamBufferSize = 100 //buffer size for each of stdout and stderr
+	GenericStreamBufferSize  = 10  //we only keep last 100 message of all types.
 )
 
 type Job interface {

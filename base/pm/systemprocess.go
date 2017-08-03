@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sync"
 	"syscall"
 )
 
@@ -103,21 +104,36 @@ func (process *systemProcessImpl) Run() (<-chan *stream.Message, error) {
 		Setsid: true,
 	}
 
+	channel := make(chan *stream.Message)
+	handler := func(m *stream.Message) {
+		defer func() {
+			if err := recover(); err != nil {
+				log.Errorf("error while writing output: %s", err)
+			}
+		}()
+		channel <- m
+	}
+
+	var wg sync.WaitGroup
 	//preparing pipes for process communication
-	var stdout, stderr io.ReadCloser
-	var stdin io.WriteCloser
-	var err error
 	if !process.args.NoOutput {
-		stdout, err = cmd.StdoutPipe()
+		stdout, err := cmd.StdoutPipe()
 		if err != nil {
 			return nil, err
 		}
 
-		stderr, err = cmd.StderrPipe()
+		stderr, err := cmd.StderrPipe()
 		if err != nil {
 			return nil, err
 		}
+
+		wg.Add(2)
+		stream.NewConsumer(&wg, stdout, 1, handler)
+		stream.NewConsumer(&wg, stderr, 2, handler)
 	}
+
+	var err error
+	var stdin io.WriteCloser
 
 	if len(process.args.StdIn) != 0 {
 		stdin, err = cmd.StdinPipe()
@@ -138,31 +154,14 @@ func (process *systemProcessImpl) Run() (<-chan *stream.Message, error) {
 	})
 
 	if err != nil {
+		close(channel)
 		log.Errorf("Failed to start process(%s): %s", process.cmd.ID, err)
 		return nil, err
 	}
 
-	channel := make(chan *stream.Message)
-
 	process.pid = cmd.Process.Pid
 	psProcess, _ := psutils.NewProcess(int32(process.pid))
 	process.process = psProcess
-
-	//preparing streams consumers
-	var outConsumer, errConsumer stream.Consumer
-
-	if !process.args.NoOutput {
-		msgInterceptor := func(msg *stream.Message) {
-			channel <- msg
-		}
-
-		// start consuming outputs.
-		outConsumer = stream.NewConsumer(stdout, 1)
-		outConsumer.Consume(msgInterceptor)
-
-		errConsumer = stream.NewConsumer(stderr, 2)
-		errConsumer.Consume(msgInterceptor)
-	}
 
 	if len(process.args.StdIn) != 0 {
 		//write data to command stdin.
@@ -176,20 +175,13 @@ func (process *systemProcessImpl) Run() (<-chan *stream.Message, error) {
 
 	go func(channel chan *stream.Message) {
 		//make sure all outputs are closed before waiting for the process
-		//to exit.
 		defer close(channel)
 
-		if !process.args.NoOutput {
-			<-outConsumer.Signal()
-			<-errConsumer.Signal()
-			stdout.Close()
-			stderr.Close()
-		}
-
 		state := process.table.WaitPID(process.pid)
+		//wait for all streams to finish copying
+		wg.Wait()
 
 		log.Debugf("Process %s exited with state: %d", process.cmd, state.ExitStatus())
-
 		if state.ExitStatus() == 0 {
 			channel <- stream.MessageExitSuccess
 		} else {

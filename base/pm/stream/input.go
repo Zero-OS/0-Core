@@ -1,12 +1,13 @@
 package stream
 
 import (
-	"bufio"
+	"bytes"
 	"github.com/op/go-logging"
 	"io"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 var (
@@ -15,101 +16,93 @@ var (
 )
 
 type Consumer interface {
-	Consume(MessageHandler)
-	Signal() <-chan int
+	Write(p []byte) (n int, err error)
 }
 
 type consumerImpl struct {
-	reader io.Reader
-	level  uint16
-	signal chan int
+	level   uint16
+	handler MessageHandler
+
+	last  []byte
+	multi *Message
 }
 
-func NewConsumer(reader io.Reader, level uint16) Consumer {
-	return &consumerImpl{
-		reader: reader,
-		level:  level,
-		signal: make(chan int),
+func NewConsumer(wg *sync.WaitGroup, source io.ReadCloser, level uint16, handler MessageHandler) Consumer {
+	c := &consumerImpl{
+		level:   level,
+		handler: handler,
 	}
-}
 
-// read input until the end (or closed)
-// process all messages as speced x:: or x:::
-// other messages that has no level are assumed of level consumer.level
-func (consumer *consumerImpl) consume(handler MessageHandler) {
-	reader := bufio.NewReader(consumer.reader)
-	var level uint16
-	var message string
-	var multiline = false
+	go func() {
+		if wg != nil {
+			defer wg.Done()
+		}
 
-	defer func() {
-		consumer.signal <- 1
-		close(consumer.signal)
+		io.Copy(c, source)
+		source.Close()
 	}()
 
+	return c
+}
+
+func (c *consumerImpl) Write(p []byte) (n int, err error) {
+	n = len(p)
+	if len(c.last) > 0 {
+		p = append(c.last, p...)
+	}
+
+	reader := bytes.NewBuffer(p)
 	for {
 		line, err := reader.ReadString('\n')
 
-		if err != nil && err != io.EOF {
-			log.Errorf("%s", err)
-			return
+		if err == io.EOF {
+			//reached end of current chunk. we need to wait until we
+			//get more data.
+			c.last = []byte(line)
+			return n, nil
+		} else if err != nil {
+			return 0, err
 		}
 
 		line = strings.TrimRight(line, "\n")
+		if c.multi != nil {
+			if line == ":::" {
+				//last, flush mult
+				c.handler(c.multi)
+				c.multi = nil
+				return n, nil
+			} else {
+				c.multi.Message += "\n" + line
+			}
 
-		if line != "" {
-			if !multiline {
-				matches := pmMsgPattern.FindStringSubmatch(line)
-				if matches == nil {
-					//use default level.
-					handler(&Message{
-						Meta:    NewMeta(consumer.level),
-						Message: line,
-					})
-				} else {
-					l, _ := strconv.ParseUint(matches[1], 10, 16)
-					level = uint16(l)
-					message = matches[3]
+			continue
+		}
 
-					if matches[2] == ":::" {
-						multiline = true
-					} else {
-						//single line message
-						handler(&Message{
-							Meta:    NewMeta(level),
-							Message: message,
-						})
-					}
+		matches := pmMsgPattern.FindStringSubmatch(line)
+
+		if matches == nil {
+			//use default level.
+			c.handler(&Message{
+				Meta:    NewMeta(c.level),
+				Message: line,
+			})
+		} else {
+			l, _ := strconv.ParseUint(matches[1], 10, 16)
+			level := uint16(l)
+			message := matches[3]
+
+			if matches[2] == ":::" {
+				c.multi = &Message{
+					Meta:    NewMeta(level),
+					Message: message,
 				}
 			} else {
-				/*
-				   A known issue is that if stream was closed (EOF) before
-				   we receive the ::: termination of multiline string. We discard
-				   the uncomplete multiline string message.
-				*/
-				if line == ":::" {
-					multiline = false
-					//flush message
-					handler(&Message{
-						Meta:    NewMeta(level),
-						Message: message,
-					})
-				} else {
-					message += "\n" + line
-				}
+				//single line message
+				c.handler(&Message{
+					Meta:    NewMeta(level),
+					Message: message,
+				})
 			}
 		}
-
-		if err == io.EOF {
-			return
-		}
 	}
-}
-
-func (consumer *consumerImpl) Consume(handler MessageHandler) {
-	go consumer.consume(handler)
-}
-
-func (consumer *consumerImpl) Signal() <-chan int {
-	return consumer.signal
 }
