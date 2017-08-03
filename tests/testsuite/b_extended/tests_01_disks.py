@@ -32,7 +32,6 @@ class DisksTests(BaseTest):
 
     def bash_disk_info(self, keys, diskname):
         diskinf = {}
-        upper_values = ['disc-gran', 'disc-max', 'wsame', 'serial']
         info = self.client.bash('lsblk -d dev/{} -O -P '.format(diskname))
         info = self.stdout(info)
         lines = info.split()
@@ -40,15 +39,12 @@ class DisksTests(BaseTest):
             for line in lines:
                 if key == line[:line.find('=')]:
                     value = line[line.find('=')+2:-1]
-                    if key in upper_values:
-                        value = value.upper()
-                    if value == '':
-                        value = None
+                    value = value.lower()
                     diskinf[key] = value
                     break
 
-        diskinf['model'] = self.stdout(self.client.bash('cat /sys/block/{}/device/model'.format(diskname))).upper()
-        diskinf['vendor'] = self.stdout(self.client.bash('cat /sys/block/{}/device/vendor'.format(diskname))).upper()
+        diskinf['model'] = self.stdout(self.client.bash('cat /sys/block/{}/device/model'.format(diskname))).lower()
+        diskinf['vendor'] = self.stdout(self.client.bash('cat /sys/block/{}/device/vendor'.format(diskname))).lower()
 
         logical_block_size = int(self.stdout(self.client.bash('cat /sys/block/{}/queue/logical_block_size '.format(diskname))))
         size = int(self.stdout(self.client.bash('cat /sys/block/{}/size '.format(diskname))))
@@ -256,7 +252,12 @@ class DisksTests(BaseTest):
             self.lg('compare g8os results to disk{} of the bash results, should be the same '.format(disk))
             for key in g8os_disk_info.keys():
                 if key in bash_disk_info.keys():
-                    self.assertEqual(g8os_disk_info[key], bash_disk_info[key],'different in key {} for disk{} '.format(key,disk))
+                    v = g8os_disk_info[key]
+                    if v is None:
+                        v = ''
+                    if isinstance(v, str):
+                        v = v.lower()
+                    self.assertEqual(v, bash_disk_info[key],'different in key {} for disk{} '.format(key,disk))
 
         self.lg('{} ENDED'.format(self._testID))
 
