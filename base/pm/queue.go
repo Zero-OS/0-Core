@@ -40,6 +40,7 @@ func (q *Queue) Push(job Job) {
 		q.queues[name] = queue
 	}
 
+	log.Debugf("pushing job %v to queue: %s", job.Command(), name)
 	queue.PushBack(job)
 	if queue.Len() == 1 {
 		//first job in the queue
@@ -55,11 +56,12 @@ func (q *Queue) Notify(job Job) {
 	if !ok {
 		return
 	}
-	elem := queue.Front()
-	next := queue.Remove(elem).(Job)
+	queue.Remove(queue.Front())
 	if queue.Len() == 0 {
 		delete(q.queues, name)
+		return
 	}
 
+	next := queue.Front().Value.(Job)
 	q.ch <- next
 }

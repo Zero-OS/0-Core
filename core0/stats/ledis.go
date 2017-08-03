@@ -160,7 +160,6 @@ func (r *redisStatsBuffer) Stats(op string, key string, value float64, id string
 	}
 
 	hash := r.hash(tags)
-	log.Debugf("STATS: %s(%s, %f, '%s') #%s", op, key, value, tags, hash)
 	internal := fmt.Sprintf(StateKey, key, hash)
 
 	//touch key in cache so we know we are tracking this key

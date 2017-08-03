@@ -1,14 +1,14 @@
 from utils.utils import BaseTest
 import time
 import re
+import sys
 from random import randint
 import unittest
 
 
 class AdvancedNetworking(BaseTest):
-
-    def __init__(self, *args, **kwargs):
-        super(AdvancedNetworking, self).__init__(*args, **kwargs)
+    def setUp(self):
+        super(AdvancedNetworking, self).setUp()
         self.check_g8os_connection(AdvancedNetworking)
         containers = self.client.container.find('ovs')
         ovs_exist = [key for key, value in containers.items()]
@@ -21,10 +21,6 @@ class AdvancedNetworking(BaseTest):
         else:
             ovs = int(ovs_exist[0])
             self.ovscl = self.client.container.client(ovs)
-
-    def setUp(self):
-        super(AdvancedNetworking, self).setUp()
-        self.check_g8os_connection(AdvancedNetworking)
 
 
     def test001_vxlans_connections(self):
