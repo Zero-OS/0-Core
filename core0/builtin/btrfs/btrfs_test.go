@@ -11,6 +11,7 @@ var (
 	Total devices 2 FS bytes used 294912
 	devid    1 size 1048576000 used 218103808 path /dev/loop1
 	devid    2 size 1048576000 used 218103808 path /dev/loop2
+
 Label: 'single'  uuid: 74595911-0f79-4c2e-925f-105d1279fb48
 	Total devices 1 FS bytes used 196608
     devid    1 size 1048576000 used 138412032 path /dev/loop3

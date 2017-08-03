@@ -3,10 +3,11 @@ package btrfs
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/zero-os/0-core/base/pm"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/zero-os/0-core/base/pm"
 )
 
 var (
@@ -403,39 +404,18 @@ func (m *btrfsManager) parseFilesystemDF(output string, fsinfo *btrfsFSInfo) err
 func (m *btrfsManager) parseList(output string) ([]btrfsFS, error) {
 	var fss []btrfsFS
 
-	all := strings.Split(output, "\n")
-	if len(all) < 3 {
-		return fss, nil
-	}
+	blocks := strings.Split(output, "\n\n")
 
-	var fsLines []string
-	for i, line := range all {
-		line = strings.TrimSpace(line)
-
-		// there are 3 markers of a filesystem
-		// - empty line (original btrfs command)
-		// - line started with `Label` and not first line (PM wrapped command)
-		// - last line (original btrfs command & PM wrapped command)
-		if (strings.HasPrefix(line, "Label") && i != 0) || line == "" || i == len(all)-1 {
-			if !strings.HasPrefix(line, "Label") {
-				fsLines = append(fsLines, line)
-			}
-			if len(fsLines) < 3 {
-				continue
-			}
-			fs, err := m.parseFS(fsLines)
-			if err != nil {
-				return fss, err
-			}
-			fss = append(fss, fs)
-
-			fsLines = []string{}
-			if strings.HasPrefix(line, "Label") {
-				fsLines = append(fsLines, line)
-			}
-		} else {
-			fsLines = append(fsLines, line)
+	for _, block := range blocks {
+		fsLines := strings.Split(block, "\n")
+		if len(fsLines) < 3 {
+			continue
 		}
+		fs, err := m.parseFS(fsLines)
+		if err != nil {
+			return fss, err
+		}
+		fss = append(fss, fs)
 	}
 	return fss, nil
 }
@@ -454,7 +434,7 @@ func (m *btrfsManager) parseFS(lines []string) (btrfsFS, error) {
 	// total device & byte used
 	var totDevice int
 	var used int64
-	if _, err := fmt.Sscanf(lines[1], "Total devices %d FS bytes used %d", &totDevice, &used); err != nil {
+	if _, err := fmt.Sscanf(strings.TrimSpace(lines[1]), "Total devices %d FS bytes used %d", &totDevice, &used); err != nil {
 		return btrfsFS{}, err
 	}
 
@@ -478,7 +458,7 @@ func (m *btrfsManager) parseDevices(lines []string) ([]btrfsDevice, error) {
 			continue
 		}
 		var dev btrfsDevice
-		if _, err := fmt.Sscanf(line, "devid    %d size %d used %d path %s", &dev.DevID, &dev.Size, &dev.Used, &dev.Path); err == nil {
+		if _, err := fmt.Sscanf(strings.TrimSpace(line), "devid    %d size %d used %d path %s", &dev.DevID, &dev.Size, &dev.Used, &dev.Path); err == nil {
 			devs = append(devs, dev)
 		}
 	}
