@@ -7,18 +7,14 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-
-	"github.com/op/go-logging"
 )
 
 var (
-	log             = logging.MustGetLogger("stream")
 	pmMsgPattern, _ = regexp.Compile("^(\\d+)(:{2,3})(.*)$")
 )
 
 type Consumer interface {
 	Write(p []byte) (n int, err error)
-	Close()
 }
 
 type consumerImpl struct {
@@ -42,7 +38,7 @@ func NewConsumer(wg *sync.WaitGroup, source io.ReadCloser, level uint16, handler
 
 		io.Copy(c, source)
 		source.Close()
-		c.Close()
+		c.flush()
 	}()
 
 	return c
@@ -70,7 +66,7 @@ func (c *consumerImpl) Write(p []byte) (n int, err error) {
 	}
 }
 
-func (c *consumerImpl) Close() {
+func (c *consumerImpl) flush() {
 	if len(c.last) > 0 {
 		c.processLine(string(c.last))
 	}
