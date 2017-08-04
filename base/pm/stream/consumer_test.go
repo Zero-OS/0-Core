@@ -1,20 +1,15 @@
+// +build !race
+
 package stream
 
 import (
-	"github.com/stretchr/testify/assert"
-	"io"
+	"bytes"
+	"io/ioutil"
+	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
-
-type noReader struct{}
-
-func (_ *noReader) Read(p []byte) (n int, err error) {
-	return 0, io.EOF
-}
-
-func (_ *noReader) Close() error {
-	return nil
-}
 
 func TestConsumer_OneLine(t *testing.T) {
 	var message *Message
@@ -22,12 +17,19 @@ func TestConsumer_OneLine(t *testing.T) {
 		message = m
 	}
 
-	con := NewConsumer(nil, &noReader{}, 1, h)
-	_, err := con.Write([]byte("hello world\n"))
+	buffer := bytes.Buffer{}
+	reader := ioutil.NopCloser(&buffer)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	NewConsumer(&wg, reader, 1, h)
+	_, err := buffer.Write([]byte("hello world\n"))
 
 	if ok := assert.Nil(t, err); !ok {
 		t.Fatal()
 	}
+
+	reader.Close()
+	wg.Wait()
 
 	if ok := assert.NotNil(t, message); !ok {
 		t.Fatal()
@@ -48,18 +50,25 @@ func TestConsumer_TwoLines(t *testing.T) {
 		messages = append(messages, m)
 	}
 
-	con := NewConsumer(nil, &noReader{}, 1, h)
-	_, err := con.Write([]byte("hello world\n"))
+	buffer := bytes.Buffer{}
+	reader := ioutil.NopCloser(&buffer)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	NewConsumer(&wg, reader, 1, h)
+	_, err := buffer.Write([]byte("hello world\n"))
 
 	if ok := assert.Nil(t, err); !ok {
 		t.Fatal()
 	}
 
-	_, err = con.Write([]byte("10::bye bye world\n"))
+	_, err = buffer.Write([]byte("10::bye bye world\n"))
 
 	if ok := assert.Nil(t, err); !ok {
 		t.Fatal()
 	}
+
+	reader.Close()
+	wg.Wait()
 
 	if ok := assert.Len(t, messages, 2); !ok {
 		t.Fatal()
@@ -88,20 +97,71 @@ func TestConsumer_MultiLine(t *testing.T) {
 		messages = append(messages, m)
 	}
 
-	con := NewConsumer(nil, &noReader{}, 1, h)
-	_, err := con.Write([]byte("30:::hello\n"))
+	buffer := bytes.Buffer{}
+	reader := ioutil.NopCloser(&buffer)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	NewConsumer(&wg, reader, 1, h)
+	_, err := buffer.Write([]byte("30:::hello\n"))
 
 	if ok := assert.Nil(t, err); !ok {
 		t.Fatal()
 	}
 
-	_, err = con.Write([]byte("world\n"))
+	_, err = buffer.Write([]byte("world\n"))
 
 	if ok := assert.Nil(t, err); !ok {
 		t.Fatal()
 	}
 
-	_, err = con.Write([]byte(":::\n"))
+	_, err = buffer.Write([]byte(":::\n"))
+
+	if ok := assert.Nil(t, err); !ok {
+		t.Fatal()
+	}
+
+	reader.Close()
+	wg.Wait()
+
+	if ok := assert.Len(t, messages, 1); !ok {
+		t.Fatal()
+	}
+
+	if ok := assert.Equal(t, "hello\nworld", messages[0].Message); !ok {
+		t.Error()
+	}
+
+	if ok := assert.Equal(t, uint16(30), messages[0].Meta.Level()); !ok {
+		t.Error()
+	}
+}
+
+func TestConsumer_MultiLineNoNewLine(t *testing.T) {
+	var messages []*Message
+	h := func(m *Message) {
+		messages = append(messages, m)
+	}
+
+	buffer := bytes.Buffer{}
+	reader := ioutil.NopCloser(&buffer)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	NewConsumer(&wg, reader, 1, h)
+	_, err := buffer.Write([]byte("30:::hello\n"))
+
+	if ok := assert.Nil(t, err); !ok {
+		t.Fatal()
+	}
+
+	_, err = buffer.Write([]byte("world\n"))
+
+	if ok := assert.Nil(t, err); !ok {
+		t.Fatal()
+	}
+
+	_, err = buffer.Write([]byte(":::"))
+	reader.Close()
+	wg.Wait()
 
 	if ok := assert.Nil(t, err); !ok {
 		t.Fatal()
@@ -126,7 +186,11 @@ func TestConsumer_Complex(t *testing.T) {
 		messages = append(messages, m)
 	}
 
-	con := NewConsumer(nil, &noReader{}, 2, h)
+	buffer := bytes.Buffer{}
+	reader := ioutil.NopCloser(&buffer)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	NewConsumer(&wg, reader, 2, h)
 	chunk1 := `Hello world
 20::this is a single line message
 30:::but this is a multi line
@@ -135,17 +199,20 @@ that spans`
 	chunk2 := ` two blocks of data
 :::
 `
-	_, err := con.Write([]byte(chunk1))
+	_, err := buffer.Write([]byte(chunk1))
 
 	if ok := assert.Nil(t, err); !ok {
 		t.Fatal()
 	}
 
-	_, err = con.Write([]byte(chunk2))
+	_, err = buffer.Write([]byte(chunk2))
 
 	if ok := assert.Nil(t, err); !ok {
 		t.Fatal()
 	}
+
+	reader.Close()
+	wg.Wait()
 
 	if ok := assert.Len(t, messages, 3); !ok {
 		t.Fatal()

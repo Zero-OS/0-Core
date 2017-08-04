@@ -2,12 +2,13 @@ package stream
 
 import (
 	"bytes"
-	"github.com/op/go-logging"
 	"io"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/op/go-logging"
 )
 
 var (
@@ -17,6 +18,7 @@ var (
 
 type Consumer interface {
 	Write(p []byte) (n int, err error)
+	Close()
 }
 
 type consumerImpl struct {
@@ -40,6 +42,7 @@ func NewConsumer(wg *sync.WaitGroup, source io.ReadCloser, level uint16, handler
 
 		io.Copy(c, source)
 		source.Close()
+		c.Close()
 	}()
 
 	return c
@@ -63,46 +66,57 @@ func (c *consumerImpl) Write(p []byte) (n int, err error) {
 		} else if err != nil {
 			return 0, err
 		}
+		c.processLine(line)
+	}
+}
 
-		line = strings.TrimRight(line, "\n")
-		if c.multi != nil {
-			if line == ":::" {
-				//last, flush mult
-				c.handler(c.multi)
-				c.multi = nil
-				return n, nil
-			} else {
-				c.multi.Message += "\n" + line
-			}
+func (c *consumerImpl) Close() {
+	if len(c.last) > 0 {
+		c.processLine(string(c.last))
+	}
+}
 
-			continue
+func (c *consumerImpl) processLine(line string) {
+	line = strings.TrimRight(line, "\n")
+	if c.multi != nil {
+		if line == ":::" {
+			//last, flush mult
+			c.handler(c.multi)
+			c.multi = nil
+			return
+			//return n, nil
+		} else {
+			c.multi.Message += "\n" + line
 		}
 
-		matches := pmMsgPattern.FindStringSubmatch(line)
+		return
+	}
 
-		if matches == nil {
-			//use default level.
-			c.handler(&Message{
-				Meta:    NewMeta(c.level),
-				Message: line,
-			})
-		} else {
-			l, _ := strconv.ParseUint(matches[1], 10, 16)
-			level := uint16(l)
-			message := matches[3]
+	matches := pmMsgPattern.FindStringSubmatch(line)
 
-			if matches[2] == ":::" {
-				c.multi = &Message{
-					Meta:    NewMeta(level),
-					Message: message,
-				}
-			} else {
-				//single line message
-				c.handler(&Message{
-					Meta:    NewMeta(level),
-					Message: message,
-				})
+	if matches == nil {
+		//use default level.
+		c.handler(&Message{
+			Meta:    NewMeta(c.level),
+			Message: line,
+		})
+	} else {
+		l, _ := strconv.ParseUint(matches[1], 10, 16)
+		level := uint16(l)
+		message := matches[3]
+
+		if matches[2] == ":::" {
+			c.multi = &Message{
+				Meta:    NewMeta(level),
+				Message: message,
 			}
+		} else {
+			//single line message
+			c.handler(&Message{
+				Meta:    NewMeta(level),
+				Message: message,
+			})
 		}
 	}
+
 }
