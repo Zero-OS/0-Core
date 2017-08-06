@@ -11,16 +11,18 @@ Queue is used for sequential cmds exectuions
 type Queue struct {
 	queues map[string]*list.List
 	ch     chan Job
-	lock   sync.RWMutex
+	lock   sync.Mutex
 	o      sync.Once
 }
 
-func (q *Queue) Start() <-chan Job {
+func (q *Queue) Init() {
 	q.o.Do(func() {
 		q.queues = make(map[string]*list.List)
 		q.ch = make(chan Job)
 	})
+}
 
+func (q *Queue) Channel() <-chan Job {
 	return q.ch
 }
 
@@ -40,7 +42,6 @@ func (q *Queue) Push(job Job) {
 		q.queues[name] = queue
 	}
 
-	log.Debugf("pushing job %v to queue: %s", job.Command(), name)
 	queue.PushBack(job)
 	if queue.Len() == 1 {
 		//first job in the queue

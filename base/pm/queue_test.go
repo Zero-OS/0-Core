@@ -8,7 +8,8 @@ import (
 
 func TestQueue_Start(t *testing.T) {
 	var q Queue
-	ch := q.Start()
+	q.Init()
+    ch := q.Channel()
 
 	if ok := assert.NotNil(t, ch); !ok {
 		t.Fatal()
@@ -17,8 +18,8 @@ func TestQueue_Start(t *testing.T) {
 
 func TestQueue_Push(t *testing.T) {
 	var q Queue
-	ch := q.Start()
-
+	q.Init()
+    ch := q.Channel()
 	lock := make(chan int)
 	failed := true
 	go func() {
@@ -40,7 +41,8 @@ func TestQueue_Push(t *testing.T) {
 
 func TestQueue_PushQueued(t *testing.T) {
 	var q Queue
-	ch := q.Start()
+	q.Init()
+    ch := q.Channel()
 
 	lock := make(chan int)
 

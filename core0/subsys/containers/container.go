@@ -155,7 +155,6 @@ func (c *container) preStart() error {
 }
 
 func (c *container) onStart(pid int) {
-	log.Infof("%s started", c.name())
 	//get channel
 	ps := c.runner.Process()
 	if ps, ok := ps.(pm.ContainerProcess); !ok {

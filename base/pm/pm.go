@@ -60,6 +60,8 @@ func New() {
 		jobs = make(map[string]Job)
 		jobsCond = sync.NewCond(&sync.Mutex{})
 		pids = make(map[int]chan syscall.WaitStatus)
+
+		queue.Init()
 	})
 }
 
@@ -93,9 +95,7 @@ func RunFactory(cmd *Command, factory ProcessFactory, hooks ...RunnerHook) (Job,
 	job := newJob(cmd, factory, hooks...)
 	jobs[cmd.ID] = job
 
-	log.Debugf("pushing job to queue: '%s'", job.Command().Queue)
 	queue.Push(job)
-	log.Debugf("job %s pushed", job.Command())
 	return job, nil
 }
 
@@ -110,7 +110,7 @@ func Run(cmd *Command, hooks ...RunnerHook) (Job, error) {
 }
 
 func loop() {
-	ch := queue.Start()
+	ch := queue.Channel()
 	for {
 		jobsCond.L.Lock()
 
