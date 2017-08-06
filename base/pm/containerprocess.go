@@ -18,6 +18,11 @@ type ContainerCommandArguments struct {
 	Env         map[string]string `json:"env"`
 	HostNetwork bool              `json:"host_network"`
 	Chroot      string            `json:"chroot"`
+	Log         string            `json:"log"`
+}
+
+func (c *ContainerCommandArguments) String() string {
+	return fmt.Sprintf("%s %v %s", c.Name, c.Args, c.Chroot)
 }
 
 type Channel interface {
@@ -173,12 +178,19 @@ func (p *containerProcessImpl) Run() (ch <-chan *stream.Message, err error) {
 	if err != nil {
 		return nil, err
 	}
+	var logf *os.File
+	if len(p.args.Log) != 0 {
+		logf, err = os.OpenFile(p.args.Log, os.O_WRONLY|os.O_CREATE, 0644)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	attrs := os.ProcAttr{
 		Dir: p.args.Dir,
 		Env: env,
 		Files: []*os.File{
-			nil, nil, nil, r, w,
+			nil, logf, logf, r, w,
 		},
 		Sys: &syscall.SysProcAttr{
 			Chroot:     p.args.Chroot,

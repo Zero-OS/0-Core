@@ -110,6 +110,7 @@ func (c *container) Start() (runner pm.Job, err error) {
 				HostNetwork: c.Args.HostNetwork,
 				Args:        args,
 				Env:         env,
+				Log:         path.Join(BackendBaseDir, c.name(), "container.log"),
 			},
 		),
 	}
