@@ -93,7 +93,9 @@ func RunFactory(cmd *Command, factory ProcessFactory, hooks ...RunnerHook) (Job,
 	job := newJob(cmd, factory, hooks...)
 	jobs[cmd.ID] = job
 
+	log.Debugf("pushing job to queue: '%s'", job.Command().Queue)
 	queue.Push(job)
+	log.Debugf("job %s pushed", job.Command())
 	return job, nil
 }
 
