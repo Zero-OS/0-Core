@@ -9,7 +9,7 @@ import (
 )
 
 /*
-Runnable represents a runnable built in function that can be managed by the process manager.
+Runnable represents a runnable built in function that can be managed by the p manager.
 */
 type Runnable func(*Command) (interface{}, error)
 type RunnableWithCtx func(*Context) (interface{}, error)
@@ -41,7 +41,7 @@ func (c *Context) Log(text string, level ...uint16) {
 }
 
 /*
-internalProcess implements a Procss interface and represents an internal (go) process that can be managed by the process manager
+internalProcess implements a Procss interface and represents an internal (go) p that can be managed by the p manager
 */
 type internalProcess struct {
 	runnable interface{}
@@ -78,14 +78,14 @@ func internalProcessFactoryWithCtx(runnable RunnableWithCtx) ProcessFactory {
 }
 
 /*
-Cmd returns the internal process command
+Cmd returns the internal p command
 */
 func (process *internalProcess) Command() *Command {
 	return process.ctx.Command
 }
 
 /*
-Run runs the internal process
+Run runs the internal p
 */
 func (process *internalProcess) Run() (<-chan *stream.Message, error) {
 

@@ -2,6 +2,7 @@ package stream
 
 import (
 	"bytes"
+	"github.com/prometheus/common/log"
 	"io"
 	"regexp"
 	"strconv"
@@ -36,7 +37,9 @@ func NewConsumer(wg *sync.WaitGroup, source io.ReadCloser, level uint16, handler
 			defer wg.Done()
 		}
 
-		io.Copy(c, source)
+		if _, err := io.Copy(c, source); err != nil {
+			log.Debugf("stream copy: %s", err)
+		}
 		source.Close()
 		c.flush()
 	}()

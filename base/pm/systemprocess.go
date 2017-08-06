@@ -23,6 +23,10 @@ type SystemCommandArguments struct {
 	NoOutput bool `json:"-"`
 }
 
+func (s *SystemCommandArguments) String() string {
+	return fmt.Sprintf("%v %s %v (%s)", s.Env, s.Name, s.Args, s.Dir)
+}
+
 type systemProcessImpl struct {
 	cmd     *Command
 	args    SystemCommandArguments
@@ -42,12 +46,12 @@ func NewSystemProcess(table PIDTable, cmd *Command) Process {
 	return process
 }
 
-func (process *systemProcessImpl) Command() *Command {
-	return process.cmd
+func (p *systemProcessImpl) Command() *Command {
+	return p.cmd
 }
 
-//GetStats gets stats of an external process
-func (process *systemProcessImpl) Stats() *ProcessStats {
+//GetStats gets stats of an external p
+func (p *systemProcessImpl) Stats() *ProcessStats {
 	stats := ProcessStats{}
 
 	defer func() {
@@ -56,7 +60,7 @@ func (process *systemProcessImpl) Stats() *ProcessStats {
 		}
 	}()
 
-	ps := process.process
+	ps := p.process
 	if ps == nil {
 		return &stats
 	}
@@ -73,115 +77,132 @@ func (process *systemProcessImpl) Stats() *ProcessStats {
 		stats.Swap = mem.Swap
 	}
 
-	stats.Debug = fmt.Sprintf("%d", process.process.Pid)
+	stats.Debug = fmt.Sprintf("%d", p.process.Pid)
 
 	return &stats
 }
 
-func (process *systemProcessImpl) Signal(sig syscall.Signal) error {
-	if process.process != nil {
-		//send the signal to the entire process group
-		log.Debugf("Signaling process '%v' with %v", process.process.Pid, sig)
-		return syscall.Kill(-int(process.process.Pid), sig)
+func (p *systemProcessImpl) Signal(sig syscall.Signal) error {
+	if p.process != nil {
+		//send the signal to the entire p group
+		log.Debugf("Signaling p '%v' with %v", p.process.Pid, sig)
+		return syscall.Kill(-int(p.process.Pid), sig)
 	}
 
-	return fmt.Errorf("process not found")
+	return fmt.Errorf("p not found")
 }
 
-func (process *systemProcessImpl) Run() (<-chan *stream.Message, error) {
-	cmd := exec.Command(process.args.Name,
-		process.args.Args...)
-	cmd.Dir = process.args.Dir
+func (p *systemProcessImpl) Run() (ch <-chan *stream.Message, err error) {
+	var stdin, stdout, stderr *os.File
 
-	if len(process.args.Env) > 0 {
-		cmd.Env = append(cmd.Env, os.Environ()...)
-		for k, v := range process.args.Env {
-			cmd.Env = append(cmd.Env, fmt.Sprintf("%v=%v", k, v))
-		}
-	}
-
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setsid: true,
-	}
-
-	channel := make(chan *stream.Message)
-	handler := func(m *stream.Message) {
-		defer func() {
-			if err := recover(); err != nil {
-				log.Errorf("error while writing output: %s", err)
-			}
-		}()
-		channel <- m
-	}
-
-	var wg sync.WaitGroup
-	//preparing pipes for process communication
-	if !process.args.NoOutput {
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			return nil, err
-		}
-
-		stderr, err := cmd.StderrPipe()
-		if err != nil {
-			return nil, err
-		}
-
-		wg.Add(2)
-		stream.NewConsumer(&wg, stdout, 1, handler)
-		stream.NewConsumer(&wg, stderr, 2, handler)
-	}
-
-	var err error
-	var stdin io.WriteCloser
-
-	if len(process.args.StdIn) != 0 {
-		stdin, err = cmd.StdinPipe()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	log.Debugf("system: %s %s %s", cmd.Env, cmd.Path, cmd.Args)
-
-	err = process.table.RegisterPID(func() (int, error) {
-		err := cmd.Start()
-		if err != nil {
-			return 0, err
-		}
-
-		return cmd.Process.Pid, nil
-	})
-
+	name, err := exec.LookPath(p.args.Name)
 	if err != nil {
-		close(channel)
-		log.Errorf("Failed to start process(%s): %s", process.cmd.ID, err)
 		return nil, err
 	}
 
-	process.pid = cmd.Process.Pid
-	psProcess, _ := psutils.NewProcess(int32(process.pid))
-	process.process = psProcess
+	var env []string
 
-	if len(process.args.StdIn) != 0 {
-		//write data to command stdin.
-		_, err = stdin.Write([]byte(process.args.StdIn))
+	if len(p.args.Env) > 0 {
+		env = append(env, os.Environ()...)
+		for k, v := range p.args.Env {
+			env = append(env, fmt.Sprintf("%v=%v", k, v))
+		}
+	}
+
+	channel := make(chan *stream.Message)
+	ch = channel
+	defer func() {
 		if err != nil {
-			log.Errorf("Failed to write to process stdin: %s", err)
+			close(channel)
+		}
+	}()
+
+	var wg sync.WaitGroup
+
+	var toClose []*os.File
+	var input *os.File
+	if len(p.args.StdIn) != 0 {
+		stdin, input, err = os.Pipe()
+		if err != nil {
+			return nil, err
+		}
+		toClose = append(toClose, stdin)
+	}
+
+	if !p.args.NoOutput {
+		handler := func(m *stream.Message) {
+			defer func() {
+				if err := recover(); err != nil {
+					log.Errorf("error while writing output: %s", err)
+				}
+			}()
+			channel <- m
 		}
 
-		stdin.Close()
+		var outRead, errRead *os.File
+		outRead, stdout, err = os.Pipe()
+		if err != nil {
+			return nil, err
+		}
+
+		errRead, stderr, err = os.Pipe()
+		if err != nil {
+			return nil, err
+		}
+		toClose = append(toClose, stdout, stderr)
+		wg.Add(2)
+		stream.NewConsumer(&wg, outRead, 1, handler)
+		stream.NewConsumer(&wg, errRead, 2, handler)
+	}
+
+	attrs := os.ProcAttr{
+		Dir: p.args.Dir,
+		Env: env,
+		Files: []*os.File{
+			stdin, stdout, stderr,
+		},
+		Sys: &syscall.SysProcAttr{
+			Setsid: true,
+		},
+	}
+
+	log.Debugf("system: %s", p.args)
+	var ps *os.Process
+	args := []string{name}
+	args = append(args, p.args.Args...)
+	err = p.table.RegisterPID(func() (int, error) {
+		ps, err = os.StartProcess(name, args, &attrs)
+		if err != nil {
+			return 0, err
+		}
+		for _, f := range toClose {
+			f.Close()
+		}
+		return ps.Pid, nil
+	})
+
+	if err != nil {
+		return
+	}
+
+	p.pid = ps.Pid
+	psProcess, _ := psutils.NewProcess(int32(p.pid))
+	p.process = psProcess
+
+	if input != nil {
+		//write data to command stdin.
+		io.WriteString(input, p.args.StdIn)
+		input.Close()
 	}
 
 	go func(channel chan *stream.Message) {
-		//make sure all outputs are closed before waiting for the process
+		//make sure all outputs are closed before waiting for the p
 		defer close(channel)
-
-		state := process.table.WaitPID(process.pid)
+		state := p.table.WaitPID(p.pid)
 		//wait for all streams to finish copying
 		wg.Wait()
-
-		log.Debugf("Process %s exited with state: %d", process.cmd, state.ExitStatus())
+		ps.Release()
+		log.Debugf("Process %s exited with state: %d", p.cmd, state.ExitStatus())
 		if state.ExitStatus() == 0 {
 			channel <- stream.MessageExitSuccess
 		} else {

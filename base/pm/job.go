@@ -339,7 +339,7 @@ func (r *jobImb) Signal(sig syscall.Signal) error {
 			close(r.signal)
 		}
 		return nil
-	default: //TODO: may be use a delay!
+	case <-time.After(1 * time.Second):
 		return fmt.Errorf("job not receiving singnals")
 	}
 }
