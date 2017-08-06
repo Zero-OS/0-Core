@@ -3,13 +3,14 @@ package pm
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/zero-os/0-core/base/pm/stream"
 	"runtime/debug"
 	"syscall"
+
+	"github.com/zero-os/0-core/base/pm/stream"
 )
 
 /*
-Runnable represents a runnable built in function that can be managed by the p manager.
+Runnable represents a runnable built in function that can be managed by the process manager.
 */
 type Runnable func(*Command) (interface{}, error)
 type RunnableWithCtx func(*Context) (interface{}, error)
@@ -41,7 +42,7 @@ func (c *Context) Log(text string, level ...uint16) {
 }
 
 /*
-internalProcess implements a Procss interface and represents an internal (go) p that can be managed by the p manager
+internalProcess implements a Procss interface and represents an internal (go) process that can be managed by the process manager
 */
 type internalProcess struct {
 	runnable interface{}
@@ -78,14 +79,14 @@ func internalProcessFactoryWithCtx(runnable RunnableWithCtx) ProcessFactory {
 }
 
 /*
-Cmd returns the internal p command
+Cmd returns the internal process command
 */
 func (process *internalProcess) Command() *Command {
 	return process.ctx.Command
 }
 
 /*
-Run runs the internal p
+Run runs the internal process
 */
 func (process *internalProcess) Run() (<-chan *stream.Message, error) {
 

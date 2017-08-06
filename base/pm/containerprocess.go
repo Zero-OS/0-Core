@@ -3,12 +3,13 @@ package pm
 import (
 	"encoding/json"
 	"fmt"
-	psutils "github.com/shirou/gopsutil/process"
-	"github.com/zero-os/0-core/base/pm/stream"
 	"io"
 	"os"
 	"sync"
 	"syscall"
+
+	psutils "github.com/shirou/gopsutil/process"
+	"github.com/zero-os/0-core/base/pm/stream"
 )
 
 type ContainerCommandArguments struct {
@@ -93,7 +94,7 @@ func (p *containerProcessImpl) Signal(sig syscall.Signal) error {
 	return fmt.Errorf("p not found")
 }
 
-//GetStats gets stats of an external p
+//GetStats gets stats of an external process
 func (p *containerProcessImpl) Stats() *ProcessStats {
 	stats := ProcessStats{}
 
@@ -221,7 +222,7 @@ func (p *containerProcessImpl) Run() (ch <-chan *stream.Message, err error) {
 	p.process = psProcess
 
 	go func(channel chan *stream.Message) {
-		//make sure all outputs are closed before waiting for the p
+		//make sure all outputs are closed before waiting for the process
 		defer close(channel)
 		state := p.table.WaitPID(p.pid)
 		//wait for all streams to finish copying

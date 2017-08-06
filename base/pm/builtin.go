@@ -12,7 +12,7 @@ var factories = map[string]ProcessFactory{
 }
 
 /*
-NewProcess creates a new p from a command
+NewProcess creates a new process from a command
 */
 func GetProcessFactory(cmd *Command) ProcessFactory {
 	return factories[cmd.Command]

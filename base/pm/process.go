@@ -1,8 +1,9 @@
 package pm
 
 import (
-	"github.com/zero-os/0-core/base/pm/stream"
 	"syscall"
+
+	"github.com/zero-os/0-core/base/pm/stream"
 )
 
 const (
@@ -13,12 +14,12 @@ type GetPID func() (int, error)
 
 type PIDTable interface {
 	//PIDTable atomic registration of PID. MUST grantee that that no wait4 will happen
-	//on any of the child p until the register operation is done.
+	//on any of the child process until the register operation is done.
 	RegisterPID(g GetPID) error
 	WaitPID(pid int) syscall.WaitStatus
 }
 
-//ProcessStats holds p cpu and memory usage
+//ProcessStats holds process cpu and memory usage
 type ProcessStats struct {
 	CPU   float64 `json:"cpu"`
 	RSS   uint64  `json:"rss"`
