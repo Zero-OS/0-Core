@@ -155,6 +155,7 @@ func (c *container) preStart() error {
 }
 
 func (c *container) onStart(pid int) {
+	log.Infof("%s started", c.name())
 	//get channel
 	ps := c.runner.Process()
 	if ps, ok := ps.(pm.ContainerProcess); !ok {
@@ -171,7 +172,7 @@ func (c *container) onStart(pid int) {
 	}
 
 	if err := c.postStart(); err != nil {
-		log.Errorf("Container post start error: %s", err)
+		log.Errorf("container post start error: %s", err)
 		//TODO. Should we shut the container down?
 	}
 

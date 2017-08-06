@@ -17,6 +17,7 @@ type Message struct {
 }
 
 func (c *container) forward() {
+	log.Debugf("start commands forwarder for '%s'", c.name())
 	enc := json.NewEncoder(c.channel)
 	for cmd := range c.forwardChan {
 		if err := enc.Encode(cmd); err != nil {
