@@ -30,6 +30,7 @@ const (
 	cmdContainerZerotierList = "corex.zerotier.list"
 	cmdContainerNicAdd       = "corex.nic-add"
 	cmdContainerNicRemove    = "corex.nic-remove"
+	cmdContainerBackup       = "corex.backup"
 
 	coreXResponseQueue = "corex:results"
 	coreXBinaryName    = "coreX"
@@ -249,6 +250,7 @@ func ContainerSubsystem(sink *transport.Sink, cell *screen.RowCell) (ContainerMa
 	pm.RegisterBuiltIn(cmdContainerFind, containerMgr.find)
 	pm.RegisterBuiltIn(cmdContainerNicAdd, containerMgr.nicAdd)
 	pm.RegisterBuiltIn(cmdContainerNicRemove, containerMgr.nicRemove)
+	pm.RegisterBuiltIn(cmdContainerBackup, containerMgr.backup)
 
 	//container specific info
 	pm.RegisterBuiltIn(cmdContainerZerotierInfo, containerMgr.ztInfo)
