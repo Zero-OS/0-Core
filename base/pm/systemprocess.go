@@ -18,9 +18,6 @@ type SystemCommandArguments struct {
 	Args  []string          `json:"args"`
 	Env   map[string]string `json:"env"`
 	StdIn string            `json:"stdin"`
-
-	//Only internal commands can sent the NoOutput flag.
-	NoOutput bool `json:"-"`
 }
 
 func (s *SystemCommandArguments) String() string {
@@ -129,7 +126,7 @@ func (p *systemProcessImpl) Run() (ch <-chan *stream.Message, err error) {
 		toClose = append(toClose, stdin)
 	}
 
-	if !p.args.NoOutput {
+	if !p.cmd.NoOutput {
 		handler := func(m *stream.Message) {
 			defer func() {
 				if err := recover(); err != nil {

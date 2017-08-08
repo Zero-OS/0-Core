@@ -18,9 +18,9 @@ import (
 )
 
 const (
-	containerLinkNameFmt = "cont%d-%d"
+	containerLinkNameFmt          = "cont%d-%d"
 	containerMonitoredLinkNameFmt = "contm%d-%d"
-	containerPeerNameFmt = "%sp"
+	containerPeerNameFmt          = "%sp"
 )
 
 func (c *container) preStartHostNetworking() error {
@@ -337,8 +337,9 @@ func (c *container) setPortForwards() error {
 	for host, container := range c.Args.Port {
 		//nft add rule nat prerouting iif eth0 tcp dport { 80, 443 } dnat 192.168.1.120
 		cmd := &pm.Command{
-			ID:      c.forwardId(host, container),
-			Command: pm.CommandSystem,
+			ID:       c.forwardId(host, container),
+			Command:  pm.CommandSystem,
+			NoOutput: true,
 			Arguments: pm.MustArguments(
 				pm.SystemCommandArguments{
 					Name: "socat",
@@ -346,7 +347,6 @@ func (c *container) setPortForwards() error {
 						fmt.Sprintf("tcp-listen:%d,reuseaddr,fork", host),
 						fmt.Sprintf("tcp-connect:%s:%d", ip, container),
 					},
-					NoOutput: true,
 				},
 			),
 		}

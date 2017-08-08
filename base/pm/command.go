@@ -22,6 +22,7 @@ type Command struct {
 	Tags            Tags             `json:"tags"`
 
 	Protected bool `json:"-"`
+	NoOutput  bool `json:"-"`
 }
 
 type M map[string]interface{}
