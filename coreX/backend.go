@@ -30,6 +30,11 @@ func NewDispatcher(out *os.File) *Dispatcher {
 	return &Dispatcher{enc: json.NewEncoder(out)}
 }
 
+func (d *Dispatcher) Pre(cmd *pm.Command) {
+	//force all coreX children to be in the same group
+	cmd.Flags.NoSetPGID = true
+}
+
 func (d *Dispatcher) Result(cmd *pm.Command, result *pm.JobResult) {
 	d.m.Lock()
 	defer d.m.Unlock()

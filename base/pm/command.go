@@ -12,6 +12,7 @@ type Tags []string
 type JobFlags struct {
 	Protected bool
 	NoOutput  bool
+	NoSetPGID bool //set new process group id for job
 }
 
 //Cmd is an executable command

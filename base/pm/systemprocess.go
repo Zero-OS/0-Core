@@ -159,7 +159,7 @@ func (p *systemProcessImpl) Run() (ch <-chan *stream.Message, err error) {
 			stdin, stdout, stderr,
 		},
 		Sys: &syscall.SysProcAttr{
-			Setsid: true,
+			Setpgid: !p.cmd.Flags.NoSetPGID,
 		},
 	}
 
