@@ -153,7 +153,6 @@ func (p *containerProcessImpl) Run() (ch <-chan *stream.Message, err error) {
 	var env []string
 
 	if len(p.args.Env) > 0 {
-		env = append(env, os.Environ()...)
 		for k, v := range p.args.Env {
 			env = append(env, fmt.Sprintf("%v=%v", k, v))
 		}
