@@ -18,9 +18,9 @@ import (
 )
 
 const (
-	containerLinkNameFmt = "cont%d-%d"
+	containerLinkNameFmt          = "cont%d-%d"
 	containerMonitoredLinkNameFmt = "contm%d-%d"
-	containerPeerNameFmt = "%sp"
+	containerPeerNameFmt          = "%sp"
 )
 
 func (c *container) preStartHostNetworking() error {
@@ -565,7 +565,7 @@ func (c *container) preStartNetwork(idx int, network *Nic) (err error) {
 		network.State = NicStateError
 	}
 
-	return nil
+	return
 }
 
 func (c *container) preStartIsolatedNetworking() error {
