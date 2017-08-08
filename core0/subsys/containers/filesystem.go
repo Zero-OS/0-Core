@@ -194,9 +194,8 @@ func (c *container) mountPList(src string, target string, hooks ...pm.RunnerHook
 
 	cache := settings.Settings.Globals.Get("cache", path.Join(BackendBaseDir, "cache"))
 	cmd := &pm.Command{
-		ID:       uuid.New(),
-		Command:  pm.CommandSystem,
-		NoOutput: false, //this can't be set to true other wise the MatchHook below won't work
+		ID:      uuid.New(),
+		Command: pm.CommandSystem,
 		Arguments: pm.MustArguments(pm.SystemCommandArguments{
 			Name: "g8ufs",
 			Args: []string{

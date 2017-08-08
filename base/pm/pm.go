@@ -235,9 +235,11 @@ func RunSlice(slice settings.StartupSlice) {
 			Command:         startup.Name,
 			RecurringPeriod: startup.RecurringPeriod,
 			MaxRestart:      startup.MaxRestart,
-			Protected:       startup.Protected,
 			Tags:            startup.Tags,
 			Arguments:       MustArguments(startup.Args),
+			Flags: JobFlags{
+				Protected: startup.Protected,
+			},
 		}
 
 		go func(up settings.Startup, c *Command) {
@@ -332,7 +334,7 @@ func Killall() {
 	defer jobsM.RUnlock()
 
 	for _, v := range jobs {
-		if v.Command().Protected {
+		if v.Command().Flags.Protected {
 			continue
 		}
 		v.Signal(syscall.SIGTERM)

@@ -289,7 +289,7 @@ loop:
 			hook.Exit(result.State)
 		}
 
-		if r.command.Protected {
+		if r.command.Flags.Protected {
 			//immediate restart
 			log.Debugf("Re-spawning protected service")
 			continue

@@ -126,7 +126,7 @@ func (p *systemProcessImpl) Run() (ch <-chan *stream.Message, err error) {
 		toClose = append(toClose, stdin)
 	}
 
-	if !p.cmd.NoOutput {
+	if !p.cmd.Flags.NoOutput {
 		handler := func(m *stream.Message) {
 			defer func() {
 				if err := recover(); err != nil {

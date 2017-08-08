@@ -337,9 +337,11 @@ func (c *container) setPortForwards() error {
 	for host, container := range c.Args.Port {
 		//nft add rule nat prerouting iif eth0 tcp dport { 80, 443 } dnat 192.168.1.120
 		cmd := &pm.Command{
-			ID:       c.forwardId(host, container),
-			Command:  pm.CommandSystem,
-			NoOutput: true,
+			ID:      c.forwardId(host, container),
+			Command: pm.CommandSystem,
+			Flags: pm.JobFlags{
+				NoOutput: true,
+			},
 			Arguments: pm.MustArguments(
 				pm.SystemCommandArguments{
 					Name: "socat",

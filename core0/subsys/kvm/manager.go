@@ -706,9 +706,11 @@ func (m *kvmManager) setPortForwards(uuid string, seq uint16, port map[int]int) 
 	for host, container := range port {
 		//nft add rule nat prerouting iif eth0 tcp dport { 80, 443 } dnat 192.168.1.120
 		cmd := &pm.Command{
-			ID:       m.forwardId(uuid, host),
-			Command:  pm.CommandSystem,
-			NoOutput: true,
+			ID:      m.forwardId(uuid, host),
+			Command: pm.CommandSystem,
+			Flags: pm.JobFlags{
+				NoOutput: true,
+			},
 			Arguments: pm.MustArguments(
 				pm.SystemCommandArguments{
 					Name: "socat",

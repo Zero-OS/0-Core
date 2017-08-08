@@ -278,7 +278,9 @@ func (b *bridgeMgr) bridgeDnsMasqNetworking(bridge *netlink.Bridge, network *Bri
 				Args: args,
 			},
 		),
-		NoOutput: true,
+		Flags: pm.JobFlags{
+			NoOutput: true,
+		},
 	}
 
 	onExit := &pm.ExitHook{
