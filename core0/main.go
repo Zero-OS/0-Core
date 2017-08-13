@@ -109,7 +109,9 @@ func main() {
 		os.Exit(0)
 	}
 
-	Splash()
+	if !options.Agent() {
+		Splash()
+	}
 
 	if err := settings.LoadSettings(options.Config()); err != nil {
 		log.Fatal(err)
@@ -123,13 +125,15 @@ func main() {
 		log.Fatalf("\nConfig validation error, please fix and try again.")
 	}
 
-	//Redirect the stdout, and stderr so we make sure we don't lose crashes that terminates
-	//the process.
-	if err := Redirect(LogPath); err != nil {
-		log.Errorf("failed to redirect output streams: %s", err)
-	}
+	if !options.Agent() {
+		//Redirect the stdout, and stderr so we make sure we don't lose crashes that terminates
+		//the process.
+		if err := Redirect(LogPath); err != nil {
+			log.Errorf("failed to redirect output streams: %s", err)
+		}
 
-	HandleRotation()
+		HandleRotation()
+	}
 
 	var config = settings.Settings
 
@@ -153,7 +157,7 @@ func main() {
 
 	logger.ConfigureLogging(sink)
 
-	bs := bootstrap.NewBootstrap()
+	bs := bootstrap.NewBootstrap(options.Agent())
 	bs.First()
 
 	screen.Push(&screen.TextSection{})

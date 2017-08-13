@@ -26,11 +26,12 @@ var (
 )
 
 type Bootstrap struct {
-	i *settings.IncludedSettings
-	t settings.StartupTree
+	i     *settings.IncludedSettings
+	t     settings.StartupTree
+	agent bool
 }
 
-func NewBootstrap() *Bootstrap {
+func NewBootstrap(agent bool) *Bootstrap {
 	included, errors := settings.Settings.GetIncludedSettings()
 	if len(errors) > 0 {
 		for _, err := range errors {
@@ -49,8 +50,9 @@ func NewBootstrap() *Bootstrap {
 	}
 
 	b := &Bootstrap{
-		i: included,
-		t: t,
+		i:     included,
+		t:     t,
+		agent: agent,
 	}
 
 	return b
@@ -197,12 +199,14 @@ func (b *Bootstrap) watchers() {
 }
 
 func (b *Bootstrap) First() {
-	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &syscall.Rlimit{65536, 65536}); err != nil {
-		log.Errorf("failed to setup max open files limit: %s", err)
-	}
+	if !b.agent {
+		if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &syscall.Rlimit{65536, 65536}); err != nil {
+			log.Errorf("failed to setup max open files limit: %s", err)
+		}
 
-	if err := b.setNFT(); err != nil {
-		log.Criticalf("failed to setup NFT: %s", err)
+		if err := b.setNFT(); err != nil {
+			log.Criticalf("failed to setup NFT: %s", err)
+		}
 	}
 
 	//register core extensions
@@ -225,19 +229,21 @@ func (b *Bootstrap) Second() {
 
 	go b.screen()
 
-	progress.Text = "Bootstrapping: Networking"
-	screen.Refresh()
-	for {
-		err := b.setupNetworking()
-		if err == nil {
-			break
+	if !b.agent {
+		progress.Text = "Bootstrapping: Networking"
+		screen.Refresh()
+		for {
+			err := b.setupNetworking()
+			if err == nil {
+				break
+			}
+
+			log.Errorf("Failed to configure networking: %s", err)
+			log.Infof("Retrying in 2 seconds")
+
+			<-time.After(2 * time.Second)
+			log.Infof("Retrying setting up network")
 		}
-
-		log.Errorf("Failed to configure networking: %s", err)
-		log.Infof("Retrying in 2 seconds")
-
-		<-time.After(2 * time.Second)
-		log.Infof("Retrying setting up network")
 	}
 
 	progress.Text = "Bootstrapping: Network Services"
