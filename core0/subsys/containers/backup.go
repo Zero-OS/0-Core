@@ -6,9 +6,14 @@ import (
 	"github.com/zero-os/0-core/base/pm"
 	"io/ioutil"
 	"net/url"
+	"os"
 	"path"
 	"regexp"
 	"syscall"
+)
+
+const (
+	backupMetaName = ".corex.meta"
 )
 
 var (
@@ -60,9 +65,31 @@ func (m *containerManager) backup(cmd *pm.Command) (interface{}, error) {
 		restic = append(restic, "--tag", tag)
 	}
 
+	root := cont.root()
+
+	//write meta
+	cargs := cont.Args
+	var nics []*Nic
+	for _, n := range cargs.Nics {
+		if n.State == NicStateConfigured {
+			nics = append(nics, n)
+		}
+	}
+	cargs.Nics = nics
+	mf := path.Join(root, backupMetaName)
+	meta, err := json.Marshal(cargs)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ioutil.WriteFile(mf, meta, 0400); err != nil {
+		return nil, err
+	}
+
+	defer os.Remove(mf)
+
 	//we specify files to backup one by one instead of a full dire to
 	//have more control
-	root := cont.root()
 	items, err := ioutil.ReadDir(root)
 	if err != nil {
 		return nil, err
@@ -136,10 +163,11 @@ func (c *container) restore(repo, backend string) error {
 
 	snapshot = u.Fragment
 
+	target := path.Join(backend, "ro")
 	restic := []string{
 		"-r", repo,
 		"restore",
-		"-t", path.Join(backend, "ro"),
+		"-t", target,
 		snapshot,
 	}
 
@@ -163,6 +191,8 @@ func (c *container) restore(repo, backend string) error {
 	if result := job.Wait(); result.State != pm.StateSuccess {
 		return fmt.Errorf("failed to restore snapshot: %s", result.Streams.Stderr())
 	}
+
+	os.Remove(path.Join(target, backupMetaName))
 
 	return nil
 }
