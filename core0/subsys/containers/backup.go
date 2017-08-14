@@ -5,8 +5,14 @@ import (
 	"fmt"
 	"github.com/zero-os/0-core/base/pm"
 	"io/ioutil"
+	"net/url"
 	"path"
+	"regexp"
 	"syscall"
+)
+
+var (
+	resticSnaphostIdP = regexp.MustCompile(`snapshot ([^\s]+) saved`)
 )
 
 func (m *containerManager) backup(cmd *pm.Command) (interface{}, error) {
@@ -102,5 +108,61 @@ func (m *containerManager) backup(cmd *pm.Command) (interface{}, error) {
 		return nil, fmt.Errorf("failed to backup container: %s", result.Streams.Stderr())
 	}
 
-	return nil, nil
+	//read snapshot id
+	match := resticSnaphostIdP.FindStringSubmatch(result.Streams.Stdout())
+	if len(match) != 2 {
+		return nil, fmt.Errorf("failed to retrieve snapshot ID")
+	}
+
+	return match[1], nil
+}
+
+func (c *container) restore(repo, backend string) error {
+	//file://password/path/to/repo
+	u, err := url.Parse(repo)
+	if err != nil {
+		return err
+	}
+
+	var password string
+	snapshot := "latest"
+	if u.Scheme == "file" {
+		password = u.Host
+		repo = u.Path
+	} else {
+		u.Fragment = ""
+		repo = u.String()
+	}
+
+	snapshot = u.Fragment
+
+	restic := []string{
+		"-r", repo,
+		"restore",
+		"-t", path.Join(backend, "ro"),
+		snapshot,
+	}
+
+	job, err := pm.Run(
+		&pm.Command{
+			Command: pm.CommandSystem,
+			Arguments: pm.MustArguments(
+				pm.SystemCommandArguments{
+					Name:  "restic",
+					Args:  restic,
+					StdIn: password,
+				},
+			),
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	if result := job.Wait(); result.State != pm.StateSuccess {
+		return fmt.Errorf("failed to restore snapshot: %s", result.Streams.Stderr())
+	}
+
+	return nil
 }
