@@ -144,7 +144,7 @@ func (m *containerManager) backup(cmd *pm.Command) (interface{}, error) {
 	return match[1], nil
 }
 
-func (c *container) restore(repo, backend string) error {
+func (m *containerManager) restoreRepo(repo, target string, include ...string) error {
 	//file://password/path/to/repo
 	u, err := url.Parse(repo)
 	if err != nil {
@@ -152,24 +152,26 @@ func (c *container) restore(repo, backend string) error {
 	}
 
 	var password string
-	snapshot := "latest"
+	snapshot := u.Fragment
 	if u.Scheme == "file" {
-		password = u.Host
+		password = u.Query().Get("password")
 		repo = u.Path
 	} else {
 		u.Fragment = ""
 		repo = u.String()
 	}
 
-	snapshot = u.Fragment
-
-	target := path.Join(backend, "ro")
 	restic := []string{
 		"-r", repo,
 		"restore",
 		"-t", target,
-		snapshot,
 	}
+
+	for _, i := range include {
+		restic = append(restic, "-i", i)
+	}
+
+	restic = append(restic, snapshot)
 
 	job, err := pm.Run(
 		&pm.Command{
@@ -192,7 +194,51 @@ func (c *container) restore(repo, backend string) error {
 		return fmt.Errorf("failed to restore snapshot: %s", result.Streams.Stderr())
 	}
 
-	os.Remove(path.Join(target, backupMetaName))
-
 	return nil
+}
+
+func (m *containerManager) restore(cmd *pm.Command) (interface{}, error) {
+	var args struct {
+		URL string `json:"url"`
+	}
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, err
+	}
+
+	tmp, err := ioutil.TempDir("", "restic")
+	if err != nil {
+		return nil, err
+	}
+
+	defer os.RemoveAll(tmp)
+
+	if err := m.restoreRepo(args.URL, tmp, backupMetaName); err != nil {
+		return nil, err
+	}
+
+	meta, err := os.Open(path.Join(tmp, backupMetaName))
+	if err != nil {
+		return nil, err
+	}
+
+	defer meta.Close()
+
+	dec := json.NewDecoder(meta)
+
+	var cargs ContainerCreateArguments
+	if err := dec.Decode(&cargs); err != nil {
+		return nil, err
+	}
+
+	//set restore url
+	//rewrite the URL to use restic prefix. now we can call create.
+	cargs.Root = fmt.Sprintf("restic:%s", args.URL)
+
+	cont, err := m.createContainer(cargs)
+	if err != nil {
+		return nil, err
+	}
+
+	return cont.id, nil
 }

@@ -189,9 +189,14 @@ func (c *container) mountPList(src string, target string, hooks ...pm.RunnerHook
 	}
 
 	if strings.HasPrefix(src, "restic:") {
-		if err := c.restore(strings.TrimPrefix(src, "restic:"), backend); err != nil {
+		if err := c.mgr.restoreRepo(
+			strings.TrimPrefix(src, "restic:"),
+			path.Join(backend, "ro"),
+		); err != nil {
 			return err
 		}
+		//clean up the restored repo (delete meta file)
+		os.Remove(path.Join(backend, "ro", backupMetaName))
 	} else {
 		//assume an flist, an flist requires the meat and storage url
 		db, err := c.getMetaDB(src)
