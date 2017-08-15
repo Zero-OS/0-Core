@@ -54,11 +54,14 @@ func (m *containerManager) backup(cmd *pm.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	var password string
+	password := u.Query().Get("password")
+	u.Fragment = "" //just to make sure
 	repo := args.URL
 	if u.Scheme == "file" || len(u.Scheme) == 0 {
-		password = u.Query().Get("password")
 		repo = u.Path
+	} else {
+		u.RawQuery = ""
+		repo = u.String()
 	}
 
 	restic := []string{
@@ -162,13 +165,13 @@ func (m *containerManager) restoreRepo(repo, target string, include ...string) e
 		return err
 	}
 
-	var password string
+	password := u.Query().Get("password")
 	snapshot := u.Fragment
 	if u.Scheme == "file" || len(u.Scheme) == 0 {
-		password = u.Query().Get("password")
 		repo = u.Path
 	} else {
 		u.Fragment = ""
+		u.RawQuery = ""
 		repo = u.String()
 	}
 
