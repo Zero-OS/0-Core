@@ -567,7 +567,7 @@ func (c *container) preStartNetwork(idx int, network *Nic) (err error) {
 		network.State = NicStateError
 	}
 
-	return nil
+	return
 }
 
 func (c *container) preStartIsolatedNetworking() error {

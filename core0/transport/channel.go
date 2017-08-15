@@ -37,9 +37,13 @@ func (client *channel) String() string {
 }
 
 func (cl *channel) GetNext(queue string, command *pm.Command) error {
-	payload, err := redis.ByteSlices(cl.db.BLPop([][]byte{[]byte(queue)}, 0))
+	payload, err := redis.ByteSlices(cl.db.BLPop([][]byte{[]byte(queue)}, 500*time.Millisecond))
 	if err != nil {
 		return err
+	}
+
+	if payload == nil || len(payload) < 2 {
+		return redis.ErrNil
 	}
 
 	return json.Unmarshal(payload[1], command)

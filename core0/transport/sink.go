@@ -2,6 +2,7 @@ package transport
 
 import (
 	"fmt"
+	"github.com/garyburd/redigo/redis"
 	"github.com/siddontang/ledisdb/config"
 	"github.com/siddontang/ledisdb/ledis"
 	"github.com/siddontang/ledisdb/server"
@@ -127,7 +128,9 @@ func (sink *Sink) process() {
 	for {
 		var command pm.Command
 		err := sink.ch.GetNext(SinkQueue, &command)
-		if err != nil {
+		if err == redis.ErrNil {
+			continue
+		} else if err != nil {
 			log.Errorf("Failed to get next command from (%s): %s", SinkQueue, err)
 			<-time.After(200 * time.Millisecond)
 			continue
