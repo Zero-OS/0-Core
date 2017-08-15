@@ -23,8 +23,7 @@ var (
 func (m *containerManager) backup(cmd *pm.Command) (interface{}, error) {
 	var args struct {
 		Container uint16   `json:"container"`
-		Repo      string   `json:"repo"`
-		Password  string   `json:"password"`
+		URL       string   `json:"url"`
 		Tags      []string `json:"tags"`
 	}
 
@@ -50,8 +49,20 @@ func (m *containerManager) backup(cmd *pm.Command) (interface{}, error) {
 		return nil, fmt.Errorf("container is not fully started yet")
 	}
 
+	u, err := url.Parse(args.URL)
+	if err != nil {
+		return nil, err
+	}
+
+	var password string
+	repo := args.URL
+	if u.Scheme == "file" || len(u.Scheme) == 0 {
+		password = u.Query().Get("password")
+		repo = u.Path
+	}
+
 	restic := []string{
-		"-r", args.Repo,
+		"-r", repo,
 		"backup",
 		"--exclude", "proc/**",
 		"--exclude", "dev/**",
@@ -120,7 +131,7 @@ func (m *containerManager) backup(cmd *pm.Command) (interface{}, error) {
 				pm.SystemCommandArguments{
 					Name:  "restic",
 					Args:  restic,
-					StdIn: args.Password,
+					StdIn: password,
 				},
 			),
 		},
@@ -153,7 +164,7 @@ func (m *containerManager) restoreRepo(repo, target string, include ...string) e
 
 	var password string
 	snapshot := u.Fragment
-	if u.Scheme == "file" {
+	if u.Scheme == "file" || len(u.Scheme) == 0 {
 		password = u.Query().Get("password")
 		repo = u.Path
 	} else {

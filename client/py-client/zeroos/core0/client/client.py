@@ -250,6 +250,25 @@ class Response:
             maxwait -= 10
         raise Timeout()
 
+class JSONResponse(Response):
+    def __init__(self, response):
+        super().__init__(response._client, response.id)
+
+    def get(self, timeout=None):
+        """
+        Get response as json, will fail if the job doesn't return a valid json response
+
+        :param timeout: client side timeout in seconds
+        :return: int
+        """
+        result = super().get(timeout)
+        if result.state != 'SUCCESS':
+            raise Exception('failed to create container: %s' % result.data)
+        if result.level != 20:
+            raise Exception('not a json response')
+
+        return json.loads(result.data)
+
 
 class InfoManager:
 
@@ -978,18 +997,7 @@ class ContainerManager:
 
     DefaultNetworking = object()
 
-    class ContainerResponse(Response):
-        def get(self, timeout=None):
-            """
-            Get container ID
-            :param timeout: client side timeout in seconds (for the container ID to return)
-            :return: int
-            """
-            result = super().get(timeout)
-            if result.state != 'SUCCESS':
-                raise Exception('failed to create container: %s' % result.data)
 
-            return json.loads(result.data)
 
     def __init__(self, client):
         self._client = client
@@ -1057,7 +1065,7 @@ class ContainerManager:
 
         response = self._client.raw('corex.create', args, tags=tags)
 
-        return self.ContainerResponse(self._client, response.id)
+        return JSONResponse(response)
 
     def list(self):
         """
@@ -1150,7 +1158,45 @@ class ContainerManager:
         self._client_chk.check(container)
         return ContainerClient(self._client, int(container))
 
+    def backup(self, container, url):
+        """
+        Backup a container to the given restic url
+        all restic urls are supported
 
+        :param container:
+        :param url: Url to restic repo
+                examples
+                (file:///path/to/restic/?password=<password>)
+
+        :return: Json response to the backup job (do .get() to get the snapshot ID
+        """
+
+        args = {
+            'container': container,
+            'url': url,
+        }
+
+        return JSONResponse(self._client.raw('corex.backup', args))
+
+    def restore(self, url):
+        """
+        Full restore of a container backup. This restore method will recreate
+        an exact copy of the backedup container (including same network setup, and other
+        configurations as defined by the `create` method.
+
+        To just restore the container data, and use new configuration, use the create method instead
+        with the `root_url` set to `restic:<url>`
+
+        :param url: Snapshot url, the snapshot ID is passed as a url fragment
+                    examples:
+                        `file:///path/to/restic/repo?password=<password>#<snapshot-id>`
+        :return:
+        """
+        args = {
+            'url': url,
+        }
+
+        return JSONResponse(self._client.raw('corex.restore', args))
 
 
 class IPManager:
