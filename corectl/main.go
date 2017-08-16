@@ -148,6 +148,12 @@ func main() {
 			Usage:  "Shuts down the machine",
 			Action: WithTransport(poweroff),
 		},
+		{
+			Name:      "statistics",
+			Usage:     "node statistics",
+			Action:    WithTransport(statistics),
+			ArgsUsage: "key [tags...]",
+		},
 	}
 	var args []string
 	command := path.Base(os.Args[0])
