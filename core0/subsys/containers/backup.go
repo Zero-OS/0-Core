@@ -69,6 +69,7 @@ func (m *containerManager) backup(cmd *pm.Command) (interface{}, error) {
 		"backup",
 		"--exclude", "proc/**",
 		"--exclude", "dev/**",
+		"--exclude", "sys/**",
 	}
 
 	for _, tag := range cont.Args.Tags {
