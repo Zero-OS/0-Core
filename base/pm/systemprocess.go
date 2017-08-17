@@ -126,8 +126,14 @@ func (p *systemProcessImpl) Run() (ch <-chan *stream.Message, err error) {
 		if err != nil {
 			return nil, err
 		}
-		toClose = append(toClose, stdin)
+	} else {
+		stdin, err = os.Open(os.DevNull)
+		if err != nil {
+			return nil, err
+		}
 	}
+
+    toClose = append(toClose, stdin)
 
 	if !p.args.NoOutput {
 		handler := func(m *stream.Message) {
