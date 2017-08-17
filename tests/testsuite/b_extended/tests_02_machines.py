@@ -24,6 +24,7 @@ class ExtendedMachines(BaseTest):
         super(ExtendedMachines, self).setUp()
         self.check_g8os_connection(ExtendedMachines)
 
+    @unittest.skip('https://github.com/zero-os/0-core/issues/466')
     def test001_kvm_add_remove_nics(self):
         """ g8os-035
 
