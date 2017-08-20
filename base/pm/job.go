@@ -240,10 +240,16 @@ loop:
 				go hook.Message(message)
 			}
 
+			//FOR BACKWARD compatibility, we drop the code part from the message meta because watchers
+			//like watchdog and such are not expecting a code part in the meta (yet)
+			code := message.Meta.Code()
+			message.Meta = message.Meta.Base()
+			//END of BACKWARD compatibility code
+
 			//by default, all messages are forwarded to the manager for further processing.
 			r.callback(message)
 			if message.Meta.Is(stream.ExitSuccessFlag | stream.ExitErrorFlag) {
-				jobresult.Code = message.Meta.Code()
+				jobresult.Code = code
 				break loop
 			}
 		}
