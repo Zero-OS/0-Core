@@ -461,7 +461,7 @@ func System(bin string, args ...string) (*JobResult, error) {
 
 	job := runner.Wait()
 	if job.State != StateSuccess {
-		return job, fmt.Errorf("exited with error (%s): %v", job.State, job.Streams)
+		return job, Error(job.Code, fmt.Errorf("(%s): %v", job.State, job.Streams))
 	}
 
 	return job, nil

@@ -26,7 +26,7 @@ func (e *errorImpl) Cause() interface{} {
 }
 
 func (e *errorImpl) Error() string {
-	return fmt.Sprintf("[%d] %v", e.code, e.cause)
+	return fmt.Sprint(e.cause)
 }
 
 func Error(code uint32, cause interface{}) error {
@@ -39,6 +39,18 @@ func NotFoundError(cause interface{}) error {
 
 func BadRequestError(cause interface{}) error {
 	return Error(http.StatusBadRequest, cause)
+}
+
+func ServiceUnavailableError(cause interface{}) error {
+	return Error(http.StatusServiceUnavailable, cause)
+}
+
+func NotAcceptableError(cause interface{}) error {
+	return Error(http.StatusNotAcceptable, cause)
+}
+
+func PreconditionFailedError(cause interface{}) error {
+	return Error(http.StatusPreconditionFailed, cause)
 }
 
 func InternalError(cause interface{}) error {

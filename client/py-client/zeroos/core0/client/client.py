@@ -25,6 +25,16 @@ class JobNotFound(Exception):
     pass
 
 
+class ResultException(Exception):
+    def __init__(self, msg, code=0):
+        super().__init__(msg)
+        self._code = code
+
+    @property
+    def code(self):
+        return self._code
+
+
 class Return:
 
     def __init__(self, payload):
@@ -261,6 +271,7 @@ class Response:
             maxwait -= 10
         raise Timeout()
 
+
 class JSONResponse(Response):
     def __init__(self, response):
         super().__init__(response._client, response.id)
@@ -274,9 +285,9 @@ class JSONResponse(Response):
         """
         result = super().get(timeout)
         if result.state != 'SUCCESS':
-            raise Exception('failed to create container: %s' % result.data)
+            raise ResultException(result.data, result.code)
         if result.level != 20:
-            raise Exception('not a json response')
+            raise ResultException('not a json response: %d' % result.level, 406)
 
         return json.loads(result.data)
 
