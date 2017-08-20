@@ -3,10 +3,10 @@ package pm
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/zero-os/0-core/base/pm/stream"
+	"net/http"
 	"runtime/debug"
 	"syscall"
-
-	"github.com/zero-os/0-core/base/pm/stream"
 )
 
 /*
@@ -100,10 +100,9 @@ func (process *internalProcess) Run() (<-chan *stream.Message, error) {
 				debug.PrintStack()
 				m, _ := json.Marshal(fmt.Sprintf("%v", err))
 				channel <- &stream.Message{
-					Meta:    stream.NewMeta(stream.LevelResultJSON),
+					Meta:    stream.NewMetaWithCode(http.StatusInternalServerError, stream.LevelResultJSON, stream.ExitErrorFlag),
 					Message: string(m),
 				}
-				channel <- stream.MessageExitError
 			}
 
 			close(channel)
@@ -121,9 +120,16 @@ func (process *internalProcess) Run() (<-chan *stream.Message, error) {
 		var msg *stream.Message
 
 		if err != nil {
+			var code uint32
+			if err, ok := err.(RunError); ok {
+				code = uint32(err.Code())
+			} else {
+				code = http.StatusInternalServerError
+			}
+
 			m, _ := json.Marshal(err.Error())
 			msg = &stream.Message{
-				Meta:    stream.NewMeta(stream.LevelResultJSON, stream.ExitErrorFlag),
+				Meta:    stream.NewMetaWithCode(code, stream.LevelResultJSON, stream.ExitErrorFlag),
 				Message: string(m),
 			}
 		} else {

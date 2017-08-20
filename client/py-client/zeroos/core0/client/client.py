@@ -105,12 +105,23 @@ class Return:
         streams = self._payload.get('streams', None)
         return streams[1] if streams is not None and len(streams) >= 2 else ''
 
+    @property
+    def code(self):
+        """
+        Exit code of the job, this can be either one of the http codes, of (if the value > 1000)
+        is the exit code of the underlaying process
+        if code > 1000:
+            exit_code = code - 1000
+
+        """
+        return self._payload.get('code', 500)
+
     def __repr__(self):
         return str(self)
 
     def __str__(self):
         tmpl = """\
-        STATE: {state}
+        STATE: {code} {state}
         STDOUT:
         {stdout}
         STDERR:
@@ -119,7 +130,7 @@ class Return:
         {data}
         """
 
-        return textwrap.dedent(tmpl).format(state=self.state, stdout=self.stdout, stderr=self.stderr, data=self.data)
+        return textwrap.dedent(tmpl).format(code=self.code, state=self.state, stdout=self.stdout, stderr=self.stderr, data=self.data)
 
 
 class Response:
@@ -2098,7 +2109,7 @@ class KvmManager:
 
     def prepare_migration_target(self, uuid, nics=None, port=None, tags=None):
         """
-        :param name: Name of the kvm domain that will be migrated 
+        :param name: Name of the kvm domain that will be migrated
         :param port: A dict of host_port: container_port pairs
                        Example:
                         `port={8080: 80, 7000:7000}`
@@ -2399,7 +2410,7 @@ class Logger:
         """
         Set the log level of the g8os
         Note: this level is for messages that ends up on screen or on log file
-        
+
         :param level: the level to be set can be one of ("CRITICAL", "ERROR", "WARNING", "NOTICE", "INFO", "DEBUG")
         """
         args = {
@@ -2419,10 +2430,10 @@ class Logger:
         """
         Subscribe to the aggregated log stream. On subscribe a ledis queue will be fed with all running processes
         logs. Always use the returned queue name from this method, even if u specified the queue name to use
-        
+
         Note: it is legal to subscribe to the same queue, but would be a bad logic if two processes are trying to
         read from the same queue.
-        
+
         :param queue: Your unique queue name, otherwise, a one will get generated for your
         :return: queue name to pull from
         """
@@ -2433,7 +2444,7 @@ class Logger:
         """
         Unsubscribe will kill the queue on node zero, further reading on that queue will just get what has been
         queued before calling unsubscribe, after that reading on that queue will not return anything.
-        
+
         :param queue: Queue name as returned from self.subscribe
         :return:
         """

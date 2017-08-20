@@ -227,15 +227,22 @@ func (p *containerProcessImpl) Run() (ch <-chan *stream.Message, err error) {
 		//wait for all streams to finish copying
 		wg.Wait()
 		ps.Release()
-		log.Debugf("Process %s exited with state: %d", p.cmd, state.ExitStatus())
 		if err := p.ch.Close(); err != nil {
 			log.Errorf("failed to close container channel: %s", err)
 		}
-		if state.ExitStatus() == 0 {
-			channel <- stream.MessageExitSuccess
+
+		code := state.ExitStatus()
+		log.Debugf("Process %s exited with state: %d", p.cmd, code)
+		if code == 0 {
+			channel <- &stream.Message{
+				Meta: stream.NewMeta(stream.LevelStdout, stream.ExitSuccessFlag),
+			}
 		} else {
-			channel <- stream.MessageExitError
+			channel <- &stream.Message{
+				Meta: stream.NewMetaWithCode(uint32(code), stream.LevelStderr, stream.ExitErrorFlag),
+			}
 		}
+
 	}(channel)
 
 	return channel, nil
