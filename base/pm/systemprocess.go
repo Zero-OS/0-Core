@@ -94,7 +94,7 @@ func (p *systemProcessImpl) Run() (ch <-chan *stream.Message, err error) {
 
 	name, err := exec.LookPath(p.args.Name)
 	if err != nil {
-		return nil, err
+		return nil, NotFoundError(err)
 	}
 
 	var env []string
@@ -123,8 +123,14 @@ func (p *systemProcessImpl) Run() (ch <-chan *stream.Message, err error) {
 		if err != nil {
 			return nil, err
 		}
-		toClose = append(toClose, stdin)
+	} else {
+		stdin, err = os.Open(os.DevNull)
+		if err != nil {
+			return nil, err
+		}
 	}
+
+	toClose = append(toClose, stdin)
 
 	if !p.cmd.Flags.NoOutput {
 		handler := func(m *stream.Message) {
@@ -199,11 +205,16 @@ func (p *systemProcessImpl) Run() (ch <-chan *stream.Message, err error) {
 		//wait for all streams to finish copying
 		wg.Wait()
 		ps.Release()
-		log.Debugf("Process %s exited with state: %d", p.cmd, state.ExitStatus())
-		if state.ExitStatus() == 0 {
-			channel <- stream.MessageExitSuccess
+		code := state.ExitStatus()
+		log.Debugf("Process %s exited with state: %d", p.cmd, code)
+		if code == 0 {
+			channel <- &stream.Message{
+				Meta: stream.NewMeta(stream.LevelStdout, stream.ExitSuccessFlag),
+			}
 		} else {
-			channel <- stream.MessageExitError
+			channel <- &stream.Message{
+				Meta: stream.NewMetaWithCode(uint32(1000+code), stream.LevelStderr, stream.ExitErrorFlag),
+			}
 		}
 	}(channel)
 

@@ -57,6 +57,7 @@ type Result struct {
 	Critical  string  `json:"critical,omitempty"`
 	Level     int     `json:"level"`
 	State     State   `json:"state"`
+	Code      uint32  `json:"code"`
 	StartTime int64   `json:"starttime"`
 	Time      int64   `json:"time"`
 	Tags      string  `json:"tags"`

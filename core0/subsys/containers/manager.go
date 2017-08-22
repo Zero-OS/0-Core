@@ -363,18 +363,18 @@ func (m *containerManager) nicAdd(cmd *pm.Command) (interface{}, error) {
 		Nic       Nic    `json:"nic"`
 	}
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
-		return nil, err
+		return nil, pm.BadRequestError(err)
 	}
 
 	m.conM.RLock()
 	defer m.conM.RUnlock()
 	container, ok := m.containers[args.Container]
 	if !ok {
-		return nil, fmt.Errorf("container does not exist")
+		return nil, pm.NotFoundError(fmt.Errorf("container does not exist"))
 	}
 
 	if container.Args.HostNetwork {
-		return nil, fmt.Errorf("cannot add a nic in host network mode")
+		return nil, pm.BadRequestError(fmt.Errorf("cannot add a nic in host network mode"))
 	}
 
 	args.Nic.State = NicStateUnknown
@@ -385,7 +385,7 @@ func (m *containerManager) nicAdd(cmd *pm.Command) (interface{}, error) {
 	if err := container.Args.Validate(); err != nil {
 		l := container.Args.Nics
 		container.Args.Nics = l[:len(l)-1]
-		return nil, err
+		return nil, pm.BadRequestError(err)
 	}
 
 	if err := container.preStartNetwork(idx, &args.Nic); err != nil {
@@ -406,22 +406,22 @@ func (m *containerManager) nicRemove(cmd *pm.Command) (interface{}, error) {
 	}
 
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
-		return nil, err
+		return nil, pm.BadRequestError(err)
 	}
 
 	m.conM.RLock()
 	defer m.conM.RUnlock()
 	container, ok := m.containers[args.Container]
 	if !ok {
-		return nil, fmt.Errorf("container does not exist")
+		return nil, pm.NotFoundError(fmt.Errorf("container does not exist"))
 	}
 
 	if args.Index < 0 || args.Index >= len(container.Args.Nics) {
-		return nil, fmt.Errorf("nic index out of range")
+		return nil, pm.BadRequestError(fmt.Errorf("nic index out of range"))
 	}
 	nic := container.Args.Nics[args.Index]
 	if nic.State != NicStateConfigured {
-		return nil, fmt.Errorf("nic is in '%s' state", nic.State)
+		return nil, pm.PreconditionFailedError(fmt.Errorf("nic is in '%s' state", nic.State))
 	}
 
 	if nic.Type == "zerotier" {
@@ -457,7 +457,7 @@ func (m *containerManager) createContainer(args ContainerCreateArguments) (*cont
 	}
 
 	if count >= limit {
-		return nil, fmt.Errorf("reached the hard limit of %d containers", count)
+		return nil, pm.ServiceUnavailableError(fmt.Errorf("reached the hard limit of %d containers", count))
 	}
 
 	id := m.getNextSequence()
@@ -490,7 +490,7 @@ func (m *containerManager) createSync(cmd *pm.Command) (interface{}, error) {
 func (m *containerManager) create(cmd *pm.Command) (interface{}, error) {
 	var args ContainerCreateArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
-		return nil, err
+		return nil, pm.BadRequestError(err)
 	}
 
 	args.Tags = cmd.Tags

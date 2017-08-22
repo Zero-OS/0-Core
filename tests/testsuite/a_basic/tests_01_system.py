@@ -9,7 +9,6 @@ import io
 class SystemTests(BaseTest):
 
     def setUp(self):
-
         super(SystemTests, self).setUp()
         self.check_g8os_connection(SystemTests)
 
@@ -41,7 +40,6 @@ class SystemTests(BaseTest):
         return nicInfo
 
     def getCpuInfo(self, client):
-        lines = client.bash('cat /proc/cpuinfo').get().stdout.splitlines()
         cpuInfo = {'vendorId': [], 'family': [], 'stepping': [], 'cpu': [], 'coreId': [], 'model': [],
                     'cacheSize': [], 'cores': [], 'flags': [], 'modelName': [], 'physicalId':[]}
 
@@ -50,9 +48,10 @@ class SystemTests(BaseTest):
                     "stepping": "stepping", "flags": "flags", "model": "model"}
 
         keys = mapping.keys()
-        for line in lines:
-            line = line.replace('\t', '')
-            for key in keys:
+        for key in keys:
+            lines = client.bash("cat /proc/cpuinfo | grep '{}' ".format(key)).get().stdout.splitlines()
+            for line in lines:
+                line = line.replace('\t', '')
                 if key == line[:line.find(':')]:
                     item = line[line.index(':') + 1:].strip()
                     if key in ['processor', 'stepping', 'cpu cores']:
@@ -62,7 +61,6 @@ class SystemTests(BaseTest):
                     if key == 'flags':
                         item = item.split(' ')
                     cpuInfo[mapping[key]].append(item)
-
         return cpuInfo
 
     def getDiskInfo(self, client):
@@ -307,7 +305,7 @@ class SystemTests(BaseTest):
         self.lg('compare g8os results to bash results')
         for disk in g8os_disk_info:
             self.assertIn(disk, expected_disk_info)
-           
+
         self.lg('{} ENDED'.format(self._testID))
 
     def test007_nic_info(self):
@@ -409,7 +407,6 @@ class SystemTests(BaseTest):
             self.remove_container()
 
         self.lg('{} ENDED'.format(self._testID))
-
 
     @parameterized.expand(['client', 'container'])
     def test009_open_close_read_write_file(self, client_type):

@@ -2,12 +2,16 @@ package containers
 
 import (
 	"fmt"
-	"github.com/zero-os/0-core/base/pm"
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/pm/stream"
+	"github.com/zero-os/0-core/core0/logger"
 )
 
 const (
@@ -181,7 +185,17 @@ func (c *container) onStart(pid int) {
 
 func (c *container) onExit(state bool) {
 	log.Debugf("Container %v exited with state %v", c.id, state)
-	c.cleanup()
+	tags := strings.Join(c.Args.Tags, ".")
+	defer c.cleanup()
+	if len(tags) == 0 {
+		return
+	}
+	logger.Current.LogRecord(&logger.LogRecord{
+		Command: fmt.Sprintf("container.%s", tags),
+		Message: &stream.Message{
+			Meta: stream.NewMeta(0, stream.ExitSuccessFlag),
+		},
+	})
 }
 
 func (c *container) cleanup() {

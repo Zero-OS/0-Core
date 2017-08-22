@@ -24,6 +24,7 @@ class ExtendedMachines(BaseTest):
         super(ExtendedMachines, self).setUp()
         self.check_g8os_connection(ExtendedMachines)
 
+    @unittest.skip('https://github.com/zero-os/0-core/issues/470')
     def test001_kvm_add_remove_nics(self):
         """ g8os-035
 
@@ -119,12 +120,12 @@ class ExtendedMachines(BaseTest):
         vm_uuid = self.get_vm_uuid(vm_name)
         l = len(self.client.kvm.info(vm_uuid)['Block'])
         self.client.kvm.attach_disk(vm_uuid, {'url': loop_dev})
-        self.assertEqual(len(self.client.kvm.info(vm_uuid)['Block']), l+1)
+        self.assertEqual(len(self.client.kvm.info(vm_uuid)['Block']), l + 1)
 
         self.lg('Attach L1 to vm1 again, vm1 should still see L1 as one vdisk')
         with self.assertRaises(RuntimeError):
             self.client.kvm.attach_disk(vm_uuid, {'url': loop_dev})
-        self.assertEqual(len(self.client.kvm.info(vm_uuid)['Block']), l+1)
+        self.assertEqual(len(self.client.kvm.info(vm_uuid)['Block']), l + 1)
 
         self.lg('Deattach L1 from vm1, should succeed')
         time.sleep(3)
@@ -134,5 +135,68 @@ class ExtendedMachines(BaseTest):
 
         self.lg('Delete (vm1)')
         self.client.kvm.destroy(vm_uuid)
+
+        self.lg('{} ENDED'.format(self._testID))
+
+    def test_003_containers_backup_restore(self):
+        """ g8os-037
+
+        *Test case for container backup and restore*
+
+        **Test Scenario:**
+
+        #. Create container C1 using small size image
+        #. Create restic repo, should succeed
+        #. Backup the container using fake repo, should fail
+        #. Backup the container C1 image, should succeed
+        #. Make full restore to the conatiner, should succeed
+        #. Check that the restored files are the same as the original backup
+        #. Restore with fake snapshot id, should fail
+        #. Create container with restored data only, and change the nics
+        """
+        self.lg('{} STARTED'.format(self._testID))
+
+        self.lg('Create container C1 using small size image')
+        C1 = self.create_container(root_url=self.smallsize_img, storage=self.storage, privileged=True)
+
+        self.lg('Create restic repo, should succeed')
+        self.client.bash('echo rooter > /password')
+        out = self.client.bash('restic init --repo /var/cache/repo --password-file /password').get()
+        self.assertEqual(out.state, 'SUCCESS')
+
+        self.lg('Backup the container using fake repo, should fail')
+        with self.assertRaises(Exception):
+            self.client.container.backup(C1, 'file:///var/cache/repo0?password=rooter').get()
+
+        self.lg('Backup the container C1 image, should succeed')
+        url = 'file:///var/cache/repo?password=rooter'
+        job = self.client.container.backup(C1, url)
+        snapshot = job.get(30)
+        self.assertIsNotNone(snapshot)
+
+        self.lg('Restore with fake snapshot id, should fail')
+
+        self.lg('Make full restore to the conatiner, should succeed')
+        res_url = url + '#{}'.format(snapshot)
+        cid = self.client.container.restore(res_url).get()
+        containers = self.client.container.list()
+        new_url = 'restic:{}'.format(res_url)
+        self.assertEqual(containers[str(cid)]['container']['arguments']['root'], new_url)
+
+        self.lg('Check that the restored files are the same as the original backup')
+        ccl = self.client.container.client(cid)
+        self.assertEqual(ccl.filesystem.list("/bin")[0]['name'], 'nbdserver')
+
+        self.lg('Restore with fake snapshot id, should fail')
+        with self.assertRaises(Exception):
+            self.client.container.restore(res_url + 'b').get()
+
+        self.lg('Create container with restored data only, and change the nics')
+        nics = [{'type': 'default'}]
+        cid2 = self.create_container(new_url, nics=nics)
+        ccl2 = self.client.container.client(cid2)
+        nic_type = self.client.container.list()[str(cid2)]['container']['arguments']['nics'][0]['type']
+        self.assertEqual(nic_type, 'default')
+        self.assertEqual(ccl2.filesystem.list("/bin")[0]['name'], 'nbdserver')
 
         self.lg('{} ENDED'.format(self._testID))

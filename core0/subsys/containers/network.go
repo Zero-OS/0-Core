@@ -228,7 +228,7 @@ func (c *container) postBridge(dev string, index int, n *Nic) error {
 func (c *container) preBridge(index int, bridge string, n *Nic, ovs Container) error {
 	link, err := netlink.LinkByName(bridge)
 	if err != nil {
-		return fmt.Errorf("bridge '%s' not found: %s", bridge, err)
+		return pm.NotFoundError(fmt.Errorf("bridge '%s' not found: %s", bridge, err))
 	}
 
 	var name string
@@ -257,7 +257,7 @@ func (c *container) preBridge(index int, bridge string, n *Nic, ovs Container) e
 	if ovs == nil {
 		//no ovs
 		if link.Type() != "bridge" {
-			return fmt.Errorf("'%s' is not a bridge", bridge)
+			return pm.BadRequestError(fmt.Errorf("'%s' is not a bridge", bridge))
 		}
 		br := link.(*netlink.Bridge)
 		if err := netlink.LinkSetMaster(veth, br); err != nil {
@@ -424,7 +424,7 @@ func (c *container) preVxlanNetwork(idx int, net *Nic) error {
 	//find the container with OVS tag
 	ovs := c.mgr.GetOneWithTags(OVSTag)
 	if ovs == nil {
-		return fmt.Errorf("ovs is needed for VXLAN network type")
+		return pm.PreconditionFailedError(fmt.Errorf("ovs is needed for VXLAN network type"))
 	}
 
 	//ensure that a bridge is available with that vlan tag.
@@ -471,7 +471,7 @@ func (c *container) preVlanNetwork(idx int, net *Nic) error {
 
 	ovs := c.mgr.GetOneWithTags(OVSTag)
 	if ovs == nil {
-		return fmt.Errorf("ovs is needed for VLAN network type")
+		return pm.PreconditionFailedError(fmt.Errorf("ovs is needed for VLAN network type"))
 	}
 
 	//ensure that a bridge is available with that vlan tag.
@@ -560,7 +560,7 @@ func (c *container) preStartNetwork(idx int, network *Nic) (err error) {
 		err = c.preBridge(idx, network.ID, network, nil)
 	case "zerotier":
 	default:
-		err = fmt.Errorf("unkown network type '%s'", network.Type)
+		err = pm.BadRequestError(fmt.Errorf("unkown network type '%s'", network.Type))
 	}
 
 	if err != nil {

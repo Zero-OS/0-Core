@@ -178,9 +178,14 @@ func (r *jobImb) run(unprivileged bool) (jobresult *JobResult) {
 	runtime.UnlockOSThread()
 
 	if err != nil {
+		var code uint32
+		if err, ok := err.(RunError); ok {
+			code = err.Code()
+		}
 		//this basically means r couldn't spawn
 		//which indicates a problem with the command itself. So restart won't
 		//do any good. It's better to terminate it immediately.
+		jobresult.Code = code
 		jobresult.Data = err.Error()
 		return jobresult
 	}
@@ -235,9 +240,16 @@ loop:
 				go hook.Message(message)
 			}
 
+			//FOR BACKWARD compatibility, we drop the code part from the message meta because watchers
+			//like watchdog and such are not expecting a code part in the meta (yet)
+			code := message.Meta.Code()
+			message.Meta = message.Meta.Base()
+			//END of BACKWARD compatibility code
+
 			//by default, all messages are forwarded to the manager for further processing.
 			r.callback(message)
 			if message.Meta.Is(stream.ExitSuccessFlag | stream.ExitErrorFlag) {
+				jobresult.Code = code
 				break loop
 			}
 		}

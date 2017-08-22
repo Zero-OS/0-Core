@@ -42,6 +42,7 @@ type JobResult struct {
 	Critical  string   `json:"critical,omitempty"`
 	Level     uint16   `json:"level"`
 	State     JobState `json:"state"`
+	Code      uint32   `json:"code"`
 	StartTime int64    `json:"starttime"`
 	Time      int64    `json:"time"`
 	Tags      Tags     `json:"tags"`
