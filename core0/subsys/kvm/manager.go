@@ -1372,7 +1372,8 @@ func (m *kvmManager) monitor(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	infos, err := conn.GetAllDomainStats(nil, libvirt.DOMAIN_STATS_STATE|libvirt.DOMAIN_STATS_VCPU|libvirt.DOMAIN_STATS_INTERFACE|libvirt.DOMAIN_STATS_BLOCK,
+	infos, err := conn.GetAllDomainStats(nil, libvirt.DOMAIN_STATS_BALLOON|libvirt.DOMAIN_STATS_STATE|
+		libvirt.DOMAIN_STATS_VCPU|libvirt.DOMAIN_STATS_INTERFACE|libvirt.DOMAIN_STATS_BLOCK,
 		libvirt.CONNECT_GET_ALL_DOMAINS_STATS_ACTIVE)
 	if err != nil {
 		return nil, err
@@ -1397,6 +1398,12 @@ func (m *kvmManager) monitor(cmd *pm.Command) (interface{}, error) {
 		for _, ifc := range domainstruct.Devices.Interfaces {
 			interfacesMap[ifc.Target.Dev] = ifc.Mac.Address
 		}
+
+		pm.Aggregate(
+			pm.AggreagteAverage,
+			"kvm.memory.max", float64(info.Balloon.Maximum) * 1024./1000000., name, // convert mem from Kib to Mb
+			pm.Tag{"type", "virt"},
+		)
 
 		for i, vcpu := range info.Vcpu {
 			nr := fmt.Sprintf("%d", i)

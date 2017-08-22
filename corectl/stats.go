@@ -5,6 +5,7 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/zero-os/0-core/base/pm"
+	"fmt"
 )
 
 func statistics(t Transport, c *cli.Context) {
@@ -38,5 +39,5 @@ func statistics(t Transport, c *cli.Context) {
 	}
 
 	response.ValidateResultOrExit()
-	response.PrintYaml()
+	fmt.Println(response.Data)
 }
