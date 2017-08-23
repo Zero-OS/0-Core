@@ -364,7 +364,26 @@ func (_ *ipmgr) routeDel(cmd *pm.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	return nil, netlink.RouteDel(route)
+	filter := netlink.RT_FILTER_OIF
+	if route.Dst != nil {
+		filter |= netlink.RT_FILTER_DST
+	}
+	if len(route.Gw) != 0 {
+		filter |= netlink.RT_FILTER_GW
+	}
+
+	routes, err := netlink.RouteListFiltered(netlink.FAMILY_ALL, route, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(routes) == 0 {
+		return nil, fmt.Errorf("route not found")
+	} else if len(routes) > 1 {
+		return nil, fmt.Errorf("ambiguous route matches multiple routes")
+	}
+
+	return nil, netlink.RouteDel(&routes[0])
 }
 
 func (_ *ipmgr) routeList(cmd *pm.Command) (interface{}, error) {
