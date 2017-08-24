@@ -3,7 +3,6 @@ package main
 import (
 	"strings"
 
-	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/zero-os/0-core/base/pm"
 )
