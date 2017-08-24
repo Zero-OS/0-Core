@@ -39,5 +39,5 @@ func statistics(t Transport, c *cli.Context) {
 	}
 
 	response.ValidateResultOrExit()
-	fmt.Println(response.Data)
+	response.PrintYaml()
 }
