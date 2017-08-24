@@ -1401,7 +1401,7 @@ func (m *kvmManager) monitor(cmd *pm.Command) (interface{}, error) {
 
 		pm.Aggregate(
 			pm.AggreagteAverage,
-			"kvm.memory.max", float64(info.Balloon.Maximum) * 1024./1000000., name, // convert mem from Kib to Mb
+			"kvm.memory.max", float64(info.Balloon.Maximum)*1024./1000000., name, // convert mem from Kib to Mb
 			pm.Tag{"type", "virt"},
 		)
 
