@@ -1000,7 +1000,8 @@ func (m *kvmManager) detachDevice(uuid, xml string) error {
 	if err != nil {
 		return fmt.Errorf("couldn't find domain with the uuid %s", uuid)
 	}
-	if err := domain.DetachDeviceFlags(xml, libvirt.DOMAIN_DEVICE_MODIFY_LIVE); err != nil {
+
+	if err := domain.DetachDeviceFlags(xml, libvirt.DOMAIN_DEVICE_MODIFY_FORCE); err != nil {
 		return fmt.Errorf("failed to attach device: %s", err)
 	}
 
