@@ -4,6 +4,7 @@ import unittest
 from nose_parameterized import parameterized
 import os
 import io
+from random import randint
 
 
 class SystemTests(BaseTest):
@@ -656,5 +657,243 @@ class SystemTests(BaseTest):
         self.lg('List the job, shouldn\'t be found')
         id = self.get_job_id(cmd, match)
         self.assertIsNone(id)
+
+        self.lg('{} ENDED'.format(self._testID))
+
+    def test012_add_delete_list_addr(self):
+
+        """ g8os-038
+        *Test case for testing adding, deleteing and listing ip addresses*
+
+        **Test Scenario:**
+        #. Create a bridge and get its interface/Link L1
+        #. Add ip for non existing link, should fail
+        #. Add invalid cidr address to L1, should fail
+        #. Add ip1 for link L1, should succeed
+        #. List ips of that link, ip1 should be there
+        #. Delete the added ip (ip1) of link L1, should succeed
+        #. Delete ip1 again, should fail
+        """
+
+        self.lg('{} STARTED'.format(self._testID))
+
+        self.lg('Create a bridge and get its interface/Link L1')
+        L1 = self.rand_str()
+        self.client.bridge.create(L1)
+
+        self.lg('Add ip for non existing link, should fail')
+        cidr = '192.168.34.1/16'
+        with self.assertRaises(RuntimeError):
+            self.client.ip.addr.add(self.rand_str(), cidr)
+
+        self.lg('Add invalid cidr address to L1, should fail')
+        with self.assertRaises(RuntimeError):
+            self.client.ip.addr.add(self.rand_str(), '192.168.34.1')
+
+        self.lg('Add ip1 for link L1, should succeed')
+        self.client.ip.addr.add(L1, cidr)
+
+        self.lg('Add ip1 for link L1, should fail')
+        with self.assertRaises(RuntimeError):
+            self.client.ip.addr.add(L1, cidr)
+
+        self.lg('List ips of that link, ip1 should be there')
+        self.assertEqual(self.client.ip.addr.list(L1)[0], cidr)
+
+        self.lg('Delete the added ip (ip1) of link L1, should succeed')
+        self.client.ip.addr.delete(L1, cidr)
+        self.assertNotEqual(self.client.ip.addr.list(L1)[0], cidr)
+
+        self.lg('Delete ip1 again, should fail')
+        with self.assertRaises(RuntimeError):
+            self.client.ip.addr.delete(L1, cidr)
+
+        self.lg('{} ENDED'.format(self._testID))
+
+    def test013_link_up_down_list_rename(self):
+
+        """ g8os-039
+        *Test case for testing adding, deleteing and listing ip addresses*
+
+        **Test Scenario:**
+        #. Create a bridge and get its interface/Link L1
+        #. Set the interface L1 down, should succeed
+        #. Set the interface L1 up , should succeed
+        #. Rename the interface L1 while it is up, should fail
+        #. Set the interface L1 down then rename it, should succeed
+        """
+
+        self.lg('{} STARTED'.format(self._testID))
+
+        self.lg('Create a bridge and get its interface/Link L1')
+        L1 = self.rand_str()
+        self.client.bridge.create(L1)
+
+        self.lg('Set the interface L1 down, should succeed')
+        self.client.ip.link.down(L1)
+        self.client.ip.link.list()[-1]['up']
+
+        self.lg('Set the interface L1 up , should succeed')
+        self.client.ip.link.up(L1)
+        self.client.ip.link.list()[-1]['up']
+
+        self.lg('Rename the interface L1 while it is up, should fail')
+        new_L1 = self.rand_str()
+        with self.assertRaises(RuntimeError):
+            self.client.ip.link.name(L1, new_L1)
+
+        self.lg('Set the interface L1 down then rename it, should succeed')
+        self.client.ip.link.down(L1)
+        self.client.ip.link.name(L1, new_L1)
+        self.assertEqual(self.client.ip.link.list()[-1]['name'], new_L1)
+
+        self.lg('{} ENDED'.format(self._testID))
+
+    def test014_add_delete_interface_bridge(self):
+
+        """ g8os-040
+        *Test case for testing adding, deleteing bridges and their interfaces*
+
+        **Test Scenario:**
+        #. Add a bridge B1, should succeed
+        #. Add interface to B1, should succeed
+        #. Delete the added interface , should succeed
+        #. Delete added interface again, should fail
+        #. Delete a fake interface, should fail
+        #. Delete the bridge, should succeed
+        #. Delete the bridge again, should fail
+        """
+
+        self.lg('{} STARTED'.format(self._testID))
+
+        self.lg('Add a bridge B1, should succeed')
+        br = self.rand_str()
+        self.client.ip.bridge.add(br)
+        self.assertEqual(self.client.bridge.list()[-1], br)
+
+        self.lg('Add interface to B1, should succeed')
+        l = self.client.ip.link.list()
+        inf = [i['name'] for i in l if i['name'].startswith('e') and i['name'].endswith('1')][0]
+        self.client.ip.bridge.addif(br, inf)
+        out = self.client.bash('brctl show | grep {} | grep -F -o {}'.format(br, inf))
+        self.assertEqual(self.stdout(out), inf)
+
+        self.lg('Delete the added interface , should succeed')
+        self.client.ip.bridge.delif(br, inf)
+        out = self.client.bash('brctl show | grep {} | grep -F -o {}'.format(br, inf))
+        self.assertEqual(self.stdout(out), '')
+
+        self.lg('Delete added interface again, should fail')
+        with self.assertRaises(RuntimeError):
+            self.client.ip.bridge.delif(br, inf)
+
+        self.lg('Delete a fake interface, should fail')
+        with self.assertRaises(RuntimeError):
+            self.client.ip.bridge.delif(br, self.rand_str())
+
+        self.lg('Delete the bridge, should succeed')
+        self.client.ip.bridge.delete(br)
+        self.assertNotIn(br, self.client.bridge.list())
+
+        self.lg('Delete the bridge again, should fail')
+        with self.assertRaises(RuntimeError):
+            self.client.ip.bridge.delete(br)
+
+        self.lg('{} ENDED'.format(self._testID))
+
+    @unittest.skip('https://github.com/zero-os/0-core/issues/474')
+    def test015_add_delete_list_route(self):
+
+        """ g8os-041
+        *Test case for testing adding, deleteing and listing routes*
+
+        **Test Scenario:**
+        #. list all routes then get the etho route R1, should succeed
+        #. Delete route R1, should succeed
+        #. Delete route R1 again, should fail
+        #. Delete route for non existing link, should fail
+        #. Add route R1, should succeed
+        #. Add route R1 again , should fail
+        #. Add route for non existing link, should fail
+        """
+
+        self.lg('{} STARTED'.format(self._testID))
+
+        self.lg('list all routes then get the etho route, should succeed')
+        l = self.client.ip.route.list()
+        new_l = [i for i in l if i['dst'] != '' and ':' not in i['dst'] and i['dev'].startswith('e')]
+
+        self.lg('Delete route R1, should succeed')
+        self.client.ip.route.delete(new_l[0]['dev'], new_l[0]['dst'])
+
+        self.lg('Delete route R1 again, should fail')
+        with self.assertRaises(RuntimeError):
+            self.client.ip.route.delete(new_l[0]['dev'], new_l[0]['dst'])
+
+        self.lg('Delete route for non existing link, should fail')
+        with self.assertRaises(RuntimeError):
+            self.client.ip.route.delete(self.rand_str(), new_l[0]['dst'])
+
+        self.lg('Add route R1, should succeed')
+        self.client.ip.route.add(new_l[0]['dev'], new_l[0]['dst'])
+
+        self.lg('Add route R1 again, should fail')
+        with self.assertRaises(RuntimeError):
+            self.client.ip.route.add(new_l[0]['dev'], new_l[0]['dst'])
+
+        self.lg('Add route for non existing link, should fail')
+        with self.assertRaises(RuntimeError):
+            self.client.ip.route.add(self.rand_str(), new_l[0]['dst'])
+
+        self.lg('{} ENDED'.format(self._testID))
+
+    @unittest.skip('https://github.com/zero-os/0-core/issues/475')
+    def test016_open_drop_list_nft(self):
+
+        """ g8os-042
+        *Test case for testing opening, droping ports and listing rules*
+
+        **Test Scenario:**
+        #. Open ssh port, should succeed
+        #. List the ssh port and check if the rule exist, should succeed
+        #. Open ssh port again should fail
+        #. Drop the ssh port, should succeed
+        #. Drop the ssh port again, should fail
+        #. Open fake port which is out of range, should fail
+        #. List the ports and make sure the fake port is not there, should succeed
+        """
+
+        self.lg('{} STARTED'.format(self._testID))
+
+        self.lg('Open ssh port, should succeed')
+        self.client.nft.open_port(22)
+        out = self.client.bash('nft list ruleset -a | grep -F -o "ssh accept"')
+        self.assertEqual(self.stdout(out), 'ssh accept')
+
+        self.lg('List the ssh port and check if the rule exist, should succeed')
+        self.assertIn('tcp dport 22 accept', client.nft.list())
+        self.assertEqual(self.client.nft.rule_exists(22), True)
+
+        self.lg('Open ssh port again should fail')
+        with self.assertRaises(RuntimeError):
+            self.client.nft.open_port(22)
+
+        self.lg('Drop the ssh port, should succeed')
+        self.client.nft.drop_port(22)
+        out = self.client.bash('nft list ruleset -a | grep -F -o "ssh accept"')
+        self.assertEqual(self.stdout(out), '')
+
+        self.lg('Drop the ssh port again, should fail')
+        with self.assertRaises(RuntimeError):
+            self.client.nft.drop_port(22)
+
+        self.lg('Open fake port which is out of range, should fail')
+        port = randint(666666,777777)
+        with self.assertRaises(RuntimeError):
+            self.client.nft.open_port(port)
+
+        self.lg('List the ports and make sure the fake port is not there, should succeed')
+        self.assertIn('tcp dport {} accept'.format(port), self.client.nft.list())
+        self.assertEqual(self.client.nft.rule_exists(port), False)
 
         self.lg('{} ENDED'.format(self._testID))

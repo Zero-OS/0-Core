@@ -47,7 +47,7 @@ def delete_device(manager):
 def mount_disks(config):
     target_ip = config['main']['target_ip']
     time.sleep(10)
-    cl = client.Client(target_ip)
+    cl = client.Client(target_ip, timeout=300)
     cl.timeout = 100
     cl.btrfs.create('storage', ['/dev/sda'])
     cl.disk.mount('/dev/sda', '/var/cache', options=[""])
