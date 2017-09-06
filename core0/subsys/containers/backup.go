@@ -249,6 +249,7 @@ func (m *containerManager) restore(cmd *pm.Command) (interface{}, error) {
 	//set restore url
 	//rewrite the URL to use restic prefix. now we can call create.
 	cargs.Root = fmt.Sprintf("restic:%s", args.URL)
+	cargs.Tags = cmd.Tags //override original tags
 
 	cont, err := m.createContainer(cargs)
 	if err != nil {

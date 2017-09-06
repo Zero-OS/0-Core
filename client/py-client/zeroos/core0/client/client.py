@@ -1195,7 +1195,7 @@ class ContainerManager:
 
         return JSONResponse(self._client.raw('corex.backup', args))
 
-    def restore(self, url):
+    def restore(self, url, tags=None):
         """
         Full restore of a container backup. This restore method will recreate
         an exact copy of the backedup container (including same network setup, and other
@@ -1207,13 +1207,14 @@ class ContainerManager:
         :param url: Snapshot url, the snapshot ID is passed as a url fragment
                     examples:
                         `file:///path/to/restic/repo?password=<password>#<snapshot-id>`
+        :param tags: this will always override the original container tags (even if not set)
         :return:
         """
         args = {
             'url': url,
         }
 
-        return JSONResponse(self._client.raw('corex.restore', args))
+        return JSONResponse(self._client.raw('corex.restore', args, tags=tags))
 
 
 class IPManager:
