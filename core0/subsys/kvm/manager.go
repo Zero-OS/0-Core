@@ -1373,8 +1373,9 @@ func (m *kvmManager) monitor(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	infos, err := conn.GetAllDomainStats(nil, libvirt.DOMAIN_STATS_BALLOON|libvirt.DOMAIN_STATS_STATE|
-		libvirt.DOMAIN_STATS_VCPU|libvirt.DOMAIN_STATS_INTERFACE|libvirt.DOMAIN_STATS_BLOCK,
+	infos, err := conn.GetAllDomainStats(nil, libvirt.DOMAIN_STATS_STATE|
+		libvirt.DOMAIN_STATS_VCPU|libvirt.DOMAIN_STATS_INTERFACE|
+		libvirt.DOMAIN_STATS_BLOCK,
 		libvirt.CONNECT_GET_ALL_DOMAINS_STATS_ACTIVE)
 	if err != nil {
 		return nil, err
@@ -1400,15 +1401,19 @@ func (m *kvmManager) monitor(cmd *pm.Command) (interface{}, error) {
 			interfacesMap[ifc.Target.Dev] = ifc.Mac.Address
 		}
 
+		domInfo, err := info.Domain.GetInfo()
+		if err != nil {
+			return nil, fmt.Errorf("cannot get domain info: %v", err)
+		}
 		pm.Aggregate(
 			pm.AggreagteAverage,
-			"kvm.memory.max", float64(info.Balloon.Maximum)*1024./1000000., name, // convert mem from Kib to Mb
+			"kvm.memory.max", float64(domInfo.MaxMem)/1000., name, // convert mem from Kib to Mb
 			pm.Tag{"type", "virt"},
 		)
 
 		pm.Aggregate(
 			pm.AggreagteDifference,
-			"kvm.cpu.time", float64(info.Cpu.Time)/1000000000., name,
+			"kvm.cpu.time", float64(domInfo.CpuTime)/1000000000., name, // convert time from nano to seconds
 			pm.Tag{"type", "virt"},
 		)
 
