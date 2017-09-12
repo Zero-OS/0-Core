@@ -8,9 +8,9 @@ pip install 0-core-client
 ## How to use
 
 ```python
-from zeroos.core0 import client
+from zeroos.core0.client import Client
 
-cl = client.Client(host='0-core-host-address')
+cl = Client(host='<0-core-host-address>', password='<JWT>')
 
 #validate that core0 is reachable
 print(cl.ping())

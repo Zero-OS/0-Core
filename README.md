@@ -33,12 +33,12 @@ docker logs -f core
 
 ## Using the Python client
 
-Before using the client make sure the `./pyclient` is in your `PYTHONPATH`.
+Before using the client make sure the `./client/py-client` is in your `PYTHONPATH`.
 
 ```python
-import client
+from client import Client
 
-cl = client.Client(host='<IP address of Docker container running Zero-OS>')
+cl = Client(host='<IP address of Docker container running Zero-OS>', password='<JWT>')
 
 #validate that core0 is reachable
 print(cl.ping())
