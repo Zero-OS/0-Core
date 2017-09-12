@@ -66,7 +66,8 @@ func init() {
 
 	//we don't use signal.Ignore because the Ignore is actually inherited by children
 	//even after execve which makes all child process not exit when u send them a sigterm or sighup
-	signal.Notify(make(chan os.Signal), syscall.SIGABRT, syscall.SIGHUP, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGQUIT)
+	signal.Notify(make(chan os.Signal), syscall.SIGABRT, syscall.SIGHUP, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGQUIT,
+		syscall.SIGINT, syscall.SIGSTOP)
 }
 
 func Splash() {
