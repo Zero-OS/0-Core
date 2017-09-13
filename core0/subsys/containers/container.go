@@ -32,12 +32,13 @@ type container struct {
 	Root   string                   `json:"root"`
 	PID    int                      `json:"pid"`
 
-	zt    pm.Job
 	zterr error
 	zto   sync.Once
 
 	channel     pm.Channel
 	forwardChan chan *pm.Command
+
+	terminating bool
 }
 
 func newContainer(mgr *containerManager, id uint16, args ContainerCreateArguments) *container {
@@ -184,6 +185,7 @@ func (c *container) onStart(pid int) {
 }
 
 func (c *container) onExit(state bool) {
+	c.terminating = true
 	log.Debugf("Container %v exited with state %v", c.id, state)
 	tags := strings.Join(c.Args.Tags, ".")
 	defer c.cleanup()

@@ -35,6 +35,83 @@ func (c *container) zerotierHome() string {
 	return path.Join(BackendBaseDir, c.name(), "zerotier")
 }
 
+func (c *container) zerotierID() string {
+	return fmt.Sprintf("container-%d-zerotier", c.id)
+}
+
+func (c *container) startZerotier() (pm.Job, error) {
+	home := c.zerotierHome()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var err error
+	hook := &pm.PIDHook{
+		Action: func(_ int) {
+			log.Info("checking for zt availability")
+			for i := 0; i < 10; i++ {
+				_, err = pm.System("ip", "netns", "exec", fmt.Sprint(c.ID()), "zerotier-cli", fmt.Sprintf("-D%s", home), "listnetworks")
+				if err == nil {
+					break
+				}
+				<-time.After(1 * time.Second)
+			}
+
+			cancel()
+		},
+	}
+
+	exit := &pm.ExitHook{
+		Action: func(s bool) {
+			err = fmt.Errorf("zerotier for container '%d' exited with '%v'", c.ID(), s)
+			cancel()
+		},
+	}
+
+	var job pm.Job
+	job, err = pm.Run(&pm.Command{
+		ID:      c.zerotierID(),
+		Command: pm.CommandSystem,
+		Arguments: pm.MustArguments(
+			pm.SystemCommandArguments{
+				Name: "ip",
+				Args: []string{
+					"netns", "exec", fmt.Sprint(c.ID()), "zerotier-one", "-p0", home,
+				},
+			},
+		),
+	}, hook, exit)
+
+	if err != nil {
+		return nil, err
+	}
+
+	//wait for it to start
+	select {
+	case <-ctx.Done():
+	case <-time.After(120 * time.Second):
+		return nil, fmt.Errorf("timedout waiting for zt daemon to start")
+	}
+
+	return job, nil
+}
+
+func (c *container) watchZerotier(job pm.Job) {
+	for {
+		job.Wait()
+		if c.terminating {
+			return
+		}
+
+		var err error
+		job, err = c.startZerotier()
+		if err != nil {
+			log.Errorf("failed to restart zerotier: %s", err)
+			c.zterr = err
+			<-time.After(1 * time.Second)
+		}
+	}
+}
+
 func (c *container) zerotierDaemon() error {
 	c.zto.Do(func() {
 		home := c.zerotierHome()
@@ -53,59 +130,14 @@ func (c *container) zerotierDaemon() error {
 			}
 		}
 
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		hook := &pm.PIDHook{
-			Action: func(_ int) {
-				log.Info("checking for zt availability")
-				var err error
-				for i := 0; i < 10; i++ {
-					_, err = pm.System("ip", "netns", "exec", fmt.Sprint(c.ID()), "zerotier-cli", fmt.Sprintf("-D%s", home), "listnetworks")
-					if err == nil {
-						break
-					}
-					<-time.After(1 * time.Second)
-				}
-
-				if err != nil {
-					c.zterr = fmt.Errorf("daemon couldn't start: %s", err)
-				}
-
-				cancel()
-			},
-		}
-
-		exit := &pm.ExitHook{
-			Action: func(s bool) {
-				c.zterr = fmt.Errorf("zerotier for container '%d' exited with '%v'", c.ID(), s)
-				cancel()
-			},
-		}
-
-		c.zt, c.zterr = pm.Run(&pm.Command{
-			ID:      uuid.New(),
-			Command: pm.CommandSystem,
-			Arguments: pm.MustArguments(
-				pm.SystemCommandArguments{
-					Name: "ip",
-					Args: []string{
-						"netns", "exec", fmt.Sprint(c.ID()), "zerotier-one", "-p0", home,
-					},
-				},
-			),
-		}, hook, exit)
-
+		var job pm.Job
+		job, c.zterr = c.startZerotier()
 		if c.zterr != nil {
-			return
+			log.Errorf("error while starting zerotier daemon for container: %d (%s): re-spawning", c.id, c.zterr)
+			job.Signal(syscall.SIGTERM)
 		}
-
-		//wait for it to start
-		select {
-		case <-ctx.Done():
-		case <-time.After(120 * time.Second):
-			c.zterr = fmt.Errorf("timedout waiting for zt daemon to start")
-		}
+		//start the watcher anyway
+		go c.watchZerotier(job)
 	})
 
 	return c.zterr
@@ -629,9 +661,7 @@ func (c *container) destroyNetwork() {
 		}
 	}
 
-	if c.zt != nil {
-		c.zt.Signal(syscall.SIGTERM)
-	}
+	pm.Kill(c.zerotierID())
 
 	//clean up namespace
 	if c.PID > 0 {
