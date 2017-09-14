@@ -31,18 +31,18 @@ def delete_device(manager):
         devices = manager.list_devices(project.id)
         for dev in devices:
             if dev.hostname == hostname:
-                device_id = dev.id
-                params = {
-                         "hostname": hostname,
-                         "description": "string",
-                         "billing_cycle": "hourly",
-                         "userdata": "",
-                         "locked": False,
-                         "tags": []
-                         }
-                if device_id:
-                    manager.call_api('devices/%s' % device_id, type='DELETE', params=params)
-
+                print('%s is about to be deleted' % hostname)
+                for i in range(5):
+                    try:
+                        manager.call_api('devices/%s' % dev.id, type='DELETE')
+                        print("machine has been deleted successfully")
+                        break
+                    except Exception as e:
+                        print(e.args)
+                        print(e.cause)
+                        continue
+                else:
+                    print("%s hasn't been deleted" % hostname)
 
 def mount_disks(config):
     target_ip = config['main']['target_ip']
