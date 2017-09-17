@@ -2,7 +2,7 @@
 ## Install
 
 ```bash
-pip install 0-core-client
+pip3 install 0-core-client
 ```
 
 ## How to use

@@ -30,6 +30,23 @@ To follow the container logs do:
 ```bash
 docker logs -f core
 ```
+## Creating a JWT token from itsyou.online.
+
+Login to your profile at https://itsyou.online and from the settings ( gear icon ) create an API key and copy the values. 
+
+- Make sure you are granted acccess to ```greenitglobe.development.orchestrators``` organization at IYO.
+
+From command line
+```
+export CLIENT_ID='<your client id>'
+export CLIENT_SECRET='<your secret>'
+export ORG=greenitglobe.development.orchestrators
+export VALIDITY_IN_SECONDS=3600
+export JWT=`curl -s -X POST "https://itsyou.online/v1/oauth/access_token?grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}&response_type=id_token&scope=user:memberof:${ORG}&validity=${VALIDITY_IN_SECONDS}"`
+echo $JWT
+```
+Simply replace the CLIENT_ID and CLIENT_SECRET values with your own. 
+
 
 ## Using the Python client
 

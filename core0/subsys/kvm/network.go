@@ -8,11 +8,12 @@ import (
 	"strconv"
 	"strings"
 
+	"syscall"
+
 	"github.com/libvirt/libvirt-go"
 	"github.com/pborman/uuid"
 	"github.com/vishvananda/netlink"
 	"github.com/zero-os/0-core/base/pm"
-	"syscall"
 )
 
 const (
@@ -248,7 +249,7 @@ func (m *kvmManager) prepareDefaultNetwork(uuid string, seq uint16, port map[int
 func (m *kvmManager) prepareBridgeNetwork(nic *Nic) (*InterfaceDevice, error) {
 	_, err := netlink.LinkByName(nic.ID)
 	if err != nil {
-		return nil, fmt.Errorf("bridge '%s' not found", nic.ID)
+		return nil, pm.BadRequestError(fmt.Errorf("bridge '%s' not found", nic.ID))
 	}
 
 	inf := InterfaceDevice{

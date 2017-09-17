@@ -8,8 +8,6 @@ matrix:
         - bash tests/run_tests.sh run
       after_script:
         - bash tests/run_tests.sh after
-      after_failure:
-        - bash tests/run_tests.sh after
     
     - language: go
       sudo: true

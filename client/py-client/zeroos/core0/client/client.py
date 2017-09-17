@@ -20,14 +20,20 @@ logger = logging.getLogger('g8core')
 class JobNotFoundError(Exception):
     pass
 
-class ResultError(Exception):
+
+class ResultError(RuntimeError):
     def __init__(self, msg, code=0):
         super().__init__(msg)
+        self._message = msg
         self._code = code
 
     @property
     def code(self):
         return self._code
+
+    @property
+    def message(self):
+        return self._message
 
 
 class Return:
@@ -749,7 +755,10 @@ class BaseClient:
 
         result = response.get()
         if result.state != 'SUCCESS':
-            raise RuntimeError('invalid response: %s' % result.state, result)
+            if not result.code:
+                result.code = 500
+            raise ResultError(msg='%s' % result.data, code=result.code)
+                
 
         return result
 
@@ -771,13 +780,7 @@ class BaseClient:
         or not responsive.
         :return:
         """
-        response = self.raw('core.ping', {})
-
-        result = response.get()
-        if result.state != 'SUCCESS':
-            raise RuntimeError('invalid response: %s' % result.state)
-
-        return json.loads(result.data)
+        return self.json('core.ping', {})
 
     def system(self, command, dir='', stdin='', env=None, queue=None, max_time=None, stream=False, tags=None, id=None):
         """
