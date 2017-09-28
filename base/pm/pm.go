@@ -444,6 +444,7 @@ func callback(cmd *Command, result *JobResult) {
 
 //System is a wrapper around core.system
 func System(bin string, args ...string) (*JobResult, error) {
+	var output StreamHook
 	runner, err := Run(&Command{
 		ID:      uuid.New(),
 		Command: CommandSystem,
@@ -453,7 +454,7 @@ func System(bin string, args ...string) (*JobResult, error) {
 				Args: args,
 			},
 		),
-	})
+	}, &output)
 
 	if err != nil {
 		return nil, err
@@ -463,6 +464,13 @@ func System(bin string, args ...string) (*JobResult, error) {
 	if job.State != StateSuccess {
 		return job, Error(job.Code, fmt.Errorf("(%s): %v", job.State, job.Streams))
 	}
+
+	//to make sure job has all the output we update the streams on the job
+	//object from the stream hook, otherwise we can get a partial output
+	//due to job tendency to save memory by only buffering the last 100 lines of output
+
+	job.Streams[0] = output.Stdout.String()
+	job.Streams[1] = output.Stderr.String()
 
 	return job, nil
 }

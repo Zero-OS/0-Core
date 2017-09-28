@@ -1,6 +1,7 @@
 package pm
 
 import (
+	"bytes"
 	"github.com/zero-os/0-core/base/pm/stream"
 	"regexp"
 	"sync"
@@ -97,4 +98,27 @@ func (h *MatchHook) Message(msg *stream.Message) {
 			h.p = nil
 		})
 	}
+}
+
+type StreamHook struct {
+	NOOPHook
+	Stdout bytes.Buffer
+	Stderr bytes.Buffer
+}
+
+func (h *StreamHook) append(buf *bytes.Buffer, msg *stream.Message) {
+	if buf.Len() > 0 {
+		buf.WriteByte('\n')
+	}
+	buf.WriteString(msg.Message)
+}
+
+func (h *StreamHook) Message(msg *stream.Message) {
+	if msg.Meta.Level() == stream.LevelStdout {
+		h.append(&h.Stdout, msg)
+	} else if msg.Meta.Level() == stream.LevelStderr {
+		h.append(&h.Stderr, msg)
+	}
+
+	//ignore otherwise.
 }
