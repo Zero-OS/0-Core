@@ -53,7 +53,7 @@ type Stats struct {
 	Operation Operation `json:"operation"`
 	Key       string    `json:"key"`
 	Value     float64   `json:"value"`
-	Tags      string    `json:"tags"`
+	Tags      []pm.Tag  `json:"tags"`
 }
 
 type redisStatsBuffer struct {
