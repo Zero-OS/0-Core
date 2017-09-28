@@ -237,7 +237,7 @@ loop:
 			}
 
 			for _, hook := range r.hooks {
-				go hook.Message(message)
+				hook.Message(message)
 			}
 
 			//FOR BACKWARD compatibility, we drop the code part from the message meta because watchers

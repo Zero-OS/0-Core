@@ -161,15 +161,17 @@ class ExtendedMachines(BaseTest):
 
         self.lg('Create restic repo, should succeed')
         self.client.bash('echo rooter > /password')
-        out = self.client.bash('restic init --repo /var/cache/repo --password-file /password').get()
+        repo = 'repo' + str(randint(1, 500))
+        out = self.client.bash('restic init --repo /var/cache/%s --password-file /password'% repo).get()
         self.assertEqual(out.state, 'SUCCESS')
 
         self.lg('Backup the container using fake repo, should fail')
+        fake_repo = 'fake_repo' + str(randint(500, 1000))
         with self.assertRaises(Exception):
-            self.client.container.backup(C1, 'file:///var/cache/repo0?password=rooter').get()
+            self.client.container.backup(C1, 'file:///var/cache/%s?password=rooter'% fake_repo).get()
 
         self.lg('Backup the container C1 image, should succeed')
-        url = 'file:///var/cache/repo?password=rooter'
+        url = 'file:///var/cache/%s?password=rooter' % repo
         job = self.client.container.backup(C1, url)
         snapshot = job.get(30)
         self.assertIsNotNone(snapshot)
