@@ -3,14 +3,8 @@ package transport
 import (
 	"fmt"
 
-	"encoding/json"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/siddontang/ledisdb/config"
-	"time"
-)
-
-const (
-	maxJWTDuration int64 = 3600
 )
 
 func AuthMethod(organization string, key string) (config.AuthMethod, error) {
