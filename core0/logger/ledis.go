@@ -14,13 +14,15 @@ const (
 	MaxRedisQueueSize = 1000
 )
 
+type levels map[uint16]struct{}
+
 // redisLogger send Message to redis queue
 type redisLogger struct {
 	sink     *transport.Sink
 	defaults []uint16
 	size     int64
 	buffer   *stream.Buffer
-	queues   map[string]struct{}
+	queues   map[string]levels
 	m        sync.RWMutex
 
 	ch chan *LogRecord
@@ -37,7 +39,7 @@ func NewLedisLogger(sink *transport.Sink, defaults []uint16, size int64) Logger 
 		defaults: defaults,
 		size:     size,
 		buffer:   stream.NewBuffer(MaxStreamRedisQueueSize),
-		queues:   make(map[string]struct{}),
+		queues:   make(map[string]levels),
 		ch:       make(chan *LogRecord, MaxRedisQueueSize),
 	}
 
@@ -85,7 +87,8 @@ func (l *redisLogger) unSubscribe(cmd *pm.Command) (interface{}, error) {
 
 func (l *redisLogger) subscribe(cmd *pm.Command) (interface{}, error) {
 	var args struct {
-		Queue string `json:"queue"`
+		Queue  string   `json:"queue"`
+		Levels []uint16 `json:"levels"`
 	}
 
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
@@ -103,7 +106,7 @@ func (l *redisLogger) subscribe(cmd *pm.Command) (interface{}, error) {
 		//so we run this in go routine, so the caller
 		//can start reading logs immediately and he doesn't have
 		//to wait until all logs are copied.
-		if err := l.Subscribe(args.Queue); err != nil {
+		if err := l.Subscribe(args.Queue, args.Levels); err != nil {
 			log.Errorf("failed to subscribe to queue: %s", err)
 		}
 	}()
@@ -111,18 +114,34 @@ func (l *redisLogger) subscribe(cmd *pm.Command) (interface{}, error) {
 	return args.Queue, nil
 }
 
-func (l *redisLogger) Subscribe(queue string) error {
+func (l *redisLogger) Subscribe(queue string, lvls []uint16) error {
 	l.m.Lock()
 	defer l.m.Unlock()
 	if _, ok := l.queues[queue]; ok {
 		return nil
 	}
 
-	l.queues[queue] = struct{}{}
+	lmap := levels{}
+	for _, lvl := range lvls {
+		lmap[lvl] = struct{}{}
+	}
+
+	l.queues[queue] = lmap
 
 	//flush backlog
 	for v := l.buffer.Front(); v != nil; v = v.Next() {
-		bytes, err := json.Marshal(v.Value)
+		record := v.Value.(*LogRecord)
+		meta := record.Message.Meta
+		if len(lmap) > 0 {
+			//only let go messages with requested log level
+			//and all EOF messages.
+			if _, ok := lmap[meta.Level()]; !ok &&
+				!meta.Is(stream.ExitSuccessFlag|stream.ExitErrorFlag) {
+				continue
+			}
+		}
+
+		bytes, err := json.Marshal(record)
 		if err != nil {
 			continue
 		}
@@ -152,7 +171,15 @@ func (l *redisLogger) pushQueues(record *LogRecord) error {
 		return err
 	}
 
-	for queue := range l.queues {
+	meta := record.Message.Meta
+	for queue, lvls := range l.queues {
+		if len(lvls) > 0 {
+			if _, ok := lvls[meta.Level()]; !ok &&
+				!meta.Is(stream.ExitSuccessFlag|stream.ExitErrorFlag) {
+				continue
+			}
+		}
+
 		if _, err := l.sink.RPush([]byte(queue), bytes); err != nil {
 			return err
 		}

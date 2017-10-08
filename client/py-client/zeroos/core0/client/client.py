@@ -2413,6 +2413,11 @@ class Logger:
         'level': typchk.Enum("CRITICAL", "ERROR", "WARNING", "NOTICE", "INFO", "DEBUG"),
     })
 
+    _subscribe_chk = typchk.Checker({
+        'queue': str,
+        'levels': [int],
+    })
+
     def __init__(self, client):
         self._client = client
 
@@ -2436,7 +2441,7 @@ class Logger:
         """
         return self._client.json('logger.reopen', {})
 
-    def subscribe(self, queue=None):
+    def subscribe(self, queue=None, *levels):
         """
         Subscribe to the aggregated log stream. On subscribe a ledis queue will be fed with all running processes
         logs. Always use the returned queue name from this method, even if u specified the queue name to use
@@ -2445,10 +2450,17 @@ class Logger:
         read from the same queue.
 
         :param queue: Your unique queue name, otherwise, a one will get generated for your
+        :param levels:
         :return: queue name to pull from
         """
+        args = {
+            'queue': queue,
+            'levels': list(levels),
+        }
 
-        return self._client.json('logger.subscribe', {'queue': queue})
+        self._subscribe_chk.check(args)
+
+        return self._client.json('logger.subscribe', args)
 
     def unsubscribe(self, queue):
         """
