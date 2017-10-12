@@ -130,7 +130,10 @@ func (l *redisLogger) Subscribe(queue string, lvls []uint16) error {
 
 	//flush backlog
 	for v := l.buffer.Front(); v != nil; v = v.Next() {
-		record := v.Value.(*LogRecord)
+		record, ok := v.Value.(*LogRecord)
+		if !ok {
+			return fmt.Errorf("log record in buffer is of wrong type: %v", v.Value)
+		}
 		meta := record.Message.Meta
 		if len(lmap) > 0 {
 			//only let go messages with requested log level
