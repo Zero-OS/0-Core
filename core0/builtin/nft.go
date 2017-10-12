@@ -115,7 +115,8 @@ func (b *nftMgr) dropPort(cmd *pm.Command) (interface{}, error) {
 	defer b.m.Unlock()
 
 	if !b.exists(rule) {
-		return nil, fmt.Errorf("rule does not exist")
+		// nothing to do, just return
+		return nil, nil
 	}
 
 	n := nft.Nft{
