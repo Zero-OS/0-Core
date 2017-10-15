@@ -1262,6 +1262,20 @@ func (m *kvmManager) limitDiskIO(cmd *pm.Command) (interface{}, error) {
 	return nil, nil
 }
 
+var (
+	interfaceFixRegexp = regexp.MustCompile(`(?msU:<interface[^>]*>(.+)</interface>)`)
+	targetFixRegexp    = regexp.MustCompile(`(?U:<target[^/]+/>)`)
+)
+
+//this method will drop the <target> tag from the interface tag for migration
+//we use this method and not unserialize/deserialize because libvirt add more tags
+//to the xml that we handle in our defined structures
+func (m *kvmManager) fixXML(xml string) string {
+	return interfaceFixRegexp.ReplaceAllStringFunc(xml, func(s string) string {
+		return targetFixRegexp.ReplaceAllString(s, "")
+	})
+}
+
 func (m *kvmManager) migrate(cmd *pm.Command) (interface{}, error) {
 	domain, _, err := m.getDomain(cmd)
 	if err != nil {
@@ -1275,7 +1289,20 @@ func (m *kvmManager) migrate(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = domain.MigrateToURI(params.DestURI, libvirt.MIGRATE_LIVE|libvirt.MIGRATE_UNDEFINE_SOURCE|libvirt.MIGRATE_PEER2PEER|libvirt.MIGRATE_TUNNELLED, name, 10000000000); err != nil {
+	srcxml, err := domain.GetXMLDesc(libvirt.DOMAIN_XML_SECURE)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get domain xml: %v", err)
+	}
+
+	srcxml = m.fixXML(srcxml)
+	log.Infof("Migrating:\n %s", string(srcxml))
+	if err = domain.MigrateToURI2(
+		params.DestURI,
+		"",
+		srcxml,
+		libvirt.MIGRATE_LIVE|libvirt.MIGRATE_UNDEFINE_SOURCE|libvirt.MIGRATE_PEER2PEER|libvirt.MIGRATE_TUNNELLED,
+		name,
+		10000000000); err != nil {
 		return nil, err
 	}
 	return nil, nil
