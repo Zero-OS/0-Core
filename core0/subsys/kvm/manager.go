@@ -1268,7 +1268,7 @@ var (
 )
 
 //this method will drop the <target> tag from the interface tag for migration
-//we use this method and not unserialize/deserialize because libvirt add more tags
+//we use this method and not unmarshal/marshal method because libvirt add more tags
 //to the xml that we handle in our defined structures
 func (m *kvmManager) fixXML(xml string) string {
 	return interfaceFixRegexp.ReplaceAllStringFunc(xml, func(s string) string {
@@ -1294,12 +1294,10 @@ func (m *kvmManager) migrate(cmd *pm.Command) (interface{}, error) {
 		return nil, fmt.Errorf("cannot get domain xml: %v", err)
 	}
 
-	srcxml = m.fixXML(srcxml)
-	log.Infof("Migrating:\n %s", string(srcxml))
 	if err = domain.MigrateToURI2(
 		params.DestURI,
 		"",
-		srcxml,
+		m.fixXML(srcxml),
 		libvirt.MIGRATE_LIVE|libvirt.MIGRATE_UNDEFINE_SOURCE|libvirt.MIGRATE_PEER2PEER|libvirt.MIGRATE_TUNNELLED,
 		name,
 		10000000000); err != nil {
