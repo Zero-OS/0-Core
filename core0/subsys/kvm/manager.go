@@ -159,11 +159,19 @@ type NicParams struct {
 	Nics []Nic       `json:"nics"`
 	Port map[int]int `json:"port"`
 }
+
+type Mount struct {
+	Source   string `json:"source"`
+	Target   string `json:"target"`
+	Readonly bool   `json:"readonly"`
+}
+
 type CreateParams struct {
 	NicParams
 	Name   string  `json:"name"`
 	CPU    int     `json:"cpu"`
 	Memory int     `json:"memory"`
+	Mount  []Mount `json:"mount"`
 	Media  []Media `json:"media"`
 	Tags   pm.Tags `json:"tags"`
 }
@@ -695,6 +703,18 @@ func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error)
 
 	for idx, media := range params.Media {
 		domain.Devices.Disks = append(domain.Devices.Disks, m.mkDisk(idx, media))
+	}
+
+	for _, mount := range params.Mount {
+		fs := Filesystem{
+			Source: FilesystemDir{mount.Source},
+			Target: FilesystemDir{mount.Target},
+		}
+		if mount.Readonly {
+			fs.Readonly = &Bool{}
+		}
+
+		domain.Devices.Filesystems = append(domain.Devices.Filesystems, fs)
 	}
 
 	return &domain, nil

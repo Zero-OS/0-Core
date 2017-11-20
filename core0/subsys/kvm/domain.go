@@ -93,11 +93,24 @@ type MetaData struct {
 }
 
 type Devices struct {
-	Emulator   string            `xml:"emulator"`
-	Graphics   []GraphicsDevice  `xml:"graphics"`
-	Disks      []DiskDevice      `xml:"disk"`
-	Interfaces []InterfaceDevice `xml:"interface"`
-	Devices    []Device
+	Emulator    string            `xml:"emulator"`
+	Graphics    []GraphicsDevice  `xml:"graphics"`
+	Disks       []DiskDevice      `xml:"disk"`
+	Interfaces  []InterfaceDevice `xml:"interface"`
+	Devices     []Device          `xml:"device"`
+	Filesystems []Filesystem      `xml:"filesystem"`
+}
+
+type FilesystemDir struct {
+	Dir string `xml:"dir,attr"`
+}
+
+type Bool struct{}
+
+type Filesystem struct {
+	Source   FilesystemDir `xml:"source"`
+	Target   FilesystemDir `xml:"target"`
+	Readonly *Bool         `xml:"readonly"`
 }
 
 type DiskSource struct {
