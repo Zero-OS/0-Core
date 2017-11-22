@@ -51,7 +51,10 @@ type FeaturesType struct {
 }
 
 type OS struct {
-	Type OSType `xml:"type"`
+	Type    OSType `xml:"type"`
+	Kernel  string `xml:"kernel,omitempty"`
+	InitRD  string `xml:"initrd,omitempty"`
+	Cmdline string `xml:"cmdline,omitempty"`
 }
 
 type Memory struct {
