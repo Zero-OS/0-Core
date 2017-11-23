@@ -14,11 +14,12 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strings"
 	"sync"
 )
 
 const (
-	BackendBaseDir = "/var/cache/containers"
+	CacheBaseDir = "/var/cache"
 )
 
 func Hash(s string) string {
@@ -167,30 +168,37 @@ func MountPList(namespace, storage, src string, target string, hooks ...pm.Runne
 	}
 
 	hash := Hash(src)
-	backend := path.Join(BackendBaseDir, namespace, hash)
+	backend := path.Join(CacheBaseDir, namespace, hash)
 
 	os.RemoveAll(backend)
 	os.MkdirAll(backend, 0755)
 
-	cache := settings.Settings.Globals.Get("cache", path.Join(BackendBaseDir, "cache"))
+	cache := settings.Settings.Globals.Get("cache", path.Join(CacheBaseDir, "zerofs"))
 	g8ufs := []string{
 		"-reset",
 		"-backend", backend,
 		"-cache", cache,
 	}
 
-	db, err := getMetaDB(namespace, src)
-	if err != nil {
-		return err
-	}
-	if storage == "" {
-		storage = settings.Settings.Globals.Get("storage", "ardb://hub.gig.tech:16379")
-	}
+	if strings.HasPrefix(src, "restic:") {
+		if err := RestoreRepo(
+			strings.TrimPrefix(src, "restic:"),
+			path.Join(backend, "ro"),
+		); err != nil {
+			return err
+		}
+	} else {
+		//assume an flist, an flist requires the meat and storage url
+		db, err := getMetaDB(namespace, src)
+		if err != nil {
+			return err
+		}
 
-	g8ufs = append(g8ufs,
-		"-meta", db,
-		"-storage-url", storage,
-	)
+		g8ufs = append(g8ufs,
+			"-meta", db,
+			"-storage-url", storage,
+		)
+	}
 
 	g8ufs = append(g8ufs, target)
 	cmd := &pm.Command{
@@ -202,6 +210,7 @@ func MountPList(namespace, storage, src string, target string, hooks ...pm.Runne
 		}),
 	}
 
+	var err error
 	var o sync.Once
 	var wg sync.WaitGroup
 	wg.Add(1)

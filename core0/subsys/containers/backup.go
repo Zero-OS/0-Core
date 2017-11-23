@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/core0/helper"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -159,59 +160,6 @@ func (m *containerManager) backup(cmd *pm.Command) (interface{}, error) {
 	return match[1], nil
 }
 
-func (m *containerManager) restoreRepo(repo, target string, include ...string) error {
-	//file://password/path/to/repo
-	u, err := url.Parse(repo)
-	if err != nil {
-		return err
-	}
-
-	password := u.Query().Get("password")
-	snapshot := u.Fragment
-	if u.Scheme == "file" || len(u.Scheme) == 0 {
-		repo = u.Path
-	} else {
-		u.Fragment = ""
-		u.RawQuery = ""
-		repo = u.String()
-	}
-
-	restic := []string{
-		"-r", repo,
-		"restore",
-		"-t", target,
-	}
-
-	for _, i := range include {
-		restic = append(restic, "-i", i)
-	}
-
-	restic = append(restic, snapshot)
-
-	job, err := pm.Run(
-		&pm.Command{
-			Command: pm.CommandSystem,
-			Arguments: pm.MustArguments(
-				pm.SystemCommandArguments{
-					Name:  "restic",
-					Args:  restic,
-					StdIn: password,
-				},
-			),
-		},
-	)
-
-	if err != nil {
-		return err
-	}
-
-	if result := job.Wait(); result.State != pm.StateSuccess {
-		return fmt.Errorf("failed to restore snapshot: %s", result.Streams.Stderr())
-	}
-
-	return nil
-}
-
 func (m *containerManager) restore(cmd *pm.Command) (interface{}, error) {
 	var args struct {
 		URL string `json:"url"`
@@ -228,7 +176,7 @@ func (m *containerManager) restore(cmd *pm.Command) (interface{}, error) {
 
 	defer os.RemoveAll(tmp)
 
-	if err := m.restoreRepo(args.URL, tmp, backupMetaName); err != nil {
+	if err := helper.RestoreRepo(args.URL, tmp, backupMetaName); err != nil {
 		return nil, err
 	}
 
