@@ -1,13 +1,11 @@
 package containers
 
 import (
-	"crypto/md5"
 	"fmt"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/settings"
 	"github.com/zero-os/0-core/core0/helper"
-	"io"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -38,12 +36,6 @@ func (c *container) mountPList(src string, target string, hooks ...pm.RunnerHook
 	}
 
 	return helper.MountPList(namespace, storage, src, target, hooks...)
-}
-
-func (c *container) hash(src string) string {
-	m := md5.New()
-	io.WriteString(m, src)
-	return fmt.Sprintf("%x", m.Sum(nil))
 }
 
 func (c *container) root() string {

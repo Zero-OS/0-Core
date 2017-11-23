@@ -12,9 +12,16 @@ import (
 	"github.com/libvirt/libvirt-go"
 	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
+	"github.com/zero-os/0-Disk/errors"
 	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/settings"
+	"github.com/zero-os/0-core/core0/helper"
 	"github.com/zero-os/0-core/core0/screen"
 	"github.com/zero-os/0-core/core0/subsys/containers"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"path"
+	"syscall"
 )
 
 const (
@@ -23,6 +30,10 @@ const (
 	BaseIPAddr  = "172.19.%d.%d"
 	metadataKey = "zero-os"
 	metadataUri = "https://github.com/zero-os/0-core"
+
+	//for flist vms
+	VmNamespaceFmt = "vm/%s"
+	VmBaseRoot     = "/mnt"
 )
 
 var (
@@ -171,18 +182,28 @@ type CreateParams struct {
 	Name   string  `json:"name"`
 	CPU    int     `json:"cpu"`
 	Memory int     `json:"memory"`
+	FList  string  `json:"flist"`
 	Mount  []Mount `json:"mount"`
 	Media  []Media `json:"media"`
 	Tags   pm.Tags `json:"tags"`
+}
+
+type PListBootConfig struct {
+	Root    string
+	Kernel  string
+	InitRD  string
+	Cmdline string
 }
 
 func (c *CreateParams) Valid() error {
 	if err := c.NicParams.Valid(); err != nil {
 		return err
 	}
-	if len(c.Media) < 1 {
-		return fmt.Errorf("At least a boot disk has to be provided")
+
+	if len(c.Media) == 0 && len(c.FList) == 0 {
+		return fmt.Errorf("At least one boot media has to be provided (via media or an flist)")
 	}
+
 	if c.CPU == 0 {
 		return fmt.Errorf("CPU is a required parameter")
 	}
@@ -762,6 +783,32 @@ func (m *kvmManager) updateView() {
 	screen.Refresh()
 }
 
+func (m *kvmManager) mountPList(name, src string) (config PListBootConfig, err error) {
+	namespace := fmt.Sprintf(VmNamespaceFmt, name)
+	storage := settings.Settings.Globals.Get("storage", "ardb://hub.gig.tech:16379")
+
+	target := path.Join(VmBaseRoot, name)
+	if err = helper.MountPList(namespace, storage, src, target); err != nil {
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			syscall.Unmount(target, syscall.MNT_FORCE|syscall.MNT_DETACH)
+		}
+	}()
+
+	//load entry config
+	cfg, err := ioutil.ReadFile(path.Join(target, "boot", "boot.yaml"))
+	if err != nil {
+		return config, errors.Wrap(err, "failed to open boot/boot.yaml")
+	}
+
+	err = yaml.Unmarshal(cfg, &config)
+	config.Root = target
+	return
+}
+
 func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 	defer m.updateView()
 	var params CreateParams
@@ -779,6 +826,29 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 	domain, err := m.mkDomain(seq, &params)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(params.FList) != 0 {
+		name := fmt.Sprintf("vm-%d", seq)
+		config, err := m.mountPList(name, params.FList)
+		if err != nil {
+			return nil, err
+		}
+		cmdline := "rootfstype=9p rootflags=rw,trans=virtio root=root"
+		if len(config.Cmdline) != 0 {
+			cmdline = fmt.Sprintf("%s %s", cmdline, config.Cmdline)
+		}
+
+		domain.OS.Kernel = path.Join(config.Root, config.Kernel)
+		domain.OS.InitRD = path.Join(config.Root, config.InitRD)
+		domain.OS.Cmdline = cmdline
+
+		fs := Filesystem{
+			Source: FilesystemDir{config.Root},
+			Target: FilesystemDir{"root"}, //the <root> here matches the one in the cmdline root=<root>
+		}
+
+		domain.Devices.Filesystems = append(domain.Devices.Filesystems, fs)
 	}
 
 	if err := m.setNetworking(&params.NicParams, seq, domain); err != nil {
