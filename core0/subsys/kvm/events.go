@@ -2,13 +2,24 @@ package kvm
 
 import (
 	"encoding/json"
+	"runtime/debug"
+	"strings"
+
 	"github.com/google/shlex"
 	"github.com/libvirt/libvirt-go"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/stream"
-	"runtime/debug"
-	"strings"
 )
+
+func (m *kvmManager) handleStopped(uuid, name string, domain *libvirt.Domain) error {
+	/*
+		It's too late to get the xml definition, so we don't know if this machine is booted from
+		an flist or not. One approach is to keep in memory description of the machine that needs
+		clean up. Or simply try to unmount the expected target by default, and hide unmount errors
+	*/
+
+	return m.unmountPlist(name)
+}
 
 func (m *kvmManager) handle(conn *libvirt.Connect, domain *libvirt.Domain, event *libvirt.DomainEventLifecycle) {
 	defer func() {
@@ -32,7 +43,16 @@ func (m *kvmManager) handle(conn *libvirt.Connect, domain *libvirt.Domain, event
 			data[kv[0]] = kv[1]
 		}
 	}
-
+	if event, ok := data["event"]; ok {
+		var err error
+		switch event {
+		case "stopped":
+			err = m.handleStopped(uuid, name, domain)
+		}
+		if err != nil {
+			log.Errorf("failed to handle event (%s) for vm (%s): %s", event, uuid, err)
+		}
+	}
 	m.evch <- data
 }
 

@@ -9,6 +9,10 @@ import (
 	"strings"
 	"sync"
 
+	"io/ioutil"
+	"path"
+	"syscall"
+
 	"github.com/libvirt/libvirt-go"
 	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
@@ -19,9 +23,6 @@ import (
 	"github.com/zero-os/0-core/core0/screen"
 	"github.com/zero-os/0-core/core0/subsys/containers"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
-	"path"
-	"syscall"
 )
 
 const (
@@ -809,6 +810,22 @@ func (m *kvmManager) mountPList(name, src string) (config PListBootConfig, err e
 	return
 }
 
+func (m *kvmManager) unmountPlist(name string) error {
+	target := path.Join(VmBaseRoot, name)
+	err := syscall.Unmount(target, syscall.MNT_FORCE)
+	if err == nil {
+		return nil
+	}
+
+	if errno, ok := err.(syscall.Errno); ok {
+		if errno == syscall.EINVAL {
+			return nil
+		}
+	}
+
+	return err
+}
+
 func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 	defer m.updateView()
 	var params CreateParams
@@ -829,8 +846,7 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 	}
 
 	if len(params.FList) != 0 {
-		name := fmt.Sprintf("vm-%d", seq)
-		config, err := m.mountPList(name, params.FList)
+		config, err := m.mountPList(params.Name, params.FList)
 		if err != nil {
 			return nil, err
 		}
@@ -941,6 +957,7 @@ func (m *kvmManager) destroy(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if err := domain.Destroy(); err != nil {
 		return nil, fmt.Errorf("failed to destroy machine: %s", err)
 	}

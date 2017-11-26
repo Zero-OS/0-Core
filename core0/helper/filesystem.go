@@ -6,9 +6,6 @@ import (
 	"compress/gzip"
 	"crypto/md5"
 	"fmt"
-	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/stream"
-	"github.com/zero-os/0-core/base/settings"
 	"io"
 	"net/http"
 	"net/url"
@@ -16,6 +13,10 @@ import (
 	"path"
 	"strings"
 	"sync"
+
+	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/pm/stream"
+	"github.com/zero-os/0-core/base/settings"
 )
 
 const (
