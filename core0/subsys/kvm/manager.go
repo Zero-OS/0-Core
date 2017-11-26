@@ -789,13 +789,31 @@ func (m *kvmManager) mountPList(name, src string) (config PListBootConfig, err e
 	storage := settings.Settings.Globals.Get("storage", "ardb://hub.gig.tech:16379")
 
 	target := path.Join(VmBaseRoot, name)
-	if err = helper.MountPList(namespace, storage, src, target); err != nil {
+	onExit := &pm.ExitHook{
+		Action: func(e bool) {
+			//destroy this machine, if fs exited
+			conn, err := m.libvirt.getConnection()
+			if err != nil {
+				log.Errorf("failed to get libvirt connection: %s", err)
+				return
+			}
+			domain, err := conn.LookupDomainByName(name)
+			if err != nil {
+				return
+			}
+			log.Warningf("VM (%s) filesystem exited while running, destorying the machine", name)
+			uuid, _ := domain.GetUUIDString()
+			m.destroyDomain(uuid, domain)
+		},
+	}
+
+	if err = helper.MountPList(namespace, storage, src, target, onExit); err != nil {
 		return
 	}
 
 	defer func() {
 		if err != nil {
-			syscall.Unmount(target, syscall.MNT_FORCE|syscall.MNT_DETACH)
+			m.unmountPlist(name)
 		}
 	}()
 
@@ -951,6 +969,15 @@ func (m *kvmManager) getDomain(cmd *pm.Command) (*libvirt.Domain, string, error)
 	return domain, params.UUID, err
 }
 
+func (m *kvmManager) destroyDomain(uuid string, domain *libvirt.Domain) error {
+	if err := domain.Destroy(); err != nil {
+		return fmt.Errorf("failed to destroy machine: %s", err)
+	}
+
+	m.unPortForward(uuid)
+	return nil
+}
+
 func (m *kvmManager) destroy(cmd *pm.Command) (interface{}, error) {
 	defer m.updateView()
 	domain, uuid, err := m.getDomain(cmd)
@@ -958,12 +985,7 @@ func (m *kvmManager) destroy(cmd *pm.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	if err := domain.Destroy(); err != nil {
-		return nil, fmt.Errorf("failed to destroy machine: %s", err)
-	}
-	m.unPortForward(uuid)
-
-	return nil, nil
+	return nil, m.destroyDomain(uuid, domain)
 }
 
 func (m *kvmManager) shutdown(cmd *pm.Command) (interface{}, error) {
