@@ -16,7 +16,6 @@ import (
 	"github.com/libvirt/libvirt-go"
 	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
-	"github.com/zero-os/0-Disk/errors"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/settings"
 	"github.com/zero-os/0-core/core0/helper"
@@ -827,7 +826,7 @@ func (m *kvmManager) mountPList(name, src string) (config PListBootConfig, err e
 	//load entry config
 	cfg, err := ioutil.ReadFile(path.Join(target, "boot", "boot.yaml"))
 	if err != nil {
-		return config, errors.Wrap(err, "failed to open boot/boot.yaml")
+		return config, fmt.Errorf("failed to open boot/boot.yaml: %s", err)
 	}
 
 	err = yaml.Unmarshal(cfg, &config)
