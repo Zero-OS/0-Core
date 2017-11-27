@@ -211,6 +211,13 @@ func (c *CreateParams) Valid() error {
 	if c.Memory == 0 {
 		return fmt.Errorf("Memory is a required parameter")
 	}
+
+	for _, mnt := range c.Mount {
+		if mnt.Target == "root" {
+			return fmt.Errorf("mount target 'root' is reserved")
+		}
+	}
+
 	return nil
 }
 

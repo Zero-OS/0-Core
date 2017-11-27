@@ -12,8 +12,8 @@ subscriber.stream(callback)
 
 Each message payload is a json serialized object that has the following data
 ```javascript
-{"detail": "<event details>"
- "event": "<event name>" 
+{"detail": "<event details>",
+ "event": "<event name>",
  "sequence": <message sequence number>,
  "uuid":"<domain uuid>"
 }

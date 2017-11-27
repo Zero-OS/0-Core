@@ -2,42 +2,39 @@
 
 Available commands:
 
-- [experimental.kvm.create](#create)
-- [experimental.kvm.destroy](#destroy)
-- [experimental.kvm.list](#list)
+- [kvm.create](#create)
+- [kvm.destroy](#destroy)
+- [kvm.list](#list)
 
 
 <a id="create"></a>
-## experimental.kvm.create
+## kvm.create
 
 Arguments:
 ```javascript
 {
   'name': {name},
-  'image': {image},
-  'cpu': {cpu},
-  'memory': {memory},
-  'bridge': {bridge},
+  'media': [{'type': '(disk|cdrom)', 'url': {url}}, ...], //optional
+  'flist': {flist}, //optional
+  'cpu': int,
+  'memory': int,
+  'nics': [{
+      'type': ('default|bridge|vxlan|vlan'),
+      'id': {id},
+      'hwaddr': {hwaddr},
+  }],
+  'port': {source: dest, ...}, //optional
+  'mount': [{'source': {source}, 'target': {target}, 'readonly': true|false}] //optional
 }
 ```
 
-
-Values:
-
-- **name**: Name of the virtual machine
-- **image**: Name of image to use
-- **cpu**: Number of virtual CPU core, e.g. `2`
-- **memory**: memory in MB, e.g. `512`
-- **bridge**: bridge name, e.g. `none`
-
-
 <a id="destroy"></a>
-## experimental.kvm.destroy
+## kvm.destroy
 
 Destroys a given virtual machine.
 
 
 <a id="list"></a>
-## experimental.kvm.list
+## kvm.list
 
 Lists all virtual machines.

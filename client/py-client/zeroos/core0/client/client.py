@@ -758,7 +758,7 @@ class BaseClient:
             if not result.code:
                 result.code = 500
             raise ResultError(msg='%s' % result.data, code=result.code)
-                
+
 
         return result
 
@@ -2089,10 +2089,10 @@ class KvmManager:
     def create(self, name, media=None, flist=None, cpu=2, memory=512, nics=None, port=None, mount=None, tags=None):
         """
         :param name: Name of the kvm domain
-        :param media: array of media objects to attach to the machine, where the first object is the boot device
+        :param media: (optional) array of media objects to attach to the machine, where the first object is the boot device
                       each media object is a dict of {url, type} where type can be one of 'disk', or 'cdrom', or empty (default to disk)
                       example: [{'url': 'nbd+unix:///test?socket=/tmp/ndb.socket'}, {'type': 'cdrom': '/somefile.iso'}
-        :param flist: (optional) VM boot flist,
+        :param flist: (optional) VM flist. A special bootable flist witch has a correct boot.yaml file
         :param cpu: number of vcpu cores
         :param memory: memory in MiB
         :param port: A dict of host_port: container_port pairs
@@ -2108,12 +2108,12 @@ class KvmManager:
         :param port: Configure port forwards to vm, this only works if default network nic is added. Is a dict of {host-port: guest-port}
         :param mount: A list of host shared folders in the format {'source': '/host/path', 'target': '/guest/path', 'readonly': True|False}
 
+        :note: At least one media or an flist must be provided.
         :return: uuid of the virtual machine
         """
 
         if nics is None:
             nics = []
-
 
         args = {
             'name': name,
