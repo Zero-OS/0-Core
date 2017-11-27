@@ -39,3 +39,4 @@ bin/
 core0/core0
 coreX/coreX
 *.egg-info
+.vscode/
