@@ -188,7 +188,7 @@ type CreateParams struct {
 	Tags   pm.Tags `json:"tags"`
 }
 
-type PListBootConfig struct {
+type FListBootConfig struct {
 	Root    string
 	Kernel  string
 	InitRD  string
@@ -790,7 +790,7 @@ func (m *kvmManager) updateView() {
 	screen.Refresh()
 }
 
-func (m *kvmManager) mountFList(name, src string) (config PListBootConfig, err error) {
+func (m *kvmManager) mountFList(name, src string) (config FListBootConfig, err error) {
 	namespace := fmt.Sprintf(VmNamespaceFmt, name)
 	storage := settings.Settings.Globals.Get("storage", "ardb://hub.gig.tech:16379")
 
@@ -819,7 +819,7 @@ func (m *kvmManager) mountFList(name, src string) (config PListBootConfig, err e
 
 	defer func() {
 		if err != nil {
-			m.unmountPlist(name)
+			m.unmountFList(name)
 		}
 	}()
 
@@ -834,7 +834,7 @@ func (m *kvmManager) mountFList(name, src string) (config PListBootConfig, err e
 	return
 }
 
-func (m *kvmManager) unmountPlist(name string) error {
+func (m *kvmManager) unmountFList(name string) error {
 	target := path.Join(VmBaseRoot, name)
 	err := syscall.Unmount(target, syscall.MNT_FORCE)
 	if err == nil {

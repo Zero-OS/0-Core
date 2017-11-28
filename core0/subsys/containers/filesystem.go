@@ -90,7 +90,7 @@ func (c *container) getFSType(dir string) string {
 }
 
 func (c *container) sandbox() error {
-	//mount root plist.
+	//mount root flist.
 	//prepare root folder.
 
 	//make sure we remove the directory
@@ -115,7 +115,7 @@ func (c *container) sandbox() error {
 	}
 
 	if err := c.mountFList(c.Args.Root, root, onSBExit); err != nil {
-		return fmt.Errorf("mount-root-plist(%s)", err)
+		return fmt.Errorf("mount-root-flist(%s)", err)
 	}
 
 	for src, dst := range c.Args.Mount {
@@ -123,7 +123,7 @@ func (c *container) sandbox() error {
 		if err := os.MkdirAll(target, 0755); err != nil {
 			return fmt.Errorf("mkdirAll(%s)", err)
 		}
-		//src can either be a location on HD, or another plist
+		//src can either be a location on HD, or another flist
 		u, err := url.Parse(src)
 		if err != nil {
 			return fmt.Errorf("bad mount source '%s': %s", src, err)
@@ -134,9 +134,9 @@ func (c *container) sandbox() error {
 				return fmt.Errorf("mount-bind(%s)", err)
 			}
 		} else {
-			//assume a plist
+			//assume a flist
 			if err := c.mountFList(src, target); err != nil {
-				return fmt.Errorf("mount-bind-plist(%s)", err)
+				return fmt.Errorf("mount-bind-flist(%s)", err)
 			}
 		}
 	}

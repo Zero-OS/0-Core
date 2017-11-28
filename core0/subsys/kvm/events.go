@@ -18,7 +18,7 @@ func (m *kvmManager) handleStopped(uuid, name string, domain *libvirt.Domain) er
 		clean up. Or simply try to unmount the expected target by default, and hide unmount errors
 	*/
 
-	return m.unmountPlist(name)
+	return m.unmountFList(name)
 }
 
 func (m *kvmManager) handle(conn *libvirt.Connect, domain *libvirt.Domain, event *libvirt.DomainEventLifecycle) {
