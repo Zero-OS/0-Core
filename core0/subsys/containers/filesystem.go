@@ -2,10 +2,6 @@ package containers
 
 import (
 	"fmt"
-	"github.com/shirou/gopsutil/disk"
-	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/settings"
-	"github.com/zero-os/0-core/core0/helper"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -15,6 +11,11 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+
+	"github.com/shirou/gopsutil/disk"
+	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/settings"
+	"github.com/zero-os/0-core/core0/helper"
 )
 
 const (
@@ -26,7 +27,7 @@ func (c *container) name() string {
 	return fmt.Sprintf("container-%d", c.id)
 }
 
-func (c *container) mountPList(src string, target string, hooks ...pm.RunnerHook) error {
+func (c *container) mountFList(src string, target string, hooks ...pm.RunnerHook) error {
 	//check
 	namespace := fmt.Sprintf("containers/%s", c.name())
 	storage := c.Args.Storage
@@ -35,7 +36,7 @@ func (c *container) mountPList(src string, target string, hooks ...pm.RunnerHook
 		c.Args.Storage = storage
 	}
 
-	return helper.MountPList(namespace, storage, src, target, hooks...)
+	return helper.MountFList(namespace, storage, src, target, hooks...)
 }
 
 func (c *container) root() string {
@@ -113,7 +114,7 @@ func (c *container) sandbox() error {
 		},
 	}
 
-	if err := c.mountPList(c.Args.Root, root, onSBExit); err != nil {
+	if err := c.mountFList(c.Args.Root, root, onSBExit); err != nil {
 		return fmt.Errorf("mount-root-plist(%s)", err)
 	}
 
@@ -134,7 +135,7 @@ func (c *container) sandbox() error {
 			}
 		} else {
 			//assume a plist
-			if err := c.mountPList(src, target); err != nil {
+			if err := c.mountFList(src, target); err != nil {
 				return fmt.Errorf("mount-bind-plist(%s)", err)
 			}
 		}
@@ -152,11 +153,7 @@ func (c *container) sandbox() error {
 		return err
 	}
 
-	if err := syscall.Mount(coreXSrc, coreXTarget, "", syscall.MS_BIND, ""); err != nil {
-		return err
-	}
-
-	return nil
+	return syscall.Mount(coreXSrc, coreXTarget, "", syscall.MS_BIND, "")
 }
 
 func (c *container) unMountAll() error {

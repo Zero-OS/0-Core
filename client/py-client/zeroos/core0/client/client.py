@@ -2093,6 +2093,7 @@ class KvmManager:
                       each media object is a dict of {url, type} where type can be one of 'disk', or 'cdrom', or empty (default to disk)
                       example: [{'url': 'nbd+unix:///test?socket=/tmp/ndb.socket'}, {'type': 'cdrom': '/somefile.iso'}
         :param flist: (optional) VM flist. A special bootable flist witch has a correct boot.yaml file
+                     example: http://hub.gig.tech/azmy/ubuntu-zesty.flist
         :param cpu: number of vcpu cores
         :param memory: memory in MiB
         :param port: A dict of host_port: container_port pairs

@@ -23,3 +23,7 @@ cmdline: 'extra kernel arguments'
 Using the client it's exactly the same as starting a normal VM. it supports all the
 other options (networking, mounts, etc...). Media becomes optional because now you can
 start the VM absolutely without any disks.
+
+```python
+cl.kvm.create('ubuntu', flist='http://hub.gig.tech/namespace/ubuntu-zesty.flist', nics=[{'type': 'default'}])
+```

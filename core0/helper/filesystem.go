@@ -162,7 +162,7 @@ func getMetaDB(namespace, src string) (string, error) {
 	return db, nil
 }
 
-func MountPList(namespace, storage, src string, target string, hooks ...pm.RunnerHook) error {
+func MountFList(namespace, storage, src string, target string, hooks ...pm.RunnerHook) error {
 	//check
 	if err := os.MkdirAll(target, 0755); err != nil {
 		return err

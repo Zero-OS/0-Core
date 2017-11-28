@@ -790,7 +790,7 @@ func (m *kvmManager) updateView() {
 	screen.Refresh()
 }
 
-func (m *kvmManager) mountPList(name, src string) (config PListBootConfig, err error) {
+func (m *kvmManager) mountFList(name, src string) (config PListBootConfig, err error) {
 	namespace := fmt.Sprintf(VmNamespaceFmt, name)
 	storage := settings.Settings.Globals.Get("storage", "ardb://hub.gig.tech:16379")
 
@@ -813,7 +813,7 @@ func (m *kvmManager) mountPList(name, src string) (config PListBootConfig, err e
 		},
 	}
 
-	if err = helper.MountPList(namespace, storage, src, target, onExit); err != nil {
+	if err = helper.MountFList(namespace, storage, src, target, onExit); err != nil {
 		return
 	}
 
@@ -870,7 +870,7 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 	}
 
 	if len(params.FList) != 0 {
-		config, err := m.mountPList(params.Name, params.FList)
+		config, err := m.mountFList(params.Name, params.FList)
 		if err != nil {
 			return nil, err
 		}
