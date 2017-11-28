@@ -874,7 +874,7 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		cmdline := "rootfstype=9p rootflags=rw,trans=virtio root=root"
+		cmdline := "rootfstype=9p rootflags=rw,trans=virtio,cache=loose root=root"
 		if len(config.Cmdline) != 0 {
 			cmdline = fmt.Sprintf("%s %s", cmdline, config.Cmdline)
 		}
