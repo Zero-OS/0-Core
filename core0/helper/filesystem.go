@@ -29,7 +29,7 @@ func Hash(s string) string {
 	return fmt.Sprintf("%x", m.Sum(nil))
 }
 
-//a helper to close all under laying readers in a plist file stream since decompression doesn't
+//a helper to close all under laying readers in a flist file stream since decompression doesn't
 //auto close the under laying layer.
 type underLayingCloser struct {
 	readers []io.Reader
@@ -83,7 +83,7 @@ func getMetaDBTar(src string) (io.ReadCloser, error) {
 
 		reader = response.Body
 	} else {
-		return nil, fmt.Errorf("invalid plist url (%s)", src)
+		return nil, fmt.Errorf("invalid flist url (%s)", src)
 	}
 
 	var closer underLayingCloser
@@ -112,7 +112,7 @@ func getMetaDBTar(src string) (io.ReadCloser, error) {
 		return &closer, nil
 	}
 
-	return nil, fmt.Errorf("unknown plist format %s", ext)
+	return nil, fmt.Errorf("unknown flist format %s", ext)
 }
 
 func getMetaDB(namespace, src string) (string, error) {
