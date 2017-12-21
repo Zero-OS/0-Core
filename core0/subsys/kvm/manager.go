@@ -600,7 +600,9 @@ func (m *kvmManager) mkFileDisk(idx int, u *url.URL) DiskDevice {
 			File: u.String(),
 		},
 		Driver: DiskDriver{
-			Type: DiskDriverType(getDiskType(u.Path)),
+			Type:  DiskDriverType(getDiskType(u.Path)),
+			IO:    "threads",
+			Cache: "writethrough",
 		},
 	}
 }
