@@ -183,23 +183,23 @@ class BaseTest(unittest.TestCase):
             if vm['name'] == vm_name:
                 return vm['uuid']
 
-    def create_vm(self, name, image='Ubuntu.14.04.x64.qcow2', source=None):
+    def create_vm(self, name, image='Ubuntu.1604.uefi.x64.qcow2', source=None):
         img_loc = '/var/cache/images'
         if source:
             img_dn_path = source
         else:
-            img_dn_path = 'https://stor.jumpscale.org/public/Images/Ubuntu.14.04.x64.qcow2'
+            img_dn_path = 'ftp://pub:pub1234@ftp.aydo.com/Linux/ubuntu/Ubuntu.1604.uefi.x64.qcow2'
         flag = self.client.filesystem.exists('{}'.format(img_loc))
         if flag:
             img = self.client.filesystem.exists('{}/{}'.format(img_loc, image))
             if not img:
                 rs = self.client.bash('wget {} -P {}'.format(img_dn_path, img_loc))
-                self.assertEqual(rs.get().state, 'SUCCESS')
+                self.assertEqual(rs.get(100).state, 'SUCCESS')
         else:
             rs = self.client.bash('mkdir -p {}'.format(img_loc))
             self.assertEqual(rs.get().state, 'SUCCESS')
             rs = self.client.bash('wget {} -P {}'.format(img_dn_path, img_loc))
-            self.assertEqual(rs.get().state, 'SUCCESS')
+            self.assertEqual(rs.get(100).state, 'SUCCESS')
         result = self.client.kvm.create(name=name, media=[{'url': '{}/{}'.format(img_loc, image)}])
         self.assertEqual(result.state, 'SUCCESS')
 
