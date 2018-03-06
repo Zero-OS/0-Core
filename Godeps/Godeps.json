@@ -22,8 +22,8 @@
 		},
 		{
 			"ImportPath": "github.com/codegangsta/cli",
-			"Comment": "v1.18.0-47-g168c954",
-			"Rev": "168c95418e66e019fe17b8f4f5c45aa62ff80e23"
+			"Comment": "v1.20.0-3-gf017f86",
+			"Rev": "f017f86fccc5a039a98f23311f34fdf78b014f78"
 		},
 		{
 			"ImportPath": "github.com/cupcake/rdb",
@@ -39,8 +39,8 @@
 		},
 		{
 			"ImportPath": "github.com/davecgh/go-spew/spew",
-			"Comment": "v1.0.0-9-g346938d",
-			"Rev": "346938d642f2ec3594ed81d874461961cd0faa76"
+			"Comment": "v1.1.0-11-g87df7c6",
+			"Rev": "87df7c60d5820d0f8ae11afede5aa52325c09717"
 		},
 		{
 			"ImportPath": "github.com/dgrijalva/jwt-go",
@@ -53,11 +53,13 @@
 		},
 		{
 			"ImportPath": "github.com/garyburd/redigo/internal",
-			"Rev": "836b6e58b3358112c8291565d01c35b8764070d7"
+			"Comment": "v1.6.0-1-ga7327d8",
+			"Rev": "a7327d8ced8067e916e7e35490522fd0182fa839"
 		},
 		{
 			"ImportPath": "github.com/garyburd/redigo/redis",
-			"Rev": "836b6e58b3358112c8291565d01c35b8764070d7"
+			"Comment": "v1.6.0-1-ga7327d8",
+			"Rev": "a7327d8ced8067e916e7e35490522fd0182fa839"
 		},
 		{
 			"ImportPath": "github.com/glendc/gopher-json",
@@ -117,8 +119,8 @@
 		},
 		{
 			"ImportPath": "github.com/patrickmn/go-cache",
-			"Comment": "v2.0.0-9-g7ac1518",
-			"Rev": "7ac151875ffb48b9f3ccce9ea20f020b0c1596c8"
+			"Comment": "v2.1.0",
+			"Rev": "a3647f8e31d79543b2d0f0ae2fe5c379d72cedc0"
 		},
 		{
 			"ImportPath": "github.com/pborman/uuid",
@@ -215,48 +217,48 @@
 		},
 		{
 			"ImportPath": "github.com/siddontang/ledisdb/config",
-			"Comment": "v0.5-84-g0cb8e1a",
-			"Rev": "0cb8e1a348b4877bff4648d59a75b793a0664b41"
+			"Comment": "v0.6-1-g17ea9a4",
+			"Rev": "17ea9a433d4de59d4d1f30a8e93f8298b3a381b1"
 		},
 		{
 			"ImportPath": "github.com/siddontang/ledisdb/ledis",
-			"Comment": "v0.5-84-g0cb8e1a",
-			"Rev": "0cb8e1a348b4877bff4648d59a75b793a0664b41"
+			"Comment": "v0.6-1-g17ea9a4",
+			"Rev": "17ea9a433d4de59d4d1f30a8e93f8298b3a381b1"
 		},
 		{
 			"ImportPath": "github.com/siddontang/ledisdb/rpl",
-			"Comment": "v0.5-84-g0cb8e1a",
-			"Rev": "0cb8e1a348b4877bff4648d59a75b793a0664b41"
+			"Comment": "v0.6-1-g17ea9a4",
+			"Rev": "17ea9a433d4de59d4d1f30a8e93f8298b3a381b1"
 		},
 		{
 			"ImportPath": "github.com/siddontang/ledisdb/server",
-			"Comment": "v0.5-84-g0cb8e1a",
-			"Rev": "0cb8e1a348b4877bff4648d59a75b793a0664b41"
+			"Comment": "v0.6-1-g17ea9a4",
+			"Rev": "17ea9a433d4de59d4d1f30a8e93f8298b3a381b1"
 		},
 		{
 			"ImportPath": "github.com/siddontang/ledisdb/store",
-			"Comment": "v0.5-84-g0cb8e1a",
-			"Rev": "0cb8e1a348b4877bff4648d59a75b793a0664b41"
+			"Comment": "v0.6-1-g17ea9a4",
+			"Rev": "17ea9a433d4de59d4d1f30a8e93f8298b3a381b1"
 		},
 		{
 			"ImportPath": "github.com/siddontang/ledisdb/store/driver",
-			"Comment": "v0.5-84-g0cb8e1a",
-			"Rev": "0cb8e1a348b4877bff4648d59a75b793a0664b41"
+			"Comment": "v0.6-1-g17ea9a4",
+			"Rev": "17ea9a433d4de59d4d1f30a8e93f8298b3a381b1"
 		},
 		{
 			"ImportPath": "github.com/siddontang/ledisdb/store/goleveldb",
-			"Comment": "v0.5-84-g0cb8e1a",
-			"Rev": "0cb8e1a348b4877bff4648d59a75b793a0664b41"
+			"Comment": "v0.6-1-g17ea9a4",
+			"Rev": "17ea9a433d4de59d4d1f30a8e93f8298b3a381b1"
 		},
 		{
 			"ImportPath": "github.com/siddontang/ledisdb/store/leveldb",
-			"Comment": "v0.5-84-g0cb8e1a",
-			"Rev": "0cb8e1a348b4877bff4648d59a75b793a0664b41"
+			"Comment": "v0.6-1-g17ea9a4",
+			"Rev": "17ea9a433d4de59d4d1f30a8e93f8298b3a381b1"
 		},
 		{
 			"ImportPath": "github.com/siddontang/ledisdb/store/rocksdb",
-			"Comment": "v0.5-84-g0cb8e1a",
-			"Rev": "0cb8e1a348b4877bff4648d59a75b793a0664b41"
+			"Comment": "v0.6-1-g17ea9a4",
+			"Rev": "17ea9a433d4de59d4d1f30a8e93f8298b3a381b1"
 		},
 		{
 			"ImportPath": "github.com/siddontang/rdb",
@@ -346,6 +348,10 @@
 		{
 			"ImportPath": "github.com/yuin/gopher-lua/pm",
 			"Rev": "6a1397dfb6f8e7af08496129dd96f5f62c148f47"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "434ec0c7fe3742c984919a691b2018a6e9694425"
 		},
 		{
 			"ImportPath": "golang.org/x/sys/unix",

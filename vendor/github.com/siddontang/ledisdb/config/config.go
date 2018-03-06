@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"fmt"
+
 	"github.com/pelletier/go-toml"
 	"github.com/siddontang/go/ioutil2"
 )
@@ -34,6 +35,7 @@ type LevelDBConfig struct {
 	WriteBufferSize int  `toml:"write_buffer_size"`
 	CacheSize       int  `toml:"cache_size"`
 	MaxOpenFiles    int  `toml:"max_open_files"`
+	MaxFileSize     int  `toml:"max_file_size"`
 }
 
 type RocksDBConfig struct {
@@ -61,6 +63,7 @@ type RocksDBConfig struct {
 	BackgroundThreads              int  `toml:"background_theads"`
 	HighPriorityBackgroundThreads  int  `toml:"high_priority_background_threads"`
 	DisableWAL                     bool `toml:"disable_wal"`
+	MaxManifestFileSize            int  `toml:"max_manifest_file_size"`
 }
 
 type LMDBConfig struct {
@@ -242,6 +245,7 @@ func (cfg *LevelDBConfig) adjust() {
 	cfg.BlockSize = getDefault(4*KB, cfg.BlockSize)
 	cfg.WriteBufferSize = getDefault(4*MB, cfg.WriteBufferSize)
 	cfg.MaxOpenFiles = getDefault(1024, cfg.MaxOpenFiles)
+	cfg.MaxFileSize = getDefault(32*MB, cfg.MaxFileSize)
 }
 
 func (cfg *RocksDBConfig) adjust() {
@@ -264,6 +268,7 @@ func (cfg *RocksDBConfig) adjust() {
 	cfg.StatsDumpPeriodSec = getDefault(3600, cfg.StatsDumpPeriodSec)
 	cfg.BackgroundThreads = getDefault(2, cfg.BackgroundThreads)
 	cfg.HighPriorityBackgroundThreads = getDefault(1, cfg.HighPriorityBackgroundThreads)
+	cfg.MaxManifestFileSize = getDefault(20*MB, cfg.MaxManifestFileSize)
 }
 
 func (cfg *Config) Dump(w io.Writer) error {

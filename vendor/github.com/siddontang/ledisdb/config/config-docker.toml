@@ -1,17 +1,17 @@
 # LedisDB configuration
 
 # Server listen address
-addr = "127.0.0.1:6380"
+addr = "0.0.0.0:6380"
 
 # Unix socket permissions, 755 by default.
 # Ignored for tcp socket.
 addr_unixsocketperm = "0770"
 
 # Server http listen address, set empty to disable
-http_addr = "127.0.0.1:11181"
+http_addr = "0.0.0.0:11181"
 
 # Data store path, all ledisdb's data will be saved here
-data_dir = "/tmp/ledis_server"
+data_dir = "/datastore"
 
 # Set the number of databases. You can use `select dbindex` to choose a db.
 # dbindex must be in [0, databases - 1].
@@ -165,6 +165,6 @@ path = ""
 max_num = 1
 
 [tls]
-enabled = true
+enabled = false
 certificate = "test.crt"
 key = "test.key"
