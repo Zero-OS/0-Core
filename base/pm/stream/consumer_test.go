@@ -1,10 +1,11 @@
 package stream
 
 import (
-	"github.com/stretchr/testify/assert"
 	"io"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type testReader struct {
@@ -39,7 +40,7 @@ func TestConsumer_OneLine(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
-	NewConsumer(&wg, &testReader{
+	Consume(&wg, &testReader{
 		chunks: []string{"hello world\n"},
 	}, 1, h)
 
@@ -66,7 +67,7 @@ func TestConsumer_TwoLines(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
-	NewConsumer(&wg, &testReader{
+	Consume(&wg, &testReader{
 		chunks: []string{
 			"hello world\n",
 			"10::bye bye world\n",
@@ -104,7 +105,7 @@ func TestConsumer_MultiLine(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
-	NewConsumer(&wg, &testReader{
+	Consume(&wg, &testReader{
 		chunks: []string{
 			"30:::hello\nworld\n",
 			":::\n",
@@ -142,7 +143,7 @@ that spans`
 `
 	var wg sync.WaitGroup
 	wg.Add(1)
-	NewConsumer(&wg, &testReader{
+	Consume(&wg, &testReader{
 		chunks: []string{
 			chunk1,
 			chunk2,
@@ -188,7 +189,7 @@ func TestConsumerNoNewLine(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
-	NewConsumer(&wg, &testReader{
+	Consume(&wg, &testReader{
 		chunks: []string{
 			"hello world",
 		},

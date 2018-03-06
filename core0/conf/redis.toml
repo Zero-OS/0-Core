@@ -8,5 +8,6 @@ name = "redis-server"
 args = [
     "--port", "6379",
     "--bind", "0.0.0.0",
+    "--unixsocket", "/tmp/redis.sock",
     "--protected-mode", "no"
 ]

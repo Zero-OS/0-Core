@@ -29,7 +29,7 @@ func (c *SinkConfig) Local() string {
 func NewSink(c SinkConfig) (*Sink, error) {
 	pool := redis.Pool{
 		Dial: func() (redis.Conn, error) {
-			return redis.Dial("tcp", "localhost:6379")
+			return redis.Dial("unix", "/tmp/redis.sock")
 		},
 		TestOnBorrow: func(c redis.Conn, t time.Time) error {
 			_, err := c.Do("PING")

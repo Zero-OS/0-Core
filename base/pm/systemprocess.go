@@ -3,13 +3,14 @@ package pm
 import (
 	"encoding/json"
 	"fmt"
-	psutils "github.com/shirou/gopsutil/process"
-	"github.com/zero-os/0-core/base/pm/stream"
 	"io"
 	"os"
 	"os/exec"
 	"sync"
 	"syscall"
+
+	psutils "github.com/shirou/gopsutil/process"
+	"github.com/zero-os/0-core/base/pm/stream"
 )
 
 type SystemCommandArguments struct {
@@ -162,8 +163,8 @@ func (p *systemProcessImpl) Run() (ch <-chan *stream.Message, err error) {
 		}
 		toClose = append(toClose, stdout, stderr)
 		wg.Add(2)
-		stream.NewConsumer(&wg, outRead, 1, handler)
-		stream.NewConsumer(&wg, errRead, 2, handler)
+		stream.Consume(&wg, outRead, 1, handler)
+		stream.Consume(&wg, errRead, 2, handler)
 	}
 
 	attrs := os.ProcAttr{
