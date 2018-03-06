@@ -13,19 +13,17 @@ var (
 	pmMsgPattern, _ = regexp.Compile("^(\\d+)(:{2,3})(.*)$")
 )
 
-type Consumer interface {
-	Write(p []byte) (n int, err error)
-}
-
 type consumerImpl struct {
 	level   uint16
 	handler MessageHandler
 
-	last  []byte
-	multi *Message
+	last   []byte
+	multi  *Message
+	buffer bytes.Buffer
 }
 
-func NewConsumer(wg *sync.WaitGroup, source io.ReadCloser, level uint16, handler MessageHandler) Consumer {
+//NewConsumer consumes a stream to the end, and calls the handler with the parsed stream messages
+func NewConsumer(wg *sync.WaitGroup, source io.ReadCloser, level uint16, handler MessageHandler) io.Writer {
 	c := &consumerImpl{
 		level:   level,
 		handler: handler,
@@ -50,9 +48,10 @@ func (c *consumerImpl) Write(p []byte) (n int, err error) {
 		p = append(c.last, p...)
 	}
 
-	reader := bytes.NewBuffer(p)
+	c.buffer.Reset()
+	c.buffer.Write(p)
 	for {
-		line, err := reader.ReadString('\n')
+		line, err := c.buffer.ReadString('\n')
 
 		if err == io.EOF {
 			//reached end of current chunk. we need to wait until we
@@ -80,11 +79,9 @@ func (c *consumerImpl) processLine(line string) {
 			c.handler(c.multi)
 			c.multi = nil
 			return
-			//return n, nil
-		} else {
-			c.multi.Message += "\n" + line
 		}
 
+		c.multi.Message += "\n" + line
 		return
 	}
 

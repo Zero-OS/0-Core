@@ -4,13 +4,14 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/op/go-logging"
 	"github.com/patrickmn/go-cache"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/core0/transport"
-	"sort"
-	"strings"
-	"time"
 )
 
 const (
@@ -68,7 +69,7 @@ func NewLedisStatsAggregator(sink *transport.Sink) pm.StatsHandler {
 	}
 
 	redisBuffer.cache.OnEvicted(func(key string, _ interface{}) {
-		if _, err := sink.Del([]byte(key)); err != nil {
+		if _, err := sink.Del(key); err != nil {
 			log.Errorf("failed to evict stats key %s", key)
 		}
 	})
@@ -105,7 +106,7 @@ func (r *redisStatsBuffer) query(cmd *pm.Command) (interface{}, error) {
 			}
 		}
 
-		data, err := r.db.Get([]byte(key))
+		data, err := r.db.Get(key)
 		if err != nil {
 			log.Errorf("failed to get state for metric: %s", key)
 			continue
@@ -165,7 +166,7 @@ func (r *redisStatsBuffer) Stats(op string, key string, value float64, id string
 	//touch key in cache so we know we are tracking this key
 	r.cache.Set(internal, nil, cache.DefaultExpiration)
 
-	data, err := r.db.Get([]byte(internal))
+	data, err := r.db.Get(internal)
 	if err != nil {
 		log.Errorf("failed to get value for %s: %s", key, err)
 		return
@@ -201,7 +202,7 @@ func (r *redisStatsBuffer) Stats(op string, key string, value float64, id string
 		}
 
 		if data, err := json.Marshal(&p); err == nil {
-			r.db.RPush([]byte(queue), data)
+			r.db.RPush(queue, data)
 		} else {
 			log.Errorf("statistics point marshal error: %s", err)
 		}
@@ -213,7 +214,7 @@ func (r *redisStatsBuffer) Stats(op string, key string, value float64, id string
 		return
 	}
 
-	if err := r.db.Set([]byte(internal), data); err != nil {
+	if err := r.db.Set(internal, data); err != nil {
 		log.Errorf("failed to save state object for %s: %s", key, err)
 	}
 }

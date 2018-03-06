@@ -3,6 +3,7 @@ package logger
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/zero-os/0-core/base/pm/stream"
 	"github.com/zero-os/0-core/core0/transport"
 )
@@ -62,14 +63,14 @@ func (l *streamLogger) push() error {
 		}
 
 		queue := fmt.Sprintf("stream:%s", record.Command)
-		if _, err := l.sink.RPush([]byte(queue), bytes); err != nil {
+		if _, err := l.sink.RPush(queue, bytes); err != nil {
 			return err
 		}
 
-		if err := l.sink.LTrim([]byte(queue), -1*l.size, -1); err != nil {
+		if err := l.sink.LTrim(queue, -1*l.size, -1); err != nil {
 			return err
 		}
 
-		l.sink.LExpire([]byte(queue), StreamRedisQueueTTL)
+		l.sink.LExpire(queue, StreamRedisQueueTTL)
 	}
 }

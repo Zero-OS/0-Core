@@ -169,7 +169,7 @@ class Response:
         """
         r = self._client._redis
         flag = '{}:flag'.format(self._queue)
-        return bool(r.execute_command('LKEYEXISTS', flag))
+        return bool(r.exists(flag))
 
     @property
     def running(self):
@@ -179,8 +179,8 @@ class Response:
         """
         r = self._client._redis
         flag = '{}:flag'.format(self._queue)
-        if bool(r.execute_command('LKEYEXISTS', flag)):
-            return r.execute_command('LTTL', flag) == -1
+        if bool(r.exists(flag)):
+            return r.ttl(flag) == -1
 
         return False
 
@@ -217,8 +217,8 @@ class Response:
         r = self._client._redis
 
         # we can terminate quickly by checking if the process is not running and it has no queued output.
-        if not self.running and r.llen(queue) == 0:
-            return
+        # if not self.running and r.llen(queue) == 0:
+        #     return
 
         while True:
             data = r.blpop(queue, 10)

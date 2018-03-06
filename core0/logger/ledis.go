@@ -3,11 +3,12 @@ package logger
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
+
 	"github.com/pborman/uuid"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/stream"
 	"github.com/zero-os/0-core/core0/transport"
-	"sync"
 )
 
 const (
@@ -149,12 +150,12 @@ func (l *redisLogger) Subscribe(queue string, lvls []uint16) error {
 			continue
 		}
 
-		if _, err := l.sink.RPush([]byte(queue), bytes); err != nil {
+		if _, err := l.sink.RPush(queue, bytes); err != nil {
 			return err
 		}
 	}
 
-	if err := l.sink.LTrim([]byte(queue), -1*l.size, -1); err != nil {
+	if err := l.sink.LTrim(queue, -1*l.size, -1); err != nil {
 		return err
 	}
 
@@ -183,11 +184,11 @@ func (l *redisLogger) pushQueues(record *LogRecord) error {
 			}
 		}
 
-		if _, err := l.sink.RPush([]byte(queue), bytes); err != nil {
+		if _, err := l.sink.RPush(queue, bytes); err != nil {
 			return err
 		}
 
-		if err := l.sink.LTrim([]byte(queue), -1*l.size, -1); err != nil {
+		if err := l.sink.LTrim(queue, -1*l.size, -1); err != nil {
 			return err
 		}
 	}

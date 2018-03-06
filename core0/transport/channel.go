@@ -3,13 +3,13 @@ package transport
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/garyburd/redigo/redis"
-	"github.com/siddontang/ledisdb/ledis"
 	"github.com/zero-os/0-core/base/pm"
-	"time"
 )
 
 const (
+	//expires in 300 seconds (5min)
 	ReturnExpire = 300
 )
 
@@ -17,27 +17,31 @@ const (
 ControllerClient represents an active agent controller connection.
 */
 type channel struct {
-	db *ledis.DB
+	pool *redis.Pool
 }
 
 /*
 NewSinkClient gets a new sink connection with the given identity. Identity is used by the sink client to
 introduce itself to the sink terminal.
 */
-func newChannel(db *ledis.DB) *channel {
+func newChannel(pool *redis.Pool) *channel {
 	ch := &channel{
-		db: db,
+		pool: pool,
 	}
 
 	return ch
 }
 
-func (client *channel) String() string {
-	return "ledis"
+func (cl *channel) String() string {
+	return "redis"
 }
 
+//GetNext gets the next available command
 func (cl *channel) GetNext(queue string, command *pm.Command) error {
-	payload, err := redis.ByteSlices(cl.db.BLPop([][]byte{[]byte(queue)}, 500*time.Millisecond))
+	conn := cl.pool.Get()
+	defer conn.Close()
+
+	payload, err := redis.ByteSlices(conn.Do("BLPOP", queue, 10))
 	if err != nil {
 		return err
 	}
@@ -51,7 +55,7 @@ func (cl *channel) GetNext(queue string, command *pm.Command) error {
 
 func (cl *channel) Respond(result *pm.JobResult) error {
 	if result.ID == "" {
-		return fmt.Errorf("result with no ID, not pushing results back...")
+		return fmt.Errorf("result with no ID, not pushing results back")
 	}
 
 	queue := fmt.Sprintf("result:%s", result.ID)
@@ -60,7 +64,10 @@ func (cl *channel) Respond(result *pm.JobResult) error {
 		return err
 	}
 
-	if _, err := cl.db.Expire([]byte(queue), ReturnExpire); err != nil {
+	conn := cl.pool.Get()
+	defer conn.Close()
+
+	if _, err := conn.Do("EXPIRE", queue, ReturnExpire); err != nil {
 		return err
 	}
 
@@ -73,7 +80,10 @@ func (cl *channel) Push(queue string, payload interface{}) error {
 		return err
 	}
 
-	if _, err := cl.db.RPush([]byte(queue), data); err != nil {
+	conn := cl.pool.Get()
+	defer conn.Close()
+
+	if _, err := conn.Do("RPUSH", queue, data); err != nil {
 		return err
 	}
 
@@ -81,8 +91,10 @@ func (cl *channel) Push(queue string, payload interface{}) error {
 }
 
 func (cl *channel) cycle(queue string, timeout int) ([]byte, error) {
-	db := cl.db
-	payload, err := redis.ByteSlices(db.BRPop([][]byte{[]byte(queue)}, time.Duration(timeout)*time.Second))
+	conn := cl.pool.Get()
+	defer conn.Close()
+
+	payload, err := redis.ByteSlices(conn.Do("BRPOPLPUSH", queue, queue, timeout))
 	if err != nil {
 		return nil, err
 	}
@@ -92,10 +104,6 @@ func (cl *channel) cycle(queue string, timeout int) ([]byte, error) {
 	}
 
 	data := payload[1]
-	if _, err := db.LPush([]byte(queue), data); err != nil {
-		return nil, err
-	}
-
 	return data, nil
 }
 
@@ -115,19 +123,28 @@ func (cl *channel) GetResponse(id string, timeout int) (*pm.JobResult, error) {
 }
 
 func (cl *channel) Flag(id string) error {
+	conn := cl.pool.Get()
+	defer conn.Close()
+
 	key := fmt.Sprintf("result:%s:flag", id)
-	_, err := cl.db.RPush([]byte(key), []byte(""))
+	_, err := conn.Do("RPUSH", key, "")
 	return err
 }
 
 func (cl *channel) UnFlag(id string) error {
+	conn := cl.pool.Get()
+	defer conn.Close()
+
 	key := fmt.Sprintf("result:%s:flag", id)
-	_, err := cl.db.LExpire([]byte(key), ReturnExpire)
+	_, err := conn.Do("EXPIRE", key, ReturnExpire)
 	return err
 }
 
 func (cl *channel) Flagged(id string) bool {
+	conn := cl.pool.Get()
+	defer conn.Close()
+
 	key := fmt.Sprintf("result:%s:flag", id)
-	v, _ := cl.db.LKeyExists([]byte(key))
+	v, _ := redis.Int(conn.Do("EXISTS", key))
 	return v == 1
 }
