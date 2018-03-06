@@ -56,17 +56,18 @@
 		},
 		{
 			"ImportPath": "github.com/naoina/go-stringutil",
+			"Comment": "v0.1.0",
 			"Rev": "6b638e95a32d0c1131db0e7fe83775cbea4a0d0b"
 		},
 		{
 			"ImportPath": "github.com/naoina/toml",
-			"Comment": "v0.1.0",
-			"Rev": "751171607256bb66e64c9f0220c00662420c38e9"
+			"Comment": "v0.1.1-2-g9fafd69",
+			"Rev": "9fafd69674167c06933b1787ae235618431ce87f"
 		},
 		{
 			"ImportPath": "github.com/naoina/toml/ast",
-			"Comment": "v0.1.0",
-			"Rev": "751171607256bb66e64c9f0220c00662420c38e9"
+			"Comment": "v0.1.1-2-g9fafd69",
+			"Rev": "9fafd69674167c06933b1787ae235618431ce87f"
 		},
 		{
 			"ImportPath": "github.com/olekukonko/tablewriter",
