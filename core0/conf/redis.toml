@@ -6,8 +6,5 @@ protected = true
 [startup.redis.args]
 name = "redis-server"
 args = [
-    "--port", "6380",
-    "--bind", "0.0.0.0",
-    "--unixsocket", "/tmp/redis.sock",
-    "--protected-mode", "no"
+    "--unixsocket", "/tmp/redis.sock"
 ]
