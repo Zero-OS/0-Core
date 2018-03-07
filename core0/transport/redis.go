@@ -27,6 +27,7 @@ func newPool() *redis.Pool {
 type redisProxy struct {
 	pool       *redis.Pool
 	authMethod func(string) bool
+	doAuth     bool
 }
 
 //liste to core0 port and
@@ -35,6 +36,8 @@ func Listen() error {
 		return true
 	}
 
+	doAuth := false
+
 	if orgs, ok := options.Options.Kernel.Get("organization"); ok {
 		org := orgs[len(orgs)-1]
 		var err error
@@ -42,11 +45,13 @@ func Listen() error {
 		if err != nil {
 			return err
 		}
+		doAuth = true
 	}
 
 	p := redisProxy{
 		pool:       newPool(),
 		authMethod: authMethod,
+		doAuth:     doAuth,
 	}
 
 	tlsConfig, err := generateCRT()
@@ -81,7 +86,7 @@ func (r *redisProxy) auth(conn redcon.Conn, cmd redcon.Command) {
 
 func (r *redisProxy) proxy(conn redcon.Conn, cmd redcon.Command) {
 	// is authorized ?
-	if ctx := conn.Context(); ctx == nil {
+	if ctx := conn.Context(); r.doAuth && ctx == nil {
 		//ctx was not set, hence he either didn't call auth or not authorized
 		conn.WriteError("permission denied, please call AUTH first with a valid JWT")
 		return
@@ -101,15 +106,15 @@ func (r *redisProxy) proxy(conn redcon.Conn, cmd redcon.Command) {
 
 	if err != nil {
 		conn.WriteError(err.Error())
-	} else if result, err := redis.Int64(result, err); err != nil {
+	} else if result, err := redis.Int64(result, err); err == nil {
 		conn.WriteInt64(result)
-	} else if result, err := redis.String(result, err); err != nil {
+	} else if result, err := redis.String(result, err); err == nil {
 		if result == "OK" || result == "PONG" {
 			conn.WriteString(result)
 		} else {
 			conn.WriteBulkString(result)
 		}
-	} else if result, err := redis.Strings(result, err); err != nil {
+	} else if result, err := redis.Strings(result, err); err == nil {
 		conn.WriteArray(len(result))
 		for _, r := range result {
 			conn.WriteBulkString(r)
