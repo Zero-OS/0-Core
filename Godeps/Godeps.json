@@ -21,6 +21,11 @@
 			"Rev": "87df7c60d5820d0f8ae11afede5aa52325c09717"
 		},
 		{
+			"ImportPath": "github.com/dgrijalva/jwt-go",
+			"Comment": "v3.0.0-18-g6c8dedd",
+			"Rev": "6c8dedd55f8a2e41f605de6d5d66e51ed1f299fc"
+		},
+		{
 			"ImportPath": "github.com/garyburd/redigo/internal",
 			"Comment": "v1.6.0-1-ga7327d8",
 			"Rev": "a7327d8ced8067e916e7e35490522fd0182fa839"
@@ -134,6 +139,11 @@
 			"ImportPath": "github.com/stretchr/testify/assert",
 			"Comment": "v1.1.4-4-g976c720",
 			"Rev": "976c720a22c8eb4eb6a0b4348ad85ad12491a506"
+		},
+		{
+			"ImportPath": "github.com/tidwall/redcon",
+			"Comment": "old-api-29-g56b0161",
+			"Rev": "56b016127ae730019c5e3073a413ad9526440c38"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink",
