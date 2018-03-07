@@ -108,6 +108,9 @@ func (r *redisProxy) proxy(conn redcon.Conn, cmd redcon.Command) {
 	if err != nil {
 		conn.WriteError(err.Error())
 		return
+	} else if result == nil {
+		conn.WriteNull()
+		return
 	} else if result, err := redis.Int64(result, err); err == nil {
 		conn.WriteInt64(result)
 		return
@@ -128,7 +131,7 @@ func (r *redisProxy) proxy(conn redcon.Conn, cmd redcon.Command) {
 		}
 		return
 	}
-	conn.WriteError(fmt.Sprintf("unhandled return type: %T", result))
+	conn.WriteError(fmt.Sprintf("unhandled return type: %T(%v)", result, result))
 }
 
 func (r *redisProxy) handler(conn redcon.Conn, cmd redcon.Command) {
