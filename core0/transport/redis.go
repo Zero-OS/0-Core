@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -106,22 +107,26 @@ func (r *redisProxy) proxy(conn redcon.Conn, cmd redcon.Command) {
 
 	if err != nil {
 		conn.WriteError(err.Error())
+		return
 	} else if result, err := redis.Int64(result, err); err == nil {
 		conn.WriteInt64(result)
+		return
 	} else if result, err := redis.String(result, err); err == nil {
 		if result == "OK" || result == "PONG" {
 			conn.WriteString(result)
 		} else {
 			conn.WriteBulkString(result)
 		}
+		return
 	} else if result, err := redis.Strings(result, err); err == nil {
 		conn.WriteArray(len(result))
 		for _, r := range result {
 			conn.WriteBulkString(r)
 		}
-	} else {
-		conn.WriteError("unhandled return type")
+		return
 	}
+
+	conn.WriteError(fmt.Sprintf("unhandled return type: %T", result))
 }
 
 func (r *redisProxy) handler(conn redcon.Conn, cmd redcon.Command) {
