@@ -118,6 +118,9 @@ func (r *redisProxy) proxy(conn redcon.Conn, cmd redcon.Command) {
 			conn.WriteBulkString(result)
 		}
 		return
+	} else if result, err := redis.Bytes(result, err); err == nil {
+		conn.WriteBulk(result)
+		return
 	} else if result, err := redis.Strings(result, err); err == nil {
 		conn.WriteArray(len(result))
 		for _, r := range result {
@@ -125,7 +128,6 @@ func (r *redisProxy) proxy(conn redcon.Conn, cmd redcon.Command) {
 		}
 		return
 	}
-
 	conn.WriteError(fmt.Sprintf("unhandled return type: %T", result))
 }
 
