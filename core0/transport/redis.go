@@ -111,27 +111,31 @@ func (r *redisProxy) proxy(conn redcon.Conn, cmd redcon.Command) {
 	} else if result == nil {
 		conn.WriteNull()
 		return
-	} else if result, err := redis.Int64(result, err); err == nil {
-		conn.WriteInt64(result)
-		return
-	} else if result, err := redis.String(result, err); err == nil {
-		if result == "OK" || result == "PONG" {
-			conn.WriteString(result)
-		} else {
-			conn.WriteBulkString(result)
-		}
-		return
-	} else if result, err := redis.Bytes(result, err); err == nil {
-		conn.WriteBulk(result)
-		return
-	} else if result, err := redis.Strings(result, err); err == nil {
-		conn.WriteArray(len(result))
-		for _, r := range result {
-			conn.WriteBulkString(r)
-		}
-		return
 	}
-	conn.WriteError(fmt.Sprintf("unhandled return type: %T(%v)", result, result))
+
+	write := func(conn redcon.Conn, result interface{}) {
+		switch result := result.(type) {
+		case error:
+			conn.WriteError(result.Error())
+		case int64:
+			conn.WriteInt64(result)
+		case string:
+			conn.WriteString(result)
+		case []byte:
+			conn.WriteBulk(result)
+		default:
+			conn.WriteError(fmt.Sprintf("unhandled return type: %T(%v)", result, result))
+		}
+	}
+	switch result := result.(type) {
+	case []interface{}:
+		conn.WriteArray(len(result))
+		for _, elm := range result {
+			write(conn, elm)
+		}
+	default:
+		write(conn, result)
+	}
 }
 
 func (r *redisProxy) handler(conn redcon.Conn, cmd redcon.Command) {
