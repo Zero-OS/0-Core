@@ -27,21 +27,10 @@ func (c *SinkConfig) Local() string {
 }
 
 func NewSink(c SinkConfig) (*Sink, error) {
-	pool := redis.Pool{
-		Dial: func() (redis.Conn, error) {
-			return redis.Dial("unix", "/tmp/redis.sock")
-		},
-		TestOnBorrow: func(c redis.Conn, t time.Time) error {
-			_, err := c.Do("PING")
-			return err
-		},
-		MaxActive: 20,
-		Wait:      true,
-	}
-
+	pool := newPool()
 	sink := &Sink{
-		pool: &pool,
-		ch:   newChannel(&pool),
+		pool: newPool(),
+		ch:   newChannel(pool),
 	}
 
 	pm.AddHandle(sink)

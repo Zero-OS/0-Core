@@ -1,15 +1,16 @@
 package transport
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"strings"
@@ -50,7 +51,7 @@ func pemBlockForKey(priv interface{}) (*pem.Block, error) {
 	}
 }
 
-func generateCRT() (string, string, error) {
+func generateCRT() (*tls.Config, error) {
 	var priv interface{}
 	var err error
 	switch ecdsaCurve {
@@ -69,7 +70,7 @@ func generateCRT() (string, string, error) {
 	}
 
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 
 	notBefore := time.Now()
@@ -78,13 +79,13 @@ func generateCRT() (string, string, error) {
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
-			Organization: []string{"Acme Co"},
+			Organization: []string{"GIG"},
 		},
 		NotBefore: notBefore,
 		NotAfter:  notAfter,
@@ -110,26 +111,28 @@ func generateCRT() (string, string, error) {
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, publicKey(priv), priv)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to create certificate: %s", err)
+		return nil, fmt.Errorf("failed to create certificate: %s", err)
 	}
 
-	certOut, err := ioutil.TempFile("", "cert")
-	if err != nil {
-		return "", "", err
-	}
-	defer certOut.Close()
-	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+	var certOut bytes.Buffer
 
-	keyOut, err := ioutil.TempFile("", "key")
-	if err != nil {
-		return "", "", err
-	}
-	defer keyOut.Close()
+	pem.Encode(&certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+
+	var keyOut bytes.Buffer
 	privData, err := pemBlockForKey(priv)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
-	pem.Encode(keyOut, privData)
+	pem.Encode(&keyOut, privData)
 
-	return certOut.Name(), keyOut.Name(), nil
+	crt, err := tls.X509KeyPair(certOut.Bytes(), keyOut.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	return &tls.Config{
+		Certificates: []tls.Certificate{
+			crt,
+		},
+	}, nil
 }
