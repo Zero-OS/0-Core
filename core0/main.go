@@ -186,6 +186,7 @@ func main() {
 		pm.AddHandle(aggregator)
 	}
 
-	//wait
-	select {}
+	if err := transport.Listen(); err != nil {
+		log.Fatal(err)
+	}
 }
