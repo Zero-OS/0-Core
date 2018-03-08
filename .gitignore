@@ -36,7 +36,7 @@ legacy
 
 #binary
 bin/
-core0/core0
-coreX/coreX
+apps/core0/core0
+apps/coreX/coreX
 *.egg-info
 .vscode/

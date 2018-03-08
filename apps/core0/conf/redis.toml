@@ -7,5 +7,18 @@ protected = true
 name = "redis-server"
 args = [
     "--port", "0",
-    "--unixsocket", "/tmp/redis.sock"
+    "--unixsocket", "/var/run/redis.sock"
+]
+
+[startup.redis-proxy]
+name = "core.system"
+after = ["redis"]
+protected = true
+
+[startup.redis-proxy.args]
+name = "redis-proxy"
+args = [
+    "-redis", "/var/run/redis.sock",
+    "-listen", "0.0.0.0:6379",
+    "-organization", "{organization}"
 ]
