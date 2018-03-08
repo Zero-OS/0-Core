@@ -7,15 +7,15 @@ import (
 	"github.com/op/go-logging"
 	"github.com/zero-os/0-core/base"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/coreX/bootstrap"
-	"github.com/zero-os/0-core/coreX/options"
+	"github.com/zero-os/0-core/apps/coreX/bootstrap"
+	"github.com/zero-os/0-core/apps/coreX/options"
 
 	"os/signal"
 	"syscall"
 
 	"encoding/json"
 	_ "github.com/zero-os/0-core/base/builtin"
-	_ "github.com/zero-os/0-core/coreX/builtin"
+	_ "github.com/zero-os/0-core/apps/coreX/builtin"
 )
 
 var (

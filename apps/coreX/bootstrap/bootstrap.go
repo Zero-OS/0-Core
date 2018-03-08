@@ -8,7 +8,7 @@ import (
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/settings"
 	"github.com/zero-os/0-core/base/utils"
-	"github.com/zero-os/0-core/coreX/options"
+	"github.com/zero-os/0-core/apps/coreX/options"
 	"os"
 	"path"
 	"syscall"

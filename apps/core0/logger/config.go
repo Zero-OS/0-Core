@@ -4,7 +4,7 @@ import (
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/stream"
 	"github.com/zero-os/0-core/base/settings"
-	"github.com/zero-os/0-core/core0/transport"
+	"github.com/zero-os/0-core/apps/core0/transport"
 )
 
 var (

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/utils"
-	"github.com/zero-os/0-core/core0/subsys/containers"
+	"github.com/zero-os/0-core/apps/core0/subsys/containers"
 	"net"
 	"os"
 	"strconv"

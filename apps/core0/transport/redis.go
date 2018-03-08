@@ -7,8 +7,8 @@ import (
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/tidwall/redcon"
-	"github.com/zero-os/0-core/core0/assets"
-	"github.com/zero-os/0-core/core0/options"
+	"github.com/zero-os/0-core/apps/core0/assets"
+	"github.com/zero-os/0-core/apps/core0/options"
 )
 
 func newPool() *redis.Pool {

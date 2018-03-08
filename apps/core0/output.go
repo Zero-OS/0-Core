@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/op/go-logging"
-	"github.com/zero-os/0-core/core0/options"
+	"github.com/zero-os/0-core/apps/core0/options"
 )
 
 const (

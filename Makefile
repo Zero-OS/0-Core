@@ -11,13 +11,13 @@ ldflagsX = '-w -s -X $(base).Branch=$(branch) -X $(base).Revision=$(revision) -X
 all: core0 coreX corectl
 
 core0: $(OUTPUT)
-	cd core0 && go build -ldflags $(ldflags0) -o ../$(OUTPUT)/$@
+	cd apps/core0 && go build -ldflags $(ldflags0) -o ../../$(OUTPUT)/$@
 
 coreX: $(OUTPUT)
-	cd coreX && GOOS=linux go build -ldflags $(ldflagsX) -o ../$(OUTPUT)/$@
+	cd apps/coreX && GOOS=linux go build -ldflags $(ldflagsX) -o ../../$(OUTPUT)/$@
 
 corectl: $(OUTPUT)
-	cd corectl && go build -ldflags $(ldflags0) -o ../$(OUTPUT)/$@
+	cd apps/corectl && go build -ldflags $(ldflags0) -o ../../$(OUTPUT)/$@
 
 $(OUTPUT):
 	mkdir -p $(OUTPUT)

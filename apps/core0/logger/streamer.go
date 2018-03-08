@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/zero-os/0-core/base/pm/stream"
-	"github.com/zero-os/0-core/core0/transport"
+	"github.com/zero-os/0-core/apps/core0/transport"
 )
 
 const (

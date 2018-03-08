@@ -15,7 +15,7 @@ import (
 	"github.com/shirou/gopsutil/disk"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/settings"
-	"github.com/zero-os/0-core/core0/helper"
+	"github.com/zero-os/0-core/apps/core0/helper"
 )
 
 const (

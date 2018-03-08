@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/stream"
-	"github.com/zero-os/0-core/core0/logger"
-	"github.com/zero-os/0-core/core0/stats"
+	"github.com/zero-os/0-core/apps/core0/logger"
+	"github.com/zero-os/0-core/apps/core0/stats"
 	"io"
 )
 

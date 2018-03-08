@@ -18,9 +18,9 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/settings"
-	"github.com/zero-os/0-core/core0/helper"
-	"github.com/zero-os/0-core/core0/screen"
-	"github.com/zero-os/0-core/core0/subsys/containers"
+	"github.com/zero-os/0-core/apps/core0/helper"
+	"github.com/zero-os/0-core/apps/core0/screen"
+	"github.com/zero-os/0-core/apps/core0/subsys/containers"
 	"gopkg.in/yaml.v2"
 )
 

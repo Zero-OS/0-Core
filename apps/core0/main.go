@@ -8,22 +8,22 @@ import (
 	"github.com/zero-os/0-core/base"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/settings"
-	"github.com/zero-os/0-core/core0/assets"
-	"github.com/zero-os/0-core/core0/bootstrap"
-	"github.com/zero-os/0-core/core0/logger"
-	"github.com/zero-os/0-core/core0/options"
-	"github.com/zero-os/0-core/core0/screen"
-	"github.com/zero-os/0-core/core0/stats"
-	"github.com/zero-os/0-core/core0/subsys/containers"
-	"github.com/zero-os/0-core/core0/subsys/kvm"
+	"github.com/zero-os/0-core/apps/core0/assets"
+	"github.com/zero-os/0-core/apps/core0/bootstrap"
+	"github.com/zero-os/0-core/apps/core0/logger"
+	"github.com/zero-os/0-core/apps/core0/options"
+	"github.com/zero-os/0-core/apps/core0/screen"
+	"github.com/zero-os/0-core/apps/core0/stats"
+	"github.com/zero-os/0-core/apps/core0/subsys/containers"
+	"github.com/zero-os/0-core/apps/core0/subsys/kvm"
 
 	"os/signal"
 	"syscall"
 
 	_ "github.com/zero-os/0-core/base/builtin"
-	_ "github.com/zero-os/0-core/core0/builtin"
-	_ "github.com/zero-os/0-core/core0/builtin/btrfs"
-	"github.com/zero-os/0-core/core0/transport"
+	_ "github.com/zero-os/0-core/apps/core0/builtin"
+	_ "github.com/zero-os/0-core/apps/core0/builtin/btrfs"
+	"github.com/zero-os/0-core/apps/core0/transport"
 )
 
 var (
