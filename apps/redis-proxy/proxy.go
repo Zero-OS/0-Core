@@ -7,7 +7,7 @@ import (
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/tidwall/redcon"
-	"github.com/zero-os/0-core/apps/core0/assets"
+	"github.com/zero-os/0-core/apps/redis-proxy/assets"
 )
 
 func newPool(socket string) *redis.Pool {

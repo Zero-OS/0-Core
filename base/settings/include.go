@@ -2,10 +2,11 @@ package settings
 
 import (
 	"fmt"
-	"github.com/zero-os/0-core/base/utils"
 	"io/ioutil"
 	"path"
 	"sync"
+
+	"github.com/zero-os/0-core/base/utils"
 )
 
 type After string

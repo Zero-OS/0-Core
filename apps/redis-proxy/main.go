@@ -5,6 +5,7 @@ import (
 
 	"github.com/codegangsta/cli"
 	logging "github.com/op/go-logging"
+	"github.com/zero-os/0-core/base/utils"
 )
 
 var (
@@ -22,7 +23,7 @@ func main() {
 		cli.StringFlag{
 			Name:  "organization, o",
 			Value: "",
-			Usage: "IYO organization that has to be valid in the jwt calims, no authenticaion is required if not set",
+			Usage: "IYO organization that has to be valid in the jwt calims, if not provided, it will be parsed from kerenel cmdline, otherwise no authentication will be applied",
 		},
 		cli.StringFlag{
 			Name:  "listen, l",
@@ -37,7 +38,14 @@ func main() {
 	}
 
 	app.Action = func(ctx *cli.Context) error {
-		return Proxy(ctx.String("listen"), ctx.String("redis"), ctx.String("organization"))
+		organization := ctx.String("organization")
+		if organization == "" {
+			if orgs, ok := utils.GetKernelOptions().Get("organization"); ok {
+				organization = orgs[len(orgs)-1]
+			}
+		}
+
+		return Proxy(ctx.String("listen"), ctx.String("redis"), organization)
 	}
 
 	if err := app.Run(os.Args); err != nil {
