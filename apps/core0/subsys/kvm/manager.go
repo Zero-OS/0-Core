@@ -949,7 +949,7 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate domain xml: %s", err)
 	}
-	log.Infof("%v", string(data))
+
 	conn, err := m.libvirt.getConnection()
 	if err != nil {
 		return nil, err
