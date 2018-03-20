@@ -611,6 +611,39 @@ func (m *kvmManager) mkFileDisk(idx int, u *url.URL) DiskDevice {
 	}
 }
 
+func (m *kvmManager) mkZDBDisk(media Media) (arg QemuArg, err error) {
+	u, err := url.Parse(media.URL)
+	if err != nil {
+		return
+	}
+	query := u.Query()
+
+	args := []string{}
+	for _, key := range []string{"password", "namespace", "blocksize", "size"} {
+		value := query.Get(key)
+		if value != "" {
+			args = append(args, fmt.Sprintf("%s=%s", key, value))
+		}
+	}
+
+	switch u.Scheme {
+	case "zdb+tcp":
+		fallthrough
+	case "zdb":
+		host := u.Hostname()
+		args = append(args, fmt.Sprintf("host=%s", host))
+		port := u.Port()
+		if port != "" {
+			args = append(args, fmt.Sprintf("port=%s", port))
+		}
+	case "zdb+unix":
+		args = append(args, fmt.Sprintf("socket=%s", u.Path))
+	}
+
+	arg.Value = fmt.Sprintf("driver=zdb,%s", strings.Join(args, ","))
+	return
+}
+
 func (m *kvmManager) mkDisk(idx int, media Media) DiskDevice {
 	u, err := url.Parse(media.URL)
 
@@ -674,9 +707,10 @@ func (m *kvmManager) ipAddr(s uint16) string {
 
 func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error) {
 	domain := Domain{
-		Type: DomainTypeKVM,
-		Name: params.Name,
-		UUID: uuid.New(),
+		Type:   DomainTypeKVM,
+		QemuNS: "http://libvirt.org/schemas/domain/qemu/1.0", //support qemu extra arguments
+		Name:   params.Name,
+		UUID:   uuid.New(),
 		Memory: Memory{
 			Capacity: params.Memory,
 			Unit:     "MiB",
@@ -736,7 +770,17 @@ func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error)
 	}
 
 	for idx, media := range params.Media {
-		domain.Devices.Disks = append(domain.Devices.Disks, m.mkDisk(idx, media))
+		if strings.HasPrefix(media.URL, "zdb") {
+			//special handle for the zdb devices, they are not added as a
+			//libvirtd disks.
+			zdb, err := m.mkZDBDisk(media)
+			if err != nil {
+				return nil, err
+			}
+			domain.Qemu.Args = append(domain.Qemu.Args, QemuArg{Value: "-drive"}, zdb)
+		} else {
+			domain.Devices.Disks = append(domain.Devices.Disks, m.mkDisk(idx, media))
+		}
 	}
 
 	for _, mount := range params.Mount {
