@@ -180,7 +180,7 @@ class Response:
         r = self._client._redis
         flag = '{}:flag'.format(self._queue)
         if bool(r.exists(flag)):
-            return r.ttl(flag) == -1
+            return r.ttl(flag) is None
 
         return False
 

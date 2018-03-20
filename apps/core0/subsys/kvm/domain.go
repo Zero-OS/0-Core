@@ -64,8 +64,17 @@ type Memory struct {
 
 type Device interface{}
 
+type QemuArg struct {
+	XMLName xml.Name `xml:"qemu:arg"`
+	Value   string   `xml:"value,attr"`
+}
+type Qemu struct {
+	Args []QemuArg
+}
+
 type Domain struct {
 	XMLName  xml.Name     `xml:"domain"`
+	QemuNS   string       `xml:"xmlns:qemu,attr"`
 	Type     DomainType   `xml:"type,attr"`
 	Name     string       `xml:"name"`
 	UUID     string       `xml:"uuid"`
@@ -74,6 +83,7 @@ type Domain struct {
 	OS       OS           `xml:"os"`
 	Features FeaturesType `xml:"features"`
 	Devices  Devices      `xml:"devices"`
+	Qemu     Qemu         `xml:"qemu:commandline"`
 }
 
 type DiskType string
