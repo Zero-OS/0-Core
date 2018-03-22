@@ -21,6 +21,7 @@ import (
 	"github.com/zero-os/0-core/apps/core0/subsys/containers"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/settings"
+	"github.com/zero-os/0-core/base/utils"
 	"gopkg.in/yaml.v2"
 )
 
@@ -195,10 +196,11 @@ type CreateParams struct {
 }
 
 type FListBootConfig struct {
-	Root    string
-	Kernel  string
-	InitRD  string
-	Cmdline string
+	Root      string
+	Kernel    string
+	InitRD    string
+	Cmdline   string
+	NoDefault bool
 }
 
 func (c *CreateParams) Valid() error {
@@ -926,14 +928,21 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		cmdline := "rootfstype=9p rootflags=rw,trans=virtio,cache=loose root=root"
+		var cmdline string
+		if !config.NoDefault {
+			cmdline = "rootfstype=9p rootflags=rw,trans=virtio,cache=loose root=root"
+		}
+
 		if len(config.Cmdline) != 0 {
 			cmdline = fmt.Sprintf("%s %s", cmdline, config.Cmdline)
 		}
 
-		domain.OS.Kernel = path.Join(config.Root, config.Kernel)
-		domain.OS.InitRD = path.Join(config.Root, config.InitRD)
-		domain.OS.Cmdline = cmdline
+		domain.OS.Kernel = path.Join(config.Root, utils.SafeNormalize(config.Kernel))
+		if len(config.InitRD) != 0 {
+			domain.OS.InitRD = path.Join(config.Root, utils.SafeNormalize(config.InitRD))
+		}
+
+		domain.OS.Cmdline = strings.TrimSpace(cmdline)
 
 		fs := Filesystem{
 			Source: FilesystemDir{config.Root},
@@ -1502,7 +1511,6 @@ type Machine struct {
 	Tags       pm.Tags  `json:"tags"`
 	IfcTargets []string `json:"ifctargets"`
 }
-
 
 func (m *kvmManager) getMachine(domain *libvirt.Domain) (Machine, error) {
 	uuid, err := domain.GetUUIDString()

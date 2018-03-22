@@ -2,14 +2,16 @@ package utils
 
 import (
 	"fmt"
-	"github.com/naoina/toml"
-	"github.com/op/go-logging"
 	"io/ioutil"
 	"os"
+	"path"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/naoina/toml"
+	"github.com/op/go-logging"
 )
 
 var (
@@ -163,4 +165,11 @@ func Exists(name string) bool {
 	}
 
 	return !os.IsNotExist(err)
+}
+
+//SafeNormalize avoids relative path hacks by making sure the path does not have any ../ in it before normalization
+func SafeNormalize(p string) string {
+	return path.Clean(
+		strings.Replace(p, "..", "", -1),
+	)
 }
