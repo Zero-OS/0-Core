@@ -2,17 +2,19 @@ package bootstrap
 
 import (
 	"fmt"
-	"github.com/op/go-logging"
-	"github.com/vishvananda/netlink"
-	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/settings"
-	"github.com/zero-os/0-core/base/utils"
-	"github.com/zero-os/0-core/apps/core0/bootstrap/network"
-	"github.com/zero-os/0-core/apps/core0/screen"
 	"net/http"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/op/go-logging"
+	"github.com/vishvananda/netlink"
+	"github.com/zero-os/0-core/apps/core0/bootstrap/network"
+	"github.com/zero-os/0-core/apps/core0/options"
+	"github.com/zero-os/0-core/apps/core0/screen"
+	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/settings"
+	"github.com/zero-os/0-core/base/utils"
 )
 
 const (
@@ -133,6 +135,14 @@ func (b *Bootstrap) screen() {
 	screen.Push(section)
 
 	progress := &screen.ProgressSection{}
+	reachable := "All Interfaces"
+	if options.Options.Kernel.Is("zerotier") {
+		reachable = "Zerotier Only"
+	}
+	reachability := &screen.TextSection{
+		Text: fmt.Sprintf(screenStateLine, "Reachability", reachable, ""),
+	}
+
 	for {
 		links, err := netlink.LinkList()
 		if err != nil {
@@ -152,7 +162,7 @@ func (b *Bootstrap) screen() {
 			})
 		}
 
-		section.Sections = append(section.Sections, progress)
+		section.Sections = append(section.Sections, progress, reachability)
 		screen.Refresh()
 		progress.Stop(false)
 		progress.Text = fmt.Sprintf(screenStateLine, "Internet Connectivity", "", "")

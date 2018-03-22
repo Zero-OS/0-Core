@@ -94,17 +94,7 @@ func (cl *channel) cycle(queue string, timeout int) ([]byte, error) {
 	conn := cl.pool.Get()
 	defer conn.Close()
 
-	payload, err := redis.ByteSlices(conn.Do("BRPOPLPUSH", queue, queue, timeout))
-	if err != nil {
-		return nil, err
-	}
-
-	if payload == nil {
-		return nil, fmt.Errorf("timeout")
-	}
-
-	data := payload[1]
-	return data, nil
+	return redis.Bytes(conn.Do("BRPOPLPUSH", queue, queue, timeout))
 }
 
 func (cl *channel) GetResponse(id string, timeout int) (*pm.JobResult, error) {

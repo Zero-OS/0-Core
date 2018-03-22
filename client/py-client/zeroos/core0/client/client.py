@@ -180,7 +180,7 @@ class Response:
         r = self._client._redis
         flag = '{}:flag'.format(self._queue)
         if bool(r.exists(flag)):
-            return r.ttl(flag) == -1
+            return r.ttl(flag) is None
 
         return False
 
@@ -2091,7 +2091,10 @@ class KvmManager:
         :param name: Name of the kvm domain
         :param media: (optional) array of media objects to attach to the machine, where the first object is the boot device
                       each media object is a dict of {url, type} where type can be one of 'disk', or 'cdrom', or empty (default to disk)
-                      example: [{'url': 'nbd+unix:///test?socket=/tmp/ndb.socket'}, {'type': 'cdrom': '/somefile.iso'}
+                      example: [{'url': 'nbd+unix:///test?socket=/tmp/ndb.socket'}, {'type': 'cdrom', 'url: '/somefile.iso'}]
+                      zdb exmpale:
+                      [{'url': 'zdb://host:port?size=10G&blocksize=4096'},
+                       {'url': 'zdb+unix:///path/to/unix.socket?size=5G'}]
         :param flist: (optional) VM flist. A special bootable flist witch has a correct boot.yaml file
                      example: http://hub.gig.tech/azmy/ubuntu-zesty.flist
         :param cpu: number of vcpu cores

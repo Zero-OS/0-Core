@@ -66,11 +66,16 @@ func Splash() {
 		Attributes: screen.Attributes{screen.Green},
 		Text:       fmt.Sprintf("Version: %s", core.Version().Short()),
 	})
+
 	screen.Push(&screen.TextSection{
 		Attributes: screen.Attributes{screen.Bold},
-		Text: fmt.Sprintf("Params: %s",
+		Text: fmt.Sprintf("Boot Params: %s",
 			options.Options.Kernel.String("debug", "organization", "zerotier", "quiet"), //flags we care about
 		),
+	})
+	screen.Push(&screen.TextSection{})
+	screen.Push(&screen.TextSection{
+		Text: "[Alt+F1: Kerenel logs view] [Alt+F2: This screen]",
 	})
 	screen.Push(&screen.TextSection{})
 	screen.Refresh()

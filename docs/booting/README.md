@@ -15,4 +15,4 @@ Zero-OS handles the following kernel params:
 When debug is not set firewall rules will be applied so that the Redis port and ssh are only available via the ZeroTier network
 * `organization=<org>` When set, Zero-OS will only accept ItsYou.online signed JWT tokens that have the `user:memberof:<org>` role set and are valid
 If not provided, zero-os will not require a password
-* `quiet` only logs to the log file and doesn't print logs on the console
+* `zerotier=<id>` Join this zerotier network on boot, this flag will also force zos to only accept client connections from this network.

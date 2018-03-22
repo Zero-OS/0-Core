@@ -1,0 +1,7 @@
+#protect some special partition uuids
+# uuid 76b4fd99-01 is the partuuid of the boot usb stick
+[startup."protect-usb"]
+name="disk.protect"
+
+[startup."protect-usb".args]
+partuuid="76b4fd99-01"

@@ -6,8 +6,8 @@ import (
 )
 
 func TestParseMountCmd(t *testing.T) {
-	mount := `/dev/sda2 on /var/lib/docker/plugins type ext4 (rw,relatime,errors=remount-ro,data=ordered)
-/dev/sda2 on /var/lib/docker/aufs type ext4 (rw,relatime,errors=remount-ro,data=ordered)
+	mount := `/dev/sda2 /var/lib/docker/plugins ext4 rw,relatime,errors=remount-ro,data=ordered 0 0
+/dev/sda2 /var/lib/docker/aufs ext4 rw,relatime,errors=remount-ro,data=ordered 0 0
 	`
 	mounts := parseMountCmd(mount)
 	mountpoints, exists := mounts["/dev/sda2"]
