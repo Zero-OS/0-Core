@@ -1,6 +1,6 @@
 
 [![Build Status](https://api.travis-ci.org/zero-os/0-core.svg?branch=master)](https://travis-ci.org/zero-os/0-core/)
-[![codecov](https://codecov.io/gh/g8os/core0/branch/master/graph/badge.svg)](https://codecov.io/gh/g8os/core0)
+[![codecov](https://codecov.io/gh/zero-os/0-core/branch/master/graph/badge.svg)](https://codecov.io/gh/zero-os/0-core)
 
 # 0-core
 
@@ -8,54 +8,24 @@ The core of Zero-OS is 0-core, which is the Zero-OS replacement for systemd.
 
 ## Branches
 
-- [0.9.0](https://github.com/g8os/core0/tree/0.9.0)
-- [0.10.0](https://github.com/g8os/core0/tree/0.10.0)
-- [0.11.0](https://github.com/g8os/core0/tree/0.11.0)
-- [1.0.0](https://github.com/g8os/core0/tree/1.0.0)
-- [1.1.0-alpha2](https://github.com/g8os/core0/tree/1.1.0-alpha) - last release
+- [master](https://github.com/zero-os/0-core/tree/master) - production
 
 ## Releases
 
 See the release schedule in the [Zero-OS home repository](https://github.com/zero-os/home).
 
 ## Development setup
-
-To run Zero-OS in a Docker container, just run the following command, which will pull the needed image as well:
-
-```bash
-docker run --privileged -d --name core -p 6379:6379 g8os/g8os-dev:1.0
-```
-
-To follow the container logs do:
-```bash
-docker logs -f core
-```
-## Creating a JWT token from itsyou.online.
-
-Login to your profile at https://itsyou.online and from the settings ( gear icon ) create an API key and copy the values. 
-
-- Make sure you are granted acccess to ```greenitglobe.development.orchestrators``` organization at IYO.
-
-From command line
-```
-export CLIENT_ID='<your client id>'
-export CLIENT_SECRET='<your secret>'
-export ORG=greenitglobe.development.orchestrators
-export VALIDITY_IN_SECONDS=3600
-export JWT=`curl -s -X POST "https://itsyou.online/v1/oauth/access_token?grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}&response_type=id_token&scope=user:memberof:${ORG}&validity=${VALIDITY_IN_SECONDS}"`
-echo $JWT
-```
-Simply replace the CLIENT_ID and CLIENT_SECRET values with your own. 
-
-
+Check the page on how to boot zos in a local setup [here](docs/booting). Choose the best one that suits your
+setup. For development, we would recommend the
 ## Using the Python client
-
-Before using the client make sure the `./client/py-client` is in your `PYTHONPATH`.
+Before using the client make sure the `./client/py-client` is in your `PYTHONPATH`. Or pip3 install it like `ch client/py-client && pip3 install -e .`
 
 ```python
-from client import Client
+from zeroos.core0 import client
 
-cl = Client(host='<IP address of Docker container running Zero-OS>', password='<JWT>')
+# password is only required if zos was booted with `organization=<org>` parameter.
+# and in that case, the password must be a valid jwt token from itsyou.online
+cl = client.Client(host='<IP address of Docker container running Zero-OS>', password='<JWT>')
 
 #validate that core0 is reachable
 print(cl.ping())
@@ -74,6 +44,24 @@ print(
     cl.disk.list()
 )
 ```
+
+### Creating a JWT token from itsyou.online.
+
+Login to your profile at https://itsyou.online and from the settings ( gear icon ) create an API key and copy the values.
+
+- Make sure you are have (or memeber of) an organization.
+
+From command line
+```
+export CLIENT_ID='<your client id>'
+export CLIENT_SECRET='<your secret>'
+export ORG=<oranization name>
+export VALIDITY_IN_SECONDS=3600
+export JWT=`curl -s -X POST "https://itsyou.online/v1/oauth/access_token?grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}&response_type=id_token&scope=user:memberof:${ORG}&validity=${VALIDITY_IN_SECONDS}"`
+echo $JWT
+```
+Simply replace the CLIENT_ID and CLIENT_SECRET values with your own.
+
 
 ## Features
 
@@ -123,4 +111,4 @@ See the milestones in the [Zero-OS home repository](https://github.com/zero-os/h
 
 All documentation is in the [`/docs`](./docs) directory, including a [table of contents](/docs/SUMMARY.md).
 
-In [Getting Started with Core0](/docs/gettingstarted/gettingstarted.md) you find the recommended path to quickly get up and running.
+In [Getting Started with Core0](/docs/gettingstarted/README.md) you find the recommended path to quickly get up and running.

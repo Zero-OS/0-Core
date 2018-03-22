@@ -31,7 +31,7 @@ key2 = 100
 
 - **running_delay**: By default a service is considered running if it started and did not exit within 2 seconds, this value can be adjusted here, you can set the parameter to a negative value (e.g. -1) which means you can assume that the service has ran unless it exits successfully, this is usually used by startup scripts that needs to prepare something (crate directories, or clean up files), before other services starts, so it needs to exit before u can start subsequent services
 
-- **running_match**: This has higher presence than the `running_delay`, so if both are defined `running_delay` will be ignored, `running_match` is a regular expression that will flags the service as `running` if the service outputs a line that matches this expression, so simply u assume the service is running if it prints something like `service is up` for instance
+- **running_match**: This has higher presence than the `running_delay`, so if both are defined `running_delay` will be ignored, `running_match` is a regular expression that will flag the service as `running` if the service outputs a line that matches this expression, so simply you assume the service is running if it prints something like `service is up` for instance
 
 - **recurring_period**: Run this job every time specified number of seconds
 
