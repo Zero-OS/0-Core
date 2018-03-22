@@ -1,4 +1,5 @@
 // +build arm
+// CC=armv6j-hardfloat-linux-gnueabi-gcc CGO_ENABLED=1 CGO_LDFLAGS="-Wl,-rpath -Wl,/lib" GOOS=linux GOARCH=arm GOARM=6 go build
 
 package kvm
 
