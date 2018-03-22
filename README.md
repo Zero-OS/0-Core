@@ -15,7 +15,7 @@ The core of Zero-OS is 0-core, which is the Zero-OS replacement for systemd.
 See the release schedule in the [Zero-OS home repository](https://github.com/zero-os/home).
 
 ## Development setup
-Check the page on how to boot zos in a local setup [here](docs/booting). Choose the best one that suits your
+Check the page on how to boot zos in a local setup [here](docs/booting/README.md). Choose the best one that suits your
 setup. For development, we would recommend the
 ## Using the Python client
 Before using the client make sure the `./client/py-client` is in your `PYTHONPATH`. Or pip3 install it like `ch client/py-client && pip3 install -e .`
