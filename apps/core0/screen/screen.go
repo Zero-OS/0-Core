@@ -47,11 +47,11 @@ func getSize(tty string) {
 
 func newScreen(vt int) error {
 	o.Do(func() {
-		// cmd := exec.Command("chvt", fmt.Sprintf("%d", vt))
-		// serr = cmd.Run()
-		// if serr != nil {
-		// 	return
-		// }
+		cmd := exec.Command("chvt", fmt.Sprintf("%d", vt))
+		serr = cmd.Run()
+		if serr != nil {
+			return
+		}
 		ttyPath := fmt.Sprintf("/dev/tty%d", vt)
 		getSize(ttyPath)
 		tty, serr = os.OpenFile(ttyPath, syscall.O_RDWR|syscall.O_NOCTTY, 0644)
