@@ -2037,6 +2037,14 @@ class KvmManager:
         'mount': typchk.Or(
             [{'source': str, 'target': str, 'readonly': typchk.Or(bool, typchk.Missing())}],
             typchk.IsNone(),
+        ),
+        'tags': typchk.Or(
+            typchk.IsNone(),
+            [str],
+        ),
+        'config': typchk.Or(
+            typchk.IsNone(),
+            typchk.Map(str, str),
         )
     })
 
@@ -2086,7 +2094,8 @@ class KvmManager:
     def __init__(self, client):
         self._client = client
 
-    def create(self, name, media=None, flist=None, cpu=2, memory=512, nics=None, port=None, mount=None, tags=None):
+    def create(self, name, media=None, flist=None, cpu=2, memory=512,
+               nics=None, port=None, mount=None, tags=None, config=None):
         """
         :param name: Name of the kvm domain
         :param media: (optional) array of media objects to attach to the machine, where the first object is the boot device
@@ -2111,6 +2120,13 @@ class KvmManager:
                      }
         :param port: Configure port forwards to vm, this only works if default network nic is added. Is a dict of {host-port: guest-port}
         :param mount: A list of host shared folders in the format {'source': '/host/path', 'target': '/guest/path', 'readonly': True|False}
+        :param tags: A list of user defined tags (strings)
+        :param config: a map with the config file path as a key and content as a value. This only works when creating a VM from an flist. The
+                       config files are written to the machine before booting.
+                       Example:
+                       config = {'/root/.ssh/authorized_keys': '<PUBLIC KEYS>'}
+
+                       If the machine is not booted from an flist, the config are discarded
 
         :note: At least one media or an flist must be provided.
         :return: uuid of the virtual machine
@@ -2128,13 +2144,15 @@ class KvmManager:
             'nics': nics,
             'port': port,
             'mount': mount,
+            'tags': tags,
+            'config': config,
         }
         self._create_chk.check(args)
 
         if media is None and flist is None:
             raise ValueError('need at least one boot media via media or an flist')
 
-        return self._client.sync('kvm.create', args, tags=tags)
+        return self._client.json('kvm.create', args, tags=tags)
 
     def prepare_migration_target(self, uuid, nics=None, port=None, tags=None):
         """

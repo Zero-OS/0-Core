@@ -13,18 +13,18 @@ import (
 	"syscall"
 
 	"github.com/shirou/gopsutil/disk"
+	"github.com/zero-os/0-core/apps/core0/helper"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/settings"
-	"github.com/zero-os/0-core/apps/core0/helper"
 )
 
 const (
 	BackendBaseDir       = "/var/cache/containers"
-	ContainerBaseRootDir = "/mnt"
+	ContainerBaseRootDir = "/mnt/containers"
 )
 
 func (c *container) name() string {
-	return fmt.Sprintf("container-%d", c.id)
+	return fmt.Sprintf("%d", c.id)
 }
 
 func (c *container) mountFList(src string, target string, hooks ...pm.RunnerHook) error {
