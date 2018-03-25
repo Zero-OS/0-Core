@@ -1549,9 +1549,14 @@ func (m *kvmManager) list(cmd *pm.Command) (interface{}, error) {
 func (m *kvmManager) get(cmd *pm.Command) (interface{}, error) {
 	var params struct {
 		Name string `json:"name"`
+		UUID string `json:"uuid"`
 	}
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
+	}
+
+	if (params.Name != "" && params.UUID != "") ||  (params.Name == "" && params.UUID == ""){
+		return nil, fmt.Errorf("Must supply either Name or UUID")
 	}
 
 	conn, err := m.libvirt.getConnection()
@@ -1559,9 +1564,17 @@ func (m *kvmManager) get(cmd *pm.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	domain, err := conn.LookupDomainByName(params.Name)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list machines: %s", err)
+	var domain *libvirt.Domain
+	if params.Name != "" {
+		domain, err = conn.LookupDomainByName(params.Name)
+		if err != nil {
+			return nil, fmt.Errorf("failed to lookup domain by name: %s", err)
+		}
+	} else {
+		domain, err = conn.LookupDomainByUUIDString(params.UUID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to lookup domain by uuid: %s", err)
+		}
 	}
 
 	machine, err := m.getMachine(domain)
