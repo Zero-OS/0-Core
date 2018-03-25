@@ -980,7 +980,7 @@ func (m *kvmManager) destroyDomain(uuid string, domain *libvirt.Domain) error {
 	}
 
 	m.unPortForward(uuid)
-	return nil
+	return m.flistUnmount(uuid)
 }
 
 func (m *kvmManager) destroy(cmd *pm.Command) (interface{}, error) {
