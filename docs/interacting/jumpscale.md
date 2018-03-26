@@ -4,7 +4,15 @@ A quick and easy way to get JumpScale on your machine is creating a Docker conta
 
 Once the JS9 Docker container is installed you can use the interactive JumpScale shell inside the container and try the examples documented in [Examples](examples/README.md).
 
-Just remember that the Zero-OS client is under `j.clients.g8core`, you'll need to use it as follows:
+The Zero-OS client can be found under `j.clients.zero_os`:
 ```python
-cl = j.clients.g8core.get("<IP-address-of-the-Zero-OS-node>", port=6379)
+# omit data if you want to use the js config manager
+data = {
+  "host": "ip-of-0-os-node",
+  "port": 6379,
+}
+
+cl = j.clients.zero_os.get(data=data)
+
+cl.ping()
 ```
