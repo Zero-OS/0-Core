@@ -29,7 +29,9 @@ Alternatively try:
 pip3 install 0-core-client
 ```
 
-## How to use
+## Usage
+
+Make sure your machine joined the same ZeroTier management network as the Zero-OS node. See [Join the ZeroTier Management Network](zerotier.md) for instructions.
 
 Launch the Python interactive shell:
 ```bash
@@ -39,11 +41,9 @@ ipython3
 Ping your Zero-OS instance on the IP address provided by ZeroTier:
 ```python
 from zeroos.core0.client import Client
-cl = Client("<ZeroTier-IP-address>")
+cl = Client("<Zero-os node IP address in the ZeroTier network>")
 cl.ping()
 ```
-
-The above example will of course only work from a machine that joined the same ZeroTier management network. See [Join the ZeroTier Management Network](zerotier.md) for instructions.
 
 Some more simple examples:
 - List all processes:

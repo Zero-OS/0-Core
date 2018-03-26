@@ -21,7 +21,7 @@ zerotier-cli listnetworks
 
 If no ZeroTier network was yet joined, join the ZeroTier management network identified with the ZeroTier network ID:
 ```shell
-export ZEROTIER_NETWORK_ID="..."
+export ZEROTIER_NETWORK_ID="your-zerotier-network-ID"
 zerotier-cli join $ZEROTIER_NETWORK_ID
 ```
 

@@ -7,7 +7,7 @@ From the Zero-OS Bootstrap Service you can easily download a build of the kernel
 For instance to download an ISO image:
 ```shell
 BRANCH="zero-os-master"
-ZEROTIER_NETWORK="..."
+ZEROTIER_NETWORK="zerotier-network-ID"
 curl -o zero-os.iso https://bootstrap.gig.tech/iso/$BRANCH/$ZEROTIER_NETWORK
 ```
 

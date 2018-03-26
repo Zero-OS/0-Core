@@ -82,20 +82,22 @@ qemu-img create -f qcow2 vda.qcow2 10G
 ### Start the virtual machine
 
 ```shell
-ZEROTIER="<your_ZeroTier_network>"
-sudo qemu-system-x86_64 -kernel staging/vmlinuz.efi -m 2048 -enable-kvm -cpu host -nographic -append "console=ttyS0,115200n8 zerotier=$ZEROTIER" -netdev bridge,id=virbr0,br=virbr0 -device virtio-net-pci,netdev=virbr0
+ZEROTIER="<your_ZeroTier_network_ID>"
+sudo qemu-system-x86_64 -kernel zero-os-master.efi -m 2048 -enable-kvm -cpu host -append "console=ttyS0,115200n8 zerotier=$ZEROTIER" -netdev bridge,id=virbr0,br=virbr0 -device virtio-net-pci,netdev=virbr0
 ```
+
+If you don't want to see the VM window, add the `-nographic` flag
 
 ## Install VM using the GUI
 
 ### Download the Zero-OS image
 
-The easiest and recommended approach is to boot from an ISO image you get from the [Zero-OS Bootstrap Service](https://bootstrap.gig.tech/). You get an ISO boot image using `https://bootstrap.gig.tech/iso/{BRANCH}/{ZEROTIER-NETWORK}` where:
+The easiest and recommended approach is to boot from an ISO image you get from the [Zero-OS Bootstrap Service](https://bootstrap.gig.tech/). You can get an ISO boot image using `https://bootstrap.gig.tech/iso/{BRANCH}/{ZEROTIER-NETWORK}` where:
 
 - **{BRANCH}** is the branch of the Zero-OS, e.g. `1.1.0-alpha`, or `zero-os-master`
-- **{ZEROTIER-NETWORK}** is the ZeroTier network ID, create one on https://my.zerotier.com/network
+- **{ZEROTIER-NETWORK}** is the ZeroTier network ID, create one at https://my.zerotier.com/network
 
-See the [ISO section in the Zero-OS Bootstrap Service documentation](../bootstrap/bootstrap.md#iso) for more details on this.
+See the [ISO section in the Zero-OS Bootstrap Service documentation](../bootstrap/README.md) for more details on this.
 
 Alternatively you can build your own boot image and create your own boot disk as documented in [Building your Zero-OS Boot Image](../building/building.md).
 
@@ -147,11 +149,15 @@ Type the name, e.g. `Zero-OS`, on the name field and click Finish. The virtual m
 
 ## Ping Zero-OS
 
-Using the Python client:
+Make sure your machine joined the same ZeroTier management network. See [Join the ZeroTier Management Network](../interacting/zerotier.md)
+
+Then using the Python client:
 
 ```python
 from zeroos.core0.client import Client
 
-cl = Client("<your_ZeroTier_network>")
+cl = Client("<Zero-os node IP address in the ZeroTier network>")
 cl.ping()
 ```
+
+For more details on the Python client, see the [Python interaction docs](../interacting/python.md#usage)
