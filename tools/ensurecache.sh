@@ -1,4 +1,4 @@
-set -ex
+set -e
 
 LABEL="zos-cache"
 CACHE="/var/cache"
