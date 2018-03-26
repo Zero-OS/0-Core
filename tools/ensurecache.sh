@@ -56,6 +56,10 @@ function hook {
 
 function main {
     mkdir -p ${MNT}
+    if mountpoint -q ${MNT}; then
+        error "${MNT} is already mounted"
+        exit 1
+    fi
 
     if ! labelmount ${LABEL} ${MNT}; then
         # no parition found with that label
