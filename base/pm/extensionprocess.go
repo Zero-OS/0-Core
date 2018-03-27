@@ -3,9 +3,10 @@ package pm
 import (
 	"encoding/json"
 	"fmt"
+	"syscall"
+
 	"github.com/zero-os/0-core/base/pm/stream"
 	"github.com/zero-os/0-core/base/utils"
-	"syscall"
 )
 
 type extensionProcess struct {
@@ -25,7 +26,6 @@ func extensionProcessFactory(exe string, dir string, args []string, env map[stri
 		if err := json.Unmarshal(*cmd.Arguments, &input); err != nil {
 			log.Errorf("Failed to load extension command arguments: %s", err)
 		}
-		log.Debugf("rececived arguments for extension are: %v", input)
 
 		if stdin, ok := input["stdin"]; ok {
 			switch in := stdin.(type) {
