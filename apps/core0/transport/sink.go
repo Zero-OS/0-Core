@@ -124,6 +124,10 @@ func (sink *Sink) process() {
 			log.Warningf("receiving a command with no ID, dropping")
 			continue
 		}
+		if sink.ch.Flagged(command.ID) {
+			log.Errorf("received a command with a duplicate ID(%v), dropping", command.ID)
+			continue
+		}
 
 		sink.ch.Flag(command.ID)
 		log.Debugf("Starting command %s", &command)
@@ -142,13 +146,7 @@ func (sink *Sink) process() {
 
 //Forward forwards job result
 func (sink *Sink) Forward(result *pm.JobResult) error {
-	if result.State != pm.StateDuplicateID {
-		/*
-			Client tried to push a command with a duplicate id, it means another job
-			is running with that ID so we shouldn't flag
-		*/
-		sink.ch.UnFlag(result.ID)
-	}
+	sink.ch.UnFlag(result.ID)
 	return sink.ch.Respond(result)
 }
 

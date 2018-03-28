@@ -1,3 +1,5 @@
+// +build amd64
+
 package kvm
 
 import (
@@ -9,19 +11,15 @@ import (
 	"strings"
 	"sync"
 
-	"io/ioutil"
 	"path"
-	"syscall"
 
 	"github.com/libvirt/libvirt-go"
 	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
-	"github.com/zero-os/0-core/apps/core0/helper"
 	"github.com/zero-os/0-core/apps/core0/screen"
 	"github.com/zero-os/0-core/apps/core0/subsys/containers"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/settings"
-	"gopkg.in/yaml.v2"
+	"github.com/zero-os/0-core/base/utils"
 )
 
 const (
@@ -32,8 +30,8 @@ const (
 	metadataUri = "https://github.com/zero-os/0-core"
 
 	//for flist vms
-	VmNamespaceFmt = "vm/%s"
-	VmBaseRoot     = "/mnt"
+	VmNamespaceFmt = "vms/%s"
+	VmBaseRoot     = "/mnt/vms"
 )
 
 var (
@@ -89,6 +87,7 @@ const (
 	kvmEventsCommand          = "kvm.events"
 	kvmCreateImage            = "kvm.create-image"
 	kvmConvertImage           = "kvm.convert-image"
+	kvmGetCommand             = "kvm.get"
 
 	DefaultBridgeName = "kvm0"
 )
@@ -136,6 +135,7 @@ func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) erro
 	pm.RegisterBuiltIn(kvmPrepareMigrationTarget, mgr.prepareMigrationTarget)
 	pm.RegisterBuiltIn(kvmCreateImage, mgr.createImage)
 	pm.RegisterBuiltIn(kvmConvertImage, mgr.convertImage)
+	pm.RegisterBuiltIn(kvmGetCommand, mgr.get)
 
 	//those next 2 commands should never be called by the client, unfortunately we don't have
 	//support for internal commands yet.
@@ -183,20 +183,22 @@ type Mount struct {
 
 type CreateParams struct {
 	NicParams
-	Name   string  `json:"name"`
-	CPU    int     `json:"cpu"`
-	Memory int     `json:"memory"`
-	FList  string  `json:"flist"`
-	Mount  []Mount `json:"mount"`
-	Media  []Media `json:"media"`
-	Tags   pm.Tags `json:"tags"`
+	Name   string            `json:"name"`
+	CPU    int               `json:"cpu"`
+	Memory int               `json:"memory"`
+	FList  string            `json:"flist"`
+	Mount  []Mount           `json:"mount"`
+	Media  []Media           `json:"media"`
+	Config map[string]string `json:"config"` //overrides vm config (from flist)
+	Tags   pm.Tags           `json:"tags"`
 }
 
 type FListBootConfig struct {
-	Root    string
-	Kernel  string
-	InitRD  string
-	Cmdline string
+	Root      string
+	Kernel    string
+	InitRD    string
+	Cmdline   string
+	NoDefault bool
 }
 
 func (c *CreateParams) Valid() error {
@@ -611,6 +613,39 @@ func (m *kvmManager) mkFileDisk(idx int, u *url.URL) DiskDevice {
 	}
 }
 
+func (m *kvmManager) mkZDBDisk(media Media) (arg QemuArg, err error) {
+	u, err := url.Parse(media.URL)
+	if err != nil {
+		return
+	}
+	query := u.Query()
+
+	args := []string{}
+	for _, key := range []string{"password", "namespace", "blocksize", "size"} {
+		value := query.Get(key)
+		if value != "" {
+			args = append(args, fmt.Sprintf("%s=%s", key, value))
+		}
+	}
+
+	switch u.Scheme {
+	case "zdb+tcp":
+		fallthrough
+	case "zdb":
+		host := u.Hostname()
+		args = append(args, fmt.Sprintf("host=%s", host))
+		port := u.Port()
+		if port != "" {
+			args = append(args, fmt.Sprintf("port=%s", port))
+		}
+	case "zdb+unix":
+		args = append(args, fmt.Sprintf("socket=%s", u.Path))
+	}
+
+	arg.Value = fmt.Sprintf("driver=zdb,%s", strings.Join(args, ","))
+	return
+}
+
 func (m *kvmManager) mkDisk(idx int, media Media) DiskDevice {
 	u, err := url.Parse(media.URL)
 
@@ -674,9 +709,10 @@ func (m *kvmManager) ipAddr(s uint16) string {
 
 func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error) {
 	domain := Domain{
-		Type: DomainTypeKVM,
-		Name: params.Name,
-		UUID: uuid.New(),
+		Type:   DomainTypeKVM,
+		QemuNS: "http://libvirt.org/schemas/domain/qemu/1.0", //support qemu extra arguments
+		Name:   params.Name,
+		UUID:   uuid.New(),
 		Memory: Memory{
 			Capacity: params.Memory,
 			Unit:     "MiB",
@@ -736,7 +772,17 @@ func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error)
 	}
 
 	for idx, media := range params.Media {
-		domain.Devices.Disks = append(domain.Devices.Disks, m.mkDisk(idx, media))
+		if strings.HasPrefix(media.URL, "zdb") {
+			//special handle for the zdb devices, they are not added as a
+			//libvirtd disks.
+			zdb, err := m.mkZDBDisk(media)
+			if err != nil {
+				return nil, err
+			}
+			domain.Qemu.Args = append(domain.Qemu.Args, QemuArg{Value: "-drive"}, zdb)
+		} else {
+			domain.Devices.Disks = append(domain.Devices.Disks, m.mkDisk(idx, media))
+		}
 	}
 
 	for _, mount := range params.Mount {
@@ -796,66 +842,6 @@ func (m *kvmManager) updateView() {
 	screen.Refresh()
 }
 
-func (m *kvmManager) mountFList(name, src string) (config FListBootConfig, err error) {
-	namespace := fmt.Sprintf(VmNamespaceFmt, name)
-	storage := settings.Settings.Globals.Get("storage", "ardb://hub.gig.tech:16379")
-
-	target := path.Join(VmBaseRoot, name)
-	onExit := &pm.ExitHook{
-		Action: func(e bool) {
-			//destroy this machine, if fs exited
-			conn, err := m.libvirt.getConnection()
-			if err != nil {
-				log.Errorf("failed to get libvirt connection: %s", err)
-				return
-			}
-			domain, err := conn.LookupDomainByName(name)
-			if err != nil {
-				return
-			}
-			log.Warningf("VM (%s) filesystem exited while running, destorying the machine", name)
-			uuid, _ := domain.GetUUIDString()
-			m.destroyDomain(uuid, domain)
-		},
-	}
-
-	if err = helper.MountFList(namespace, storage, src, target, onExit); err != nil {
-		return
-	}
-
-	defer func() {
-		if err != nil {
-			m.unmountFList(name)
-		}
-	}()
-
-	//load entry config
-	cfg, err := ioutil.ReadFile(path.Join(target, "boot", "boot.yaml"))
-	if err != nil {
-		return config, fmt.Errorf("failed to open boot/boot.yaml: %s", err)
-	}
-
-	err = yaml.Unmarshal(cfg, &config)
-	config.Root = target
-	return
-}
-
-func (m *kvmManager) unmountFList(name string) error {
-	target := path.Join(VmBaseRoot, name)
-	err := syscall.Unmount(target, syscall.MNT_FORCE)
-	if err == nil {
-		return nil
-	}
-
-	if errno, ok := err.(syscall.Errno); ok {
-		if errno == syscall.EINVAL {
-			return nil
-		}
-	}
-
-	return err
-}
-
 func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 	defer m.updateView()
 	var params CreateParams
@@ -876,18 +862,25 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 	}
 
 	if len(params.FList) != 0 {
-		config, err := m.mountFList(params.Name, params.FList)
+		config, err := m.flistMount(domain.UUID, params.FList, params.Config)
 		if err != nil {
 			return nil, err
 		}
-		cmdline := "rootfstype=9p rootflags=rw,trans=virtio,cache=loose root=root"
+		var cmdline string
+		if !config.NoDefault {
+			cmdline = "rootfstype=9p rootflags=rw,trans=virtio,cache=loose root=root"
+		}
+
 		if len(config.Cmdline) != 0 {
 			cmdline = fmt.Sprintf("%s %s", cmdline, config.Cmdline)
 		}
 
-		domain.OS.Kernel = path.Join(config.Root, config.Kernel)
-		domain.OS.InitRD = path.Join(config.Root, config.InitRD)
-		domain.OS.Cmdline = cmdline
+		domain.OS.Kernel = path.Join(config.Root, utils.SafeNormalize(config.Kernel))
+		if len(config.InitRD) != 0 {
+			domain.OS.InitRD = path.Join(config.Root, utils.SafeNormalize(config.InitRD))
+		}
+
+		domain.OS.Cmdline = strings.TrimSpace(cmdline)
 
 		fs := Filesystem{
 			Source: FilesystemDir{config.Root},
@@ -896,6 +889,8 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 
 		domain.Devices.Filesystems = append(domain.Devices.Filesystems, fs)
 	}
+
+	//TODO: after this point, if an error occured, we need to rollback filesystem mount
 
 	if err := m.setNetworking(&params.NicParams, seq, domain); err != nil {
 		return nil, err
@@ -987,7 +982,7 @@ func (m *kvmManager) destroyDomain(uuid string, domain *libvirt.Domain) error {
 	}
 
 	m.unPortForward(uuid)
-	return nil
+	return m.flistUnmount(uuid)
 }
 
 func (m *kvmManager) destroy(cmd *pm.Command) (interface{}, error) {
@@ -1457,6 +1452,68 @@ type Machine struct {
 	IfcTargets []string `json:"ifctargets"`
 }
 
+func (m *kvmManager) getMachine(domain *libvirt.Domain) (Machine, error) {
+	uuid, err := domain.GetUUIDString()
+	if err != nil {
+		return Machine{}, err
+	}
+	domainstruct, err := m.getDomainStruct(uuid)
+	if err != nil {
+		return Machine{}, err
+	}
+	id, err := domain.GetID()
+	if err != nil {
+		return Machine{}, err
+	}
+	name, err := domain.GetName()
+	if err != nil {
+		return Machine{}, err
+	}
+	state, _, err := domain.GetState()
+	if err != nil {
+		return Machine{}, err
+	}
+	port := -1
+	for _, graphics := range domainstruct.Devices.Graphics {
+		if graphics.Type == GraphicsDeviceTypeVNC {
+			port = graphics.Port
+			break
+		}
+	}
+
+	targets := []string{}
+	for _, ifc := range domainstruct.Devices.Interfaces {
+		targets = append(targets, ifc.Target.Dev)
+
+	}
+
+	domainMetaData, err := domain.GetMetadata(libvirt.DOMAIN_METADATA_ELEMENT, metadataUri, libvirt.DOMAIN_AFFECT_LIVE)
+	if err != nil {
+		return Machine{}, fmt.Errorf("couldn't get metadata for domain with the uuid %s", uuid)
+	}
+
+	var metaData MetaData
+	err = xml.Unmarshal([]byte(domainMetaData), &metaData)
+	if err != nil {
+		return Machine{}, fmt.Errorf("couldn't xml unmarshal metadata for domain with the uuid %s", uuid)
+	}
+	var tags pm.Tags
+	err = json.Unmarshal([]byte(metaData.Value), &tags)
+	if err != nil {
+		return Machine{}, fmt.Errorf("couldn't json unmarshal tags for domain with the uuid %s", uuid)
+	}
+
+	return Machine{
+		ID:         int(id),
+		UUID:       uuid,
+		Name:       name,
+		State:      StateToString(state),
+		Vnc:        port,
+		Tags:       tags,
+		IfcTargets: targets,
+	}, nil
+}
+
 func (m *kvmManager) list(cmd *pm.Command) (interface{}, error) {
 	conn, err := m.libvirt.getConnection()
 	if err != nil {
@@ -1467,71 +1524,57 @@ func (m *kvmManager) list(cmd *pm.Command) (interface{}, error) {
 		return nil, fmt.Errorf("failed to list machines: %s", err)
 	}
 
-	found := make([]Machine, 0)
+	machines := make([]Machine, 0)
 
 	for _, domain := range domains {
-		uuid, err := domain.GetUUIDString()
+		machine, err := m.getMachine(&domain)
 		if err != nil {
 			return nil, err
 		}
-		domainstruct, err := m.getDomainStruct(uuid)
-		if err != nil {
-			return nil, err
-		}
-		id, err := domain.GetID()
-		if err != nil {
-			return nil, err
-		}
-		name, err := domain.GetName()
-		if err != nil {
-			return nil, err
-		}
-		state, _, err := domain.GetState()
-		if err != nil {
-			return nil, err
-		}
-		port := -1
-		for _, graphics := range domainstruct.Devices.Graphics {
-			if graphics.Type == GraphicsDeviceTypeVNC {
-				port = graphics.Port
-				break
-			}
-		}
 
-		targets := []string{}
-		for _, ifc := range domainstruct.Devices.Interfaces {
-			targets = append(targets, ifc.Target.Dev)
-
-		}
-
-		domainMetaData, err := domain.GetMetadata(libvirt.DOMAIN_METADATA_ELEMENT, metadataUri, libvirt.DOMAIN_AFFECT_LIVE)
-		if err != nil {
-			return nil, fmt.Errorf("couldn't get metadata for domain with the uuid %s", uuid)
-		}
-
-		var metaData MetaData
-		err = xml.Unmarshal([]byte(domainMetaData), &metaData)
-		if err != nil {
-			return nil, fmt.Errorf("couldn't xml unmarshal metadata for domain with the uuid %s", uuid)
-		}
-		var tags pm.Tags
-		err = json.Unmarshal([]byte(metaData.Value), &tags)
-		if err != nil {
-			return nil, fmt.Errorf("couldn't json unmarshal tags for domain with the uuid %s", uuid)
-		}
-
-		found = append(found, Machine{
-			ID:         int(id),
-			UUID:       uuid,
-			Name:       name,
-			State:      StateToString(state),
-			Vnc:        port,
-			Tags:       tags,
-			IfcTargets: targets,
-		})
+		machines = append(machines, machine)
 	}
 
-	return found, nil
+	return machines, nil
+}
+
+func (m *kvmManager) get(cmd *pm.Command) (interface{}, error) {
+	var params struct {
+		Name string `json:"name"`
+		UUID string `json:"uuid"`
+	}
+	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+		return nil, err
+	}
+
+	if (len(params.Name) == 0) == (len(params.UUID) ==0){
+		return nil, fmt.Errorf("Must supply either Name or UUID")
+	}
+
+	conn, err := m.libvirt.getConnection()
+	if err != nil {
+		return nil, err
+	}
+
+	var domain *libvirt.Domain
+	if params.Name != "" {
+		domain, err = conn.LookupDomainByName(params.Name)
+		if err != nil {
+			return nil, fmt.Errorf("failed to lookup domain by name: %s", err)
+		}
+	} else {
+		domain, err = conn.LookupDomainByUUIDString(params.UUID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to lookup domain by uuid: %s", err)
+		}
+	}
+
+	machine, err := m.getMachine(domain)
+	if err != nil {
+		return nil, err
+	}
+
+	return machine, nil
 }
 
 func (m *kvmManager) monitor(cmd *pm.Command) (interface{}, error) {

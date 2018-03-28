@@ -83,10 +83,10 @@ class BaseTest(unittest.TestCase):
 
     def create_zerotier_network(self, private=False):
         url = 'https://my.zerotier.com/api/network'
-        data = {'config': {'ipAssignmentPools': [{'ipRangeEnd': '10.147.17.254',
-                                                  'ipRangeStart': '10.147.17.1'}],
+        data = {'config': {'ipAssignmentPools': [{'ipRangeEnd': '10.147.19.254',
+                                                  'ipRangeStart': '10.147.19.1'}],
                            'private': private,
-                           'routes': [{'target': '10.147.17.0/24', 'via': None}],
+                           'routes': [{'target': '10.147.19.0/24', 'via': None}],
                            'v4AssignMode': {'zt': True}}}
 
         response = self.session.post(url=url, json=data)

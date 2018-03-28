@@ -61,27 +61,27 @@ class ExtendedNetworking(BaseTest):
             self.client.timeout = 100
 
             self.lg('Container c1 ping g8os client (ip : {}), should succeed'.format(g8_ip))
-            r = c1_client.bash('ping -w10 {}'.format(g8_ip)).get()
+            r = c1_client.bash('ping -w5 {}'.format(g8_ip)).get()
             self.assertEqual(r.state, 'SUCCESS', r.stdout)
 
             self.lg('Container c1 ping Container c2 (ip : {}), should succeed'.format(c2_ip))
-            r = c1_client.bash('ping -w10 {}'.format(c2_ip)).get()
+            r = c1_client.bash('ping -w5 {}'.format(c2_ip)).get()
             self.assertEqual(r.state, 'SUCCESS', r.stdout)
 
             self.lg('Container c2 ping g8os client (ip : {}), should succeed'.format(g8_ip))
-            r = c2_client.bash('ping -w10 {}'.format(g8_ip)).get()
+            r = c2_client.bash('ping -w5 {}'.format(g8_ip)).get()
             self.assertEqual(r.state, 'SUCCESS', r.stdout)
 
             self.lg('Container c2 ping Container c1 (ip : {}), should succeed'.format(c1_ip))
-            r = c2_client.bash('ping -w10 {}'.format(c1_ip)).get()
+            r = c2_client.bash('ping -w5 {}'.format(c1_ip)).get()
             self.assertEqual(r.state, 'SUCCESS', r.stdout)
 
             self.lg('G8os client ping Container c1 (ip : {}), should succeed'.format(c1_ip))
-            r = self.client.bash('ping -w10 {}'.format(c1_ip)).get()
+            r = self.client.bash('ping -w5 {}'.format(c1_ip)).get()
             self.assertEqual(r.state, 'SUCCESS', r.stdout)
 
             self.lg('G8os client ping Container c2 (ip : {}), should succeed'.format(c2_ip))
-            r = self.client.bash('ping -w10 {}'.format(c2_ip)).get()
+            r = self.client.bash('ping -w5 {}'.format(c2_ip)).get()
             self.assertEqual(r.state, 'SUCCESS', r.stdout)
 
             self.lg('G8os client leave zerotier network (N1), should succeed')

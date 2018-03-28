@@ -1,0 +1,8 @@
+[startup.cache]
+name = "core.system"
+after = ["udevtrigger"] #udevtrigger service is defined by the 0-initramfs
+running_delay = -1
+
+[startup.cache.args]
+name = "/bin/sh"
+args = ["/usr/bin/ensurecache.sh"]

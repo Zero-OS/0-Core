@@ -33,8 +33,9 @@ func Redirect(p string) error {
 			logging.NewLogBackend(log, "", 0),
 		)
 	}
-
+	level := logging.GetLevel("")
 	logging.SetBackend(backends...)
+	logging.SetLevel(level, "")
 	return nil
 }
 

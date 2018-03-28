@@ -1,3 +1,5 @@
+// +build amd64
+
 package kvm
 
 import (
@@ -17,8 +19,8 @@ func (m *kvmManager) handleStopped(uuid, name string, domain *libvirt.Domain) er
 		an flist or not. One approach is to keep in memory description of the machine that needs
 		clean up. Or simply try to unmount the expected target by default, and hide unmount errors
 	*/
-
-	return m.unmountFList(name)
+	m.unPortForward(uuid)
+	return m.flistUnmount(uuid)
 }
 
 func (m *kvmManager) handle(conn *libvirt.Connect, domain *libvirt.Domain, event *libvirt.DomainEventLifecycle) {

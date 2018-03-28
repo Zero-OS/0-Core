@@ -1,6 +1,6 @@
 # Other Configurations Files
 
-See: `config/root`.
+See: `apps/core0/config`.
 
 ## disk.toml
 

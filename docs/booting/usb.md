@@ -41,25 +41,25 @@ mkfs.vfat /dev/sdc1
 <a id="mount"></a>
 Then mont the partition:
 ```bash
-mount /dev/sdc1 /mnt/g8os-usb
+mount /dev/sdc1 /mnt/zos-usb
 ```
 
 <a id="efi-dirs"></a>
 Create the EFI directories:
 ```bash
-mkdir -p /mnt/g8os-usb/EFI/BOOT
+mkdir -p /mnt/zos-usb/EFI/BOOT
 ```
 
 <a id="copy"></a>
 Copy the kernel:
 ```bash
-cp zero-os-master.efi /mnt/g8os-usb/EFI/BOOT/BOOTX64.EFI
+cp zero-os-master.efi /mnt/zos-usb/EFI/BOOT/BOOTX64.EFI
 ```
 
 <a id="unmount"></a>
 Unmount the USB device:
 ```bash
-umount /mnt/g8os-usb
+umount /mnt/zos-usb
 ```
 
 You can now boot from the USB device on your EFI enabled system.

@@ -237,7 +237,7 @@ class DisksTests(BaseTest):
         self.lg('Get the disks names  using disk list')
         disks_names = []
         disks = self.client.disk.list()
-        for disk in disks['blockdevices']:
+        for disk in disks:
             disks_names.append(disk['name'])
 
         for disk in disks_names:
@@ -347,7 +347,7 @@ class DisksTests(BaseTest):
 
         self.lg('check disk  exist in disk list with 2 partition ')
         disks = self.client.disk.list()
-        for disk in disks['blockdevices']:
+        for disk in disks:
             if disk['name'] == device_name:
                 self.assertEqual(len(disk['children']), 2)
 
@@ -361,7 +361,7 @@ class DisksTests(BaseTest):
 
         self.lg('check that  partitions for this disk removed ,should succeed.')
         disks = self.client.disk.list()
-        for disk in disks['blockdevices']:
+        for disk in disks:
             if disk['name'] == device_name:
                 self.assertTrue('children' not in disk.keys())
 
@@ -417,7 +417,7 @@ class DisksTests(BaseTest):
 
         self.lg('check that disk exist in disk list with 2 partition ')
         disks = self.client.disk.list()
-        for disk in disks['blockdevices']:
+        for disk in disks:
             if disk['name'] == device_name:
                 self.assertEqual(len(disk['children']), 2)
 
