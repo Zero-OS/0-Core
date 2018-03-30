@@ -5,6 +5,7 @@ import (
 	"github.com/op/go-logging"
 	"github.com/vishvananda/netlink"
 	"github.com/zero-os/0-core/base/utils"
+	"os/exec"
 )
 
 var (
@@ -42,6 +43,7 @@ type Interface interface {
 	Clear() error
 	IPs() ([]netlink.Addr, error)
 	SetUP(bool) error
+	LinkDetected() bool
 }
 
 type NetworkManager interface {
@@ -107,6 +109,17 @@ func (i *networkInterface) IPs() ([]netlink.Addr, error) {
 		return nil, err
 	}
 	return netlink.AddrList(link, netlink.FAMILY_V4)
+}
+
+func (i *networkInterface) LinkDetected() bool {
+	cmd := fmt.Sprintf("ethtool %s | grep -q 'Link detected: yes'", i.Name())
+
+	_, err := exec.Command("sh", "-c", cmd).Output()
+	if err != nil {
+		return false
+	}
+
+	return true
 }
 
 type networkManager struct {
