@@ -28,11 +28,11 @@ func (d *dhcpProtocol) getZerotierId() (string, error) {
 }
 
 func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
-	hostid := "zero-os"
+	hostid := "hostname:zero-os"
 
 	ztid, err := d.getZerotierId()
 	if err == nil {
-		hostid = fmt.Sprintf("zero-os-%s", ztid)
+		hostid = fmt.Sprintf("hostname:zero-os-%s", ztid)
 	}
 
 	cmd := &pm.Command{
@@ -49,7 +49,7 @@ func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
 					"--now",  //exit if failed after consuming all the trials (otherwise stay alive)
 					"--quit", //quit once the lease is obtained
 					"-s", "/usr/share/udhcp/simple.script",
-					"-x", "hostname", hostid,
+					"-x", hostid, //set hostname on dhcp request
 				},
 			},
 		),
