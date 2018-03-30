@@ -75,7 +75,7 @@ func Splash() {
 	})
 	screen.Push(&screen.TextSection{})
 	screen.Push(&screen.TextSection{
-		Text: "[Alt+F1: Kerenel logs view] [Alt+F2: This screen]",
+		Text: "[Alt+F1: Kernel logs view] [Alt+F2: This screen]",
 	})
 	screen.Push(&screen.TextSection{})
 	screen.Refresh()

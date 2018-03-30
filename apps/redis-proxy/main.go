@@ -23,7 +23,7 @@ func main() {
 		cli.StringFlag{
 			Name:  "organization, o",
 			Value: "",
-			Usage: "IYO organization that has to be valid in the jwt calims, if not provided, it will be parsed from kerenel cmdline, otherwise no authentication will be applied",
+			Usage: "IYO organization that has to be valid in the jwt claims, if not provided, it will be parsed from kernel cmdline, otherwise no authentication will be applied",
 		},
 		cli.StringFlag{
 			Name:  "listen, l",

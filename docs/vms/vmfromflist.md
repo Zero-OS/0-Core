@@ -17,7 +17,7 @@ cmdline: 'extra kernel arguments'
 
 - `kernel` points to **full** path to valid kernel image
 - `initrd` points to **full** path to valid initramfs image witch have the 9p* modules avove.
-- `cmdline` is optional, use if u need to pass extra kerenel arguments
+- `cmdline` is optional, use if u need to pass extra kernel arguments
 
 ## Starting the VM
 Using the client it's exactly the same as starting a normal VM. it supports all the
