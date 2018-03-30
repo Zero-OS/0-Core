@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/pborman/uuid"
 	"github.com/zero-os/0-core/base/pm"
+	"io/ioutil"
 )
 
 const (
@@ -17,7 +18,23 @@ func init() {
 type dhcpProtocol struct {
 }
 
+func (d *dhcpProtocol) getZerotierId() (string, error) {
+	bytes, err := ioutil.ReadFile("/tmp/zt/identity.public")
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes)[0:10], nil
+}
+
 func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
+	hostid := "zero-os"
+
+	ztid, err := d.getZerotierId()
+	if err == nil {
+		hostid = fmt.Sprintf("zero-os-%s", ztid)
+	}
+
 	cmd := &pm.Command{
 		ID:      uuid.New(),
 		Command: pm.CommandSystem,
@@ -31,7 +48,9 @@ func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
 					"-A", "3", //wait 3 seconds between each trial
 					"--now",  //exit if failed after consuming all the trials (otherwise stay alive)
 					"--quit", //quit once the lease is obtained
-					"-s", "/usr/share/udhcp/simple.script"},
+					"-s", "/usr/share/udhcp/simple.script",
+					"-x", "hostname", hostid,
+				},
 			},
 		),
 	}
