@@ -115,15 +115,18 @@ func (b *Bootstrap) setupNetworking() error {
 
 	//apply the interfaces settings as configured.
 	for _, inf := range interfaces {
-		log.Infof("Setting up interface '%s'", inf.Name())
+		log.Infof("Setting up interface '%s' (%s)", inf.Name(), inf.Protocol())
+
+		inf.Clear()
+		inf.SetUP(true)
+
+		log.Infof("Interface '%s', link detected: %v", inf.LinkDetected())
 
 		if inf.Protocol() == "dhcp" && inf.LinkDetected() == false {
 			log.Infof("No link detected on '%s', skipping", inf.Name())
 			continue
 		}
 
-		inf.Clear()
-		inf.SetUP(true)
 		if err := inf.Configure(); err != nil {
 			log.Errorf("%s", err)
 		}
