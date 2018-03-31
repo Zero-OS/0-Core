@@ -122,10 +122,12 @@ func (b *Bootstrap) setupNetworking() error {
 
 		log.Infof("Interface '%s', link detected: %v", inf.LinkDetected())
 
-		if inf.Protocol() == "dhcp" && inf.LinkDetected() == false {
-			log.Infof("No link detected on '%s', skipping", inf.Name())
-			continue
-		}
+		/*
+			if inf.Protocol() == "dhcp" && inf.LinkDetected() == false {
+				log.Infof("No link detected on '%s', skipping", inf.Name())
+				continue
+			}
+		*/
 
 		if err := inf.Configure(); err != nil {
 			log.Errorf("%s", err)
