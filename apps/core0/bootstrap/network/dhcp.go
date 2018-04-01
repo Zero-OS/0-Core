@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"syscall"
+	"time"
 
-	"github.com/pborman/uuid"
+	"github.com/vishvananda/netlink"
+
 	"github.com/zero-os/0-core/base/pm"
 )
 
@@ -13,6 +16,7 @@ const (
 	ProtocolDHCP = "dhcp"
 
 	carrierFile = "/sys/class/net/%s/carrier"
+	waitIPFor   = 30
 )
 
 func init() {
@@ -57,7 +61,7 @@ func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
 	}
 
 	cmd := &pm.Command{
-		ID:      uuid.New(),
+		ID:      fmt.Sprintf("udhcpc/%s", inf),
 		Command: pm.CommandSystem,
 		Arguments: pm.MustArguments(
 			pm.SystemCommandArguments{
@@ -74,17 +78,30 @@ func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
 		),
 	}
 
-	_, err = pm.Run(cmd)
+	job, err := pm.Run(cmd)
 	if err != nil {
 		return err
 	}
 
-	/*TODO:
-	Should we wait until we have an IP?
+	link, err := netlink.LinkByName(inf)
+	if err != nil {
+		return err
+	}
 
-	note we can't wait for the job itself, since the udhcpc client does not exit after optianing
-	an IP anymore. Hence we can never tell if an IP was assigned unless we pull for the interface addresses
-	before we give up.
-	*/
-	return nil
+	for i := 0; i < waitIPFor; i++ {
+		addr, err := netlink.AddrList(link, netlink.FAMILY_V4)
+		if err != nil {
+			return err
+		}
+
+		if len(addr) > 0 {
+			return nil
+		}
+
+		<-time.After(time.Second)
+	}
+
+	job.Signal(syscall.SIGTERM)
+
+	return fmt.Errorf("no ip on %s for %d seconds", inf, waitIPFor)
 }
