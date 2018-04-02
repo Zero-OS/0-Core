@@ -2,16 +2,17 @@ package bootstrap
 
 import (
 	"fmt"
-	"github.com/op/go-logging"
-	"github.com/shirou/gopsutil/process"
-	"github.com/vishvananda/netlink"
-	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/settings"
-	"github.com/zero-os/0-core/base/utils"
-	"github.com/zero-os/0-core/apps/coreX/options"
 	"os"
 	"path"
 	"syscall"
+
+	"github.com/op/go-logging"
+	"github.com/shirou/gopsutil/process"
+	"github.com/vishvananda/netlink"
+	"github.com/zero-os/0-core/apps/coreX/options"
+	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/settings"
+	"github.com/zero-os/0-core/base/utils"
 )
 
 var (
@@ -130,9 +131,12 @@ func (o *Bootstrap) setupFS() error {
 	}
 
 	os.MkdirAll("/proc", 0755)
-	if err := syscall.Mount("none", "/proc", "proc",
-		syscall.MS_RDONLY|syscall.MS_NOSUID|syscall.MS_RELATIME|syscall.MS_NODEV|syscall.MS_NOEXEC,
-		""); err != nil {
+	procflags := uintptr(syscall.MS_NOSUID | syscall.MS_RELATIME | syscall.MS_NODEV | syscall.MS_NOEXEC)
+	if options.Options.Unprivileged() {
+		procflags |= syscall.MS_RDONLY
+	}
+
+	if err := syscall.Mount("none", "/proc", "proc", procflags, ""); err != nil {
 		return err
 	}
 
