@@ -31,8 +31,6 @@ type Bootstrap struct {
 	i     *settings.IncludedSettings
 	t     settings.StartupTree
 	agent bool
-
-	pinger ping.Pinger
 }
 
 func NewBootstrap(agent bool) *Bootstrap {
