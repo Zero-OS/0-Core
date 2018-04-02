@@ -2,12 +2,12 @@ package bootstrap
 
 import (
 	"fmt"
-	"net/http"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/op/go-logging"
+	ping "github.com/sparrc/go-ping"
 	"github.com/vishvananda/netlink"
 	"github.com/zero-os/0-core/apps/core0/bootstrap/network"
 	"github.com/zero-os/0-core/apps/core0/options"
@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	InternetTestAddress = "http://www.google.com/"
+	InternetTestAddress = "8.8.8.8"
 
 	screenStateLine = "->%25s: %s %s"
 )
@@ -31,6 +31,8 @@ type Bootstrap struct {
 	i     *settings.IncludedSettings
 	t     settings.StartupTree
 	agent bool
+
+	pinger ping.Pinger
 }
 
 func NewBootstrap(agent bool) *Bootstrap {
@@ -76,12 +78,16 @@ func (b *Bootstrap) startupServices(s, e settings.After) {
 }
 
 func (b *Bootstrap) canReachInternet() bool {
-	resp, err := http.Get(InternetTestAddress)
-	if err != nil {
-		return false
-	}
-	resp.Body.Close()
-	return true
+	pinger, _ := ping.NewPinger(InternetTestAddress)
+	pinger.Timeout = 2 * time.Second
+	pinger.Count = 1
+	pinger.SetPrivileged(true)
+
+	pinger.Run()
+	stats := pinger.Statistics()
+
+	return stats.PacketsRecv == pinger.Count
+
 }
 
 func (b *Bootstrap) ipsAsString(ips []netlink.Addr) string {
@@ -119,11 +125,23 @@ func (b *Bootstrap) setupNetworking() error {
 
 		inf.Clear()
 		inf.SetUP(true)
-		if err := inf.Configure(); err != nil {
-			log.Errorf("%s", err)
+		go func(inf network.Interface) {
+			if err := inf.Configure(); err != nil {
+				log.Errorf("%s", err)
+			}
+		}(inf)
+	}
+
+	log.Debugf("waiting for internet reachability")
+	now := time.Now()
+	for time.Since(now) < time.Minute {
+		if b.canReachInternet() {
+			log.Info("can reach the internet")
+			return nil
 		}
 	}
 
+	log.Warning("can not reach interent, continue booting anyway")
 	return nil
 }
 

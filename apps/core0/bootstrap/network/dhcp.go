@@ -4,10 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"syscall"
-	"time"
-
-	"github.com/vishvananda/netlink"
 
 	"github.com/zero-os/0-core/base/pm"
 )
@@ -16,7 +12,6 @@ const (
 	ProtocolDHCP = "dhcp"
 
 	carrierFile = "/sys/class/net/%s/carrier"
-	waitIPFor   = 30
 )
 
 func init() {
@@ -72,36 +67,16 @@ func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
 					"-t", "10", //try 10 times before giving up
 					"-A", "3", //wait 3 seconds between each trial
 					"-s", "/usr/share/udhcp/simple.script",
+					"--now",      // exit if lease is not optained
 					"-x", hostid, //set hostname on dhcp request
 				},
 			},
 		),
 	}
 
-	job, err := pm.Run(cmd)
-	if err != nil {
+	if _, err := pm.Run(cmd); err != nil {
 		return err
 	}
 
-	link, err := netlink.LinkByName(inf)
-	if err != nil {
-		return err
-	}
-
-	for i := 0; i < waitIPFor; i++ {
-		addr, err := netlink.AddrList(link, netlink.FAMILY_V4)
-		if err != nil {
-			return err
-		}
-
-		if len(addr) > 0 {
-			return nil
-		}
-
-		<-time.After(time.Second)
-	}
-
-	job.Signal(syscall.SIGTERM)
-
-	return fmt.Errorf("no ip on %s for %d seconds", inf, waitIPFor)
+	return nil
 }
