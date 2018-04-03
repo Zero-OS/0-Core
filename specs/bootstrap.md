@@ -1,39 +1,51 @@
 
 ## boot process
+**Zero-OS** can be booted with one of the following methods mentioned in [Booting Zero-OS](../docs/booting/README.md)
 
-- all is using iPXE to boot the g8OS core (kernel + core0)
-    - only 1 parameter required to the iPXE: zerotier network id (16 char's)
-- the core0 will try to create network using multiple ways how to get to internet & connect to the zerotier network
-    - it will restart as many times as required untill the zerotier network is up & running (ip addr given)
-    - @TODO define all possible network connection ways
-- the developer or a service now uses the api of zerotier to 
-    - enable the node on the zt network (needs to be enabled otherwise no ip addr is give)
-    - query all other nodes known to the zt network, check if their redis is accessible, this allows further configuration in step2
+### bootstraping process
+Following are the major booting steps explained
 
+#### Prepare the cache disk.
+Since Zero-OS doesn't require installation, and there is no way to configure `fstab` Zero-OS has it's own mechanism to prepare and initialize a cache disk witch is used for the operations of containers and VMs that are booted from `flist` (using [0-fs](https://github.com/zero-os/0-fs)).
 
-## how to boot iPXE
+The system, tries to find a pre configured btrfs parition with label `sp_zos-cache` if not found the system tries to create one as follows:
+- Find the first unused `SSD` disk
+- If not found, find the first `Rotary` disk
+- If not found, no cache is created or used
 
-- virtualbox/physical/kvm/... node : use iso with iPXE 
-    - there is a service ???/g8os.iso?netid=32423kj4ghi23jk4h
-        - result is an iso with ipxe which has configuration params inside for the netid
-        - this iso can now be attached to any hypervisor or physical node
-        - the iso = ipxe image which will then further download the right g8os.ipxe image to boot from (using http=ipxe)
-- packet.net
-    - specify as ipxe an url like ```https://stor.jumpscale.org/public/ipxe/g8os.ipxe?netid=23423423423423```
-    - the webservice will put netid directly into the ipxe config file
-- xhyve osx
-    - @TODO to be defined
-    
-## phase 2 (optional): use ays for further configuration of G8OS
+Once a candiate is found, a single parition that spans the entire disk is created, and formated with `btrfs` and given the `sp_zos-label`.
 
-- any AYS development or production environment will do 
-    - use https://github.com/Jumpscale/builder to start with, this allows you to develop locally
-- connect this env to the right zerotier network
-- start ays blueprint
-- first AYS = zerotier g8os mgmt network
-    - this one detects over api all nodes on the network & try to make connection over redis, if new node found then ays for the node is created
-    - monitoring is done that new nodes are auto detected every 5 min (and enabled if required)
+The parition is mounted under `/mnt/storagepool/sp_zos-cache/` then 2 subvolums are created on the bool
 
-remarks:
+- `cache` which is mounted under `/var/cache`
+- `logs`
+- `logs/<timestamp>` is created and mounted under `/var/log`
 
-- there should be no dependencies between G8OS & AYS !!!
+> syslogd, klog and core0 logs are started, or signaled to recreate the logs under the correct mount point. Hence we keep snapshots of the entire system logs.
+
+#### Network initialization
+The default config of **Zero-OS** is to start `dhcpc` on _ALL_ available network interfaces as follows
+- Unplugged NIC cards are ignored
+- Zero-OS gives up on NICs that fail to get an IP using dhcp in around 30 seconds
+- `udhcpc` process that succeed in getting an IP is kept alive, to maitain the IP lease
+- The bootstrap process is paused (max of 1 minute) waiting for internet reachability.
+
+> Note: if the internet is not reachable, the boot process is continued anyway but
+other services might fail to work as expected.
+
+> Note: the system can NOT recover from the initial networking failures (no IPs assigned).
+
+#### system services
+Some services are essential for the operation of Zero-OS. The official image has all
+the services it needs with proper configuration that is optimized for Zero-OS this include (not limited to):
+- redis
+- libvirt
+- dnsmasq
+- nft
+- 0-ork
+- 0-fs
+
+## Moving on
+After the system is fully booted, Zero-OS client is used to further customize the system (advanced networking with OpenVSwitch, storagepool management, firewall, etc..).
+
+Workload management is also done via the client to manage, start and stop containers and virtual machines.
