@@ -114,7 +114,7 @@ func main() {
 	if !options.Agent() {
 		//Redirect the stdout, and stderr so we make sure we don't lose crashes that terminates
 		//the process.
-		if err := Redirect(LogPath); err != nil {
+		if err := Rotate(LogPath); err != nil {
 			log.Errorf("failed to redirect output streams: %s", err)
 		}
 
