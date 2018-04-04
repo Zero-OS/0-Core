@@ -354,30 +354,18 @@ func (c *container) setDNS(dns string) error {
 	return err
 }
 
-func (c *container) forwardId(host int, container int) string {
-	return fmt.Sprintf("socat-%d-%d-%d", c.id, host, container)
+func (c *container) forwardId() string {
+	return fmt.Sprintf("container-%d", c.id)
 }
 
-func (c *container) removePortForward(host int, container int) error {
-	return pm.Kill(c.forwardId(host, container))
-}
-
-func (c *container) removePortForwards() {
-	for host, container := range c.Args.Port {
-		c.removePortForward(host, container)
-	}
-}
-
-func (c *container) setPortForward(host int, container int) error {
+func (c *container) setPortForward(host int, dest int) error {
 	ip := c.getDefaultIP().String()
-	id := c.forwardId(host, container)
-
-	return socat.SetPortForward(id, ip, host, container)
+	return socat.SetPortForward(c.forwardId(), ip, host, dest)
 }
 
 func (c *container) setPortForwards() error {
-	for host, container := range c.Args.Port {
-		if err := c.setPortForward(host, container); err != nil {
+	for host, dest := range c.Args.Port {
+		if err := c.setPortForward(host, dest); err != nil {
 			return err
 		}
 	}
@@ -645,7 +633,7 @@ func (c *container) destroyNetwork() {
 			c.unBridge(idx, network, ovs)
 		case "default":
 			c.unBridge(idx, network, nil)
-			c.removePortForwards()
+			socat.RemoveAll(c.forwardId())
 		}
 	}
 

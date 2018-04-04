@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/shlex"
 	"github.com/libvirt/libvirt-go"
+	"github.com/zero-os/0-core/apps/core0/helper/socat"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/stream"
 )
@@ -19,7 +20,7 @@ func (m *kvmManager) handleStopped(uuid, name string, domain *libvirt.Domain) er
 		an flist or not. One approach is to keep in memory description of the machine that needs
 		clean up. Or simply try to unmount the expected target by default, and hide unmount errors
 	*/
-	m.removePortForwards(uuid)
+	socat.RemoveAll(m.forwardId(uuid))
 	return m.flistUnmount(uuid)
 }
 

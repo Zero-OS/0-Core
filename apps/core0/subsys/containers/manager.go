@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
+	"github.com/zero-os/0-core/apps/core0/helper/socat"
 	"github.com/zero-os/0-core/apps/core0/screen"
 	"github.com/zero-os/0-core/apps/core0/subsys/cgroups"
 	"github.com/zero-os/0-core/apps/core0/transport"
@@ -736,7 +737,7 @@ func (m *containerManager) portforwardRemove(cmd *pm.Command) (interface{}, erro
 		return nil, pm.NotFoundError(fmt.Errorf("container does not exist"))
 	}
 
-	if err := container.removePortForward(args.HostPort, args.ContainerPort); err != nil {
+	if err := socat.RemovePortForward(container.forwardId(), args.HostPort, args.ContainerPort); err != nil {
 		return nil, err
 	}
 	delete(container.Args.Port, args.HostPort)

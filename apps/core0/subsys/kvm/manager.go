@@ -29,8 +29,6 @@ const (
 	BaseIPAddr  = "172.19.%d.%d"
 	metadataKey = "zero-os"
 	metadataUri = "https://github.com/zero-os/0-core"
-	sequenceKey = "zeros-os-seq"
-	sequenceUri = "https://github.com/zero-os/0-core/sequence"
 
 	//for flist vms
 	VmNamespaceFmt = "vms/%s"
@@ -94,7 +92,7 @@ const (
 	kvmPortForwardAddCommand    = "kvm.portforward-add"
 	kvmPortForwardRemoveCommand = "kvm.portforward-remove"
 
-	DefaultBridgeName           = "kvm0"
+	DefaultBridgeName = "kvm0"
 )
 
 func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) error {
@@ -510,39 +508,6 @@ func (m *kvmManager) getDomainStruct(uuid string) (*Domain, error) {
 		return nil, fmt.Errorf("cannot parse the domain xml: %v", err)
 	}
 
-	domainMetaData, err := domain.GetMetadata(libvirt.DOMAIN_METADATA_ELEMENT, metadataUri, libvirt.DOMAIN_AFFECT_LIVE)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't get tags metadata for domain with the uuid %s", uuid)
-	}
-
-	var metaData MetaData
-	err = xml.Unmarshal([]byte(domainMetaData), &metaData)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't xml unmarshal tags metadata for domain with the uuid %s", uuid)
-	}
-	var tags pm.Tags
-	err = json.Unmarshal([]byte(metaData.Value), &tags)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't json unmarshal tags for domain with the uuid %s", uuid)
-	}
-	domainstruct.Tags = tags
-
-	domainMetaData, err = domain.GetMetadata(libvirt.DOMAIN_METADATA_ELEMENT, sequenceUri, libvirt.DOMAIN_AFFECT_LIVE)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't get sequence metadata for domain with the uuid %s", uuid)
-	}
-
-	err = xml.Unmarshal([]byte(domainMetaData), &metaData)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't xml unmarshal sequence metadata for domain with the uuid %s", uuid)
-	}
-	var sequence float64
-	err = json.Unmarshal([]byte(metaData.Value), &sequence)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't json unmarshal sequence for domain with the uuid %s %s", uuid, err)
-	}
-	domainstruct.Sequence = uint16(sequence)
-
 	return &domainstruct, nil
 }
 
@@ -849,7 +814,7 @@ func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error)
 
 func (m *kvmManager) setPortForward(uuid string, seq uint16, host int, container int) error {
 	ip := m.ipAddr(seq)
-	id := m.forwardId(uuid, host, container)
+	id := m.forwardId(uuid)
 	return socat.SetPortForward(id, ip, host, container)
 }
 
@@ -956,8 +921,8 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 		return nil, fmt.Errorf("couldn't marshal tags for domain with the uuid %s", domain.UUID)
 	}
 
-	metaData := MetaData{Value: string(tags)}
-	metaXML, err := xml.Marshal(&metaData)
+	tagsMetaData := TagsMetaData{Value: string(tags)}
+	metaXML, err := xml.Marshal(&tagsMetaData)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't marshal metadata for domain with the uuid %s", domain.UUID)
 	}
@@ -967,13 +932,13 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 		return nil, fmt.Errorf("couldn't set tags metadata for domain with the uuid %s", domain.UUID)
 	}
 
-	metaData = MetaData{Value: fmt.Sprintf("%d", seq)}
-	metaXML, err = xml.Marshal(&metaData)
+	seqMetaData := SequenceMetaData{Value: fmt.Sprintf("%d", seq)}
+	metaXML, err = xml.Marshal(&seqMetaData)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't marshal sequence metadata for domain with the uuid %s", domain.UUID)
 	}
 
-	err = dom.SetMetadata(libvirt.DOMAIN_METADATA_ELEMENT, string(metaXML), sequenceKey, sequenceUri, libvirt.DOMAIN_AFFECT_LIVE)
+	err = dom.SetMetadata(libvirt.DOMAIN_METADATA_ELEMENT, string(metaXML), metadataKey, metadataUri, libvirt.DOMAIN_AFFECT_LIVE)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't set sequence metadata for domain with the uuid %s", domain.UUID)
 	}
@@ -1027,7 +992,8 @@ func (m *kvmManager) destroyDomain(uuid string, domain *libvirt.Domain) error {
 		return fmt.Errorf("failed to destroy machine: %s", err)
 	}
 
-	m.removePortForwards(uuid)
+	socat.RemoveAll(m.forwardId(uuid))
+
 	return m.flistUnmount(uuid)
 }
 
@@ -1050,7 +1016,7 @@ func (m *kvmManager) shutdown(cmd *pm.Command) (interface{}, error) {
 		return nil, fmt.Errorf("failed to shutdown machine: %s", err)
 	}
 
-	m.removePortForwards(uuid)
+	socat.RemoveAll(m.forwardId(uuid))
 
 	return nil, nil
 }
@@ -1272,7 +1238,7 @@ func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 			}
 		}
 		// TODO: use the ports that the domain was created with initially
-		inf, err = m.prepareDefaultNetwork(params.UUID, domainstruct.Sequence, map[int]int{})
+		inf, err = m.prepareDefaultNetwork(params.UUID, domainstruct.MetaData.Sequence, map[int]int{})
 	case "bridge":
 		if nic.ID == DefaultBridgeName {
 			err = fmt.Errorf("the default bridge for the vm should not be added manually")
@@ -1538,7 +1504,7 @@ func (m *kvmManager) getMachine(domain *libvirt.Domain) (Machine, error) {
 		Name:       name,
 		State:      StateToString(state),
 		Vnc:        port,
-		Tags:       domainstruct.Tags,
+		Tags:       domainstruct.MetaData.Tags,
 		IfcTargets: targets,
 	}, nil
 }
@@ -1820,7 +1786,7 @@ func (m *kvmManager) portforwardAdd(cmd *pm.Command) (interface{}, error) {
 	if !defaultNic {
 		return nil, fmt.Errorf("KVM doesn't have a default nic")
 	}
-	return nil, m.setPortForward(params.UUID, domainStruct.Sequence, params.HostPort, params.ContainerPort)
+	return nil, m.setPortForward(params.UUID, domainStruct.MetaData.Sequence, params.HostPort, params.ContainerPort)
 }
 
 func (m *kvmManager) portforwardRemove(cmd *pm.Command) (interface{}, error) {
@@ -1836,5 +1802,5 @@ func (m *kvmManager) portforwardRemove(cmd *pm.Command) (interface{}, error) {
 	if _, err := conn.LookupDomainByUUIDString(params.UUID); err != nil {
 		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
 	}
-	return nil, m.removePortForward(params.UUID, params.HostPort, params.ContainerPort)
+	return nil, socat.RemovePortForward(m.forwardId(params.UUID), params.HostPort, params.ContainerPort)
 }
