@@ -136,16 +136,7 @@
 			"Rev": "ada3ba68f000aa1b58580e45c9d308fe0b7fc5c5"
 		},
 		{
-			"ImportPath": "github.com/sparrc/go-ping",
-			"Rev": "416e72114cd1edce2f287648f935a60dfe6cf40e"
-		},
-		{
 			"ImportPath": "github.com/stretchr/testify/assert",
-			"Comment": "v1.1.4-4-g976c720",
-			"Rev": "976c720a22c8eb4eb6a0b4348ad85ad12491a506"
-		},
-		{
-			"ImportPath": "github.com/stretchr/testify/require",
 			"Comment": "v1.1.4-4-g976c720",
 			"Rev": "976c720a22c8eb4eb6a0b4348ad85ad12491a506"
 		},
@@ -165,30 +156,6 @@
 		{
 			"ImportPath": "github.com/vishvananda/netns",
 			"Rev": "54f0e4339ce73702a0607f49922aaa1e749b418d"
-		},
-		{
-			"ImportPath": "golang.org/x/net/bpf",
-			"Rev": "b68f30494add4df6bd8ef5e82803f308e7f7c59c"
-		},
-		{
-			"ImportPath": "golang.org/x/net/icmp",
-			"Rev": "b68f30494add4df6bd8ef5e82803f308e7f7c59c"
-		},
-		{
-			"ImportPath": "golang.org/x/net/internal/iana",
-			"Rev": "b68f30494add4df6bd8ef5e82803f308e7f7c59c"
-		},
-		{
-			"ImportPath": "golang.org/x/net/internal/socket",
-			"Rev": "b68f30494add4df6bd8ef5e82803f308e7f7c59c"
-		},
-		{
-			"ImportPath": "golang.org/x/net/ipv4",
-			"Rev": "b68f30494add4df6bd8ef5e82803f308e7f7c59c"
-		},
-		{
-			"ImportPath": "golang.org/x/net/ipv6",
-			"Rev": "b68f30494add4df6bd8ef5e82803f308e7f7c59c"
 		},
 		{
 			"ImportPath": "gopkg.in/bufio.v1",

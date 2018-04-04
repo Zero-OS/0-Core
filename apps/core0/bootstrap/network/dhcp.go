@@ -80,3 +80,4 @@ func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
 
 	return nil
 }
+

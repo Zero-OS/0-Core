@@ -2,12 +2,12 @@ package bootstrap
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/op/go-logging"
-	ping "github.com/sparrc/go-ping"
 	"github.com/vishvananda/netlink"
 	"github.com/zero-os/0-core/apps/core0/bootstrap/network"
 	"github.com/zero-os/0-core/apps/core0/options"
@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	InternetTestAddress = "8.8.8.8"
+	InternetTestAddress = "http://www.google.com/"
 
 	screenStateLine = "->%25s: %s %s"
 )
@@ -76,16 +76,12 @@ func (b *Bootstrap) startupServices(s, e settings.After) {
 }
 
 func (b *Bootstrap) canReachInternet() bool {
-	pinger, _ := ping.NewPinger(InternetTestAddress)
-	pinger.Timeout = 2 * time.Second
-	pinger.Count = 1
-	pinger.SetPrivileged(true)
-
-	pinger.Run()
-	stats := pinger.Statistics()
-
-	return stats.PacketsRecv == pinger.Count
-
+	resp, err := http.Get(InternetTestAddress)
+	if err != nil {
+		return false
+	}
+	resp.Body.Close()
+	return true
 }
 
 func (b *Bootstrap) ipsAsString(ips []netlink.Addr) string {
