@@ -44,9 +44,9 @@ func (d *dhcpProtocol) isPlugged(inf string) error {
 }
 
 func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
-	if err := d.isPlugged(inf); err != nil {
-		return err
-	}
+	// if err := d.isPlugged(inf); err != nil {
+	// 	return err
+	// }
 
 	hostid := "hostname:zero-os"
 
@@ -80,4 +80,3 @@ func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
 
 	return nil
 }
-
