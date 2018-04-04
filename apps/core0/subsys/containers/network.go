@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/pborman/uuid"
 	"github.com/vishvananda/netlink"
+	"github.com/zero-os/0-core/apps/core0/helper/socat"
 	"github.com/zero-os/0-core/base/pm"
 	"io/ioutil"
 	"net"
@@ -357,41 +358,28 @@ func (c *container) forwardId(host int, container int) string {
 	return fmt.Sprintf("socat-%d-%d-%d", c.id, host, container)
 }
 
-func (c *container) unPortForward() {
+func (c *container) removePortForward(host int, container int) error {
+	return pm.Kill(c.forwardId(host, container))
+}
+
+func (c *container) removePortForwards() {
 	for host, container := range c.Args.Port {
-		pm.Kill(c.forwardId(host, container))
+		c.removePortForward(host, container)
 	}
 }
 
+func (c *container) setPortForward(host int, container int) error {
+	ip := c.getDefaultIP().String()
+	id := c.forwardId(host, container)
+
+	return socat.SetPortForward(id, ip, host, container)
+}
+
 func (c *container) setPortForwards() error {
-	ip := c.getDefaultIP()
-
 	for host, container := range c.Args.Port {
-		//nft add rule nat prerouting iif eth0 tcp dport { 80, 443 } dnat 192.168.1.120
-		cmd := &pm.Command{
-			ID:      c.forwardId(host, container),
-			Command: pm.CommandSystem,
-			Flags: pm.JobFlags{
-				NoOutput: true,
-			},
-			Arguments: pm.MustArguments(
-				pm.SystemCommandArguments{
-					Name: "socat",
-					Args: []string{
-						fmt.Sprintf("tcp-listen:%d,reuseaddr,fork", host),
-						fmt.Sprintf("tcp-connect:%s:%d", ip, container),
-					},
-				},
-			),
+		if err := c.setPortForward(host, container); err != nil {
+			return err
 		}
-
-		onExit := &pm.ExitHook{
-			Action: func(s bool) {
-				log.Infof("Port forward %d:%d container: %d exited", host, container, c.id)
-			},
-		}
-
-		pm.Run(cmd, onExit)
 	}
 
 	return nil
@@ -657,7 +645,7 @@ func (c *container) destroyNetwork() {
 			c.unBridge(idx, network, ovs)
 		case "default":
 			c.unBridge(idx, network, nil)
-			c.unPortForward()
+			c.removePortForwards()
 		}
 	}
 

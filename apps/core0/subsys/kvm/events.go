@@ -19,7 +19,7 @@ func (m *kvmManager) handleStopped(uuid, name string, domain *libvirt.Domain) er
 		an flist or not. One approach is to keep in memory description of the machine that needs
 		clean up. Or simply try to unmount the expected target by default, and hide unmount errors
 	*/
-	m.unPortForward(uuid)
+	m.removePortForwards(uuid)
 	return m.flistUnmount(uuid)
 }
 

@@ -302,14 +302,19 @@ func (m *kvmManager) setDHCPHost(seq uint16) error {
 	return nil
 }
 
-func (m *kvmManager) forwardId(uuid string, host int) string {
-	return fmt.Sprintf("kvm-socat-%v-%v", uuid, host)
+func (m *kvmManager) forwardId(uuid string, host int, container int) string {
+	return fmt.Sprintf("kvm-socat-%v-%v-%v", uuid, host, container)
 }
 
-func (m *kvmManager) unPortForward(uuid string) {
+func (m *kvmManager) removePortForwards(uuid string) {
+
 	for key, job := range pm.Jobs() {
 		if strings.HasPrefix(key, fmt.Sprintf("kvm-socat-%s", uuid)) {
 			job.Signal(syscall.SIGTERM)
 		}
 	}
+}
+
+func (m *kvmManager) removePortForward(uuid string, host int, container int) error {
+	return pm.Kill(m.forwardId(uuid, host, container))
 }

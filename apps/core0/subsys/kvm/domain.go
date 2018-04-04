@@ -2,7 +2,10 @@
 
 package kvm
 
-import "encoding/xml"
+import (
+	"encoding/xml"
+	"github.com/zero-os/0-core/base/pm"
+)
 
 /*
 <domain type='kvm'>
@@ -86,6 +89,8 @@ type Domain struct {
 	Features FeaturesType `xml:"features"`
 	Devices  Devices      `xml:"devices"`
 	Qemu     Qemu         `xml:"qemu:commandline"`
+	Tags     pm.Tags      `xml:"tags"`
+	Sequence uint16       `xml:"sequence"`
 }
 
 type DiskType string
