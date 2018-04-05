@@ -144,20 +144,19 @@ func whereListPropertyEnds(startIdx int, lines []string) int {
 	return len(lines)
 }
 
-// Property represents a key value pair with optional list of items
-type Property struct {
-	Key   string   `json:"key"`
+// PropertyData represents a key value pair with optional list of items
+type PropertyData struct {
 	Val   string   `json:"value"`
 	Items []string `json:"items,omitempty"`
 }
 
 // DMISection represents a complete section like BIOS or Baseboard
 type DMISection struct {
-	HandleLine string     `json:"handleline"`
-	Title      string     `json:"title"`
-	TypeStr    string     `json:"typestr,omitempty"`
-	Type       DMIType    `json:"typenum"`
-	Properties []Property `json:"properties,omitempty"`
+	HandleLine string                  `json:"handleline"`
+	Title      string                  `json:"title"`
+	TypeStr    string                  `json:"typestr,omitempty"`
+	Type       DMIType                 `json:"typenum"`
+	Properties map[string]PropertyData `json:"properties,omitempty"`
 }
 
 // DMI represents a lists of DMISections parsed from dmidecode output.
@@ -165,23 +164,24 @@ type DMI struct {
 	Sections []DMISection `json:"sections"`
 }
 
-func propertyFromLine(line string) (Property, error) {
+func propertyFromLine(line string) (string, PropertyData, error) {
 	kvpat := regexp.MustCompile("(.+?):(.*)")
 	m := kvpat.FindStringSubmatch(line)
 	if len(m) == 3 {
 		k, v := strings.TrimSpace(m[1]), strings.TrimSpace(m[2])
-		return Property{Key: k, Val: v}, nil
+		return k, PropertyData{Val: v}, nil
 	} else if len(m) == 2 {
 		k := strings.TrimSpace(m[1])
-		return Property{Key: k, Val: ""}, nil
+		return k, PropertyData{Val: ""}, nil
 	} else {
-		return Property{}, fmt.Errorf("Couldnt find key value pair on the line %s", line)
+		return "", PropertyData{}, fmt.Errorf("Couldnt find key value pair on the line %s", line)
 	}
 }
 func parseDMISection(section string) DMISection {
 	dmi := DMISection{}
 	lines := strings.Split(section, "\n")
 	dmi.HandleLine = lines[0]
+	dmi.Properties = make(map[string]PropertyData)
 	if t, err := getDMITypeFromHandleLine(lines[0]); err == nil {
 		dmi.Type = t
 		dmi.TypeStr = dmitypeToString[dmi.Type]
@@ -191,7 +191,7 @@ func parseDMISection(section string) DMISection {
 	propertieslines := lines[2:]
 	for i := 0; i < len(propertieslines); i++ {
 		l := propertieslines[i]
-		if p, err := propertyFromLine(l); err == nil {
+		if k, p, err := propertyFromLine(l); err == nil {
 			if isListProperty(i, propertieslines) {
 				endidx := whereListPropertyEnds(i, propertieslines)
 				subpropslines := propertieslines[i+1 : endidx]
@@ -202,7 +202,7 @@ func parseDMISection(section string) DMISection {
 				}
 				i = endidx //skip till the end
 			}
-			dmi.Properties = append(dmi.Properties, p)
+			dmi.Properties[k] = p
 		}
 	}
 	return dmi
