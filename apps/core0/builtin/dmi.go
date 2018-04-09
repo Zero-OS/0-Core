@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/zero-os/0-core/base/pm"
 )
 
 //DMIType (allowed types 0 -> 42)
@@ -103,15 +105,32 @@ var dmitypeToString = map[DMIType]string{
 	DMITypeManagementControllerHostInterface: "ManagementControllerHostInterface",
 }
 
+func init() {
+	pm.RegisterBuiltIn("core.dmidecode", dmidecodeRunAndParse)
+}
+
+func dmidecodeRunAndParse(cmd *pm.Command) (interface{}, error) {
+	result, err := pm.System("dmidecode")
+	if err != nil {
+		return nil, err
+	}
+	output := result.Streams.Stdout()
+	return ParseDMI(output)
+
+}
+
 // DMITypeToString returns string representation of DMIType t
 func DMITypeToString(t DMIType) string {
 	return dmitypeToString[t]
 }
 
+// section starts with handle until it reaches 2 new lines.
 func getSections(input string) []string {
 	sectionParams := regexp.MustCompile("(?ms:Handle .+?\n\n)")
 	return sectionParams.FindAllString(input, -1)
 }
+
+// Extract the DMI type from the handleline.
 func getDMITypeFromHandleLine(line string) (DMIType, error) {
 	dmitypepat := regexp.MustCompile("DMI type ([0-9]+)")
 	m := dmitypepat.FindStringSubmatch(line)
@@ -120,9 +139,10 @@ func getDMITypeFromHandleLine(line string) (DMIType, error) {
 		return DMIType(t), err
 	}
 	return 0, fmt.Errorf("Couldn't find dmitype in handleline %s", line)
-
 }
 
+// list property spans overs multiple indented lines.
+// so we check basically if the next line isn't on the same level of indentations
 func isListProperty(lidx int, lines []string) bool {
 	lvl := getLineLevel(lines[lidx])
 	nxtline := lines[lidx+1]
@@ -133,6 +153,7 @@ func isListProperty(lidx int, lines []string) bool {
 	return nxtlvl != lvl
 }
 
+// searches where the lines dedent again indicating the end of the property.
 func whereListPropertyEnds(startIdx int, lines []string) int {
 	lvl := getLineLevel(lines[startIdx])
 	for i := startIdx + 1; i < len(lines); i++ {
@@ -164,6 +185,17 @@ type DMI struct {
 	Sections []DMISection `json:"sections"`
 }
 
+/*
+Property in section is in the form of key value pairs where values are optional
+and may include a list of items as well.
+k: [v]
+	[
+		item1
+		item2
+		...
+	]
+*/
+
 func propertyFromLine(line string) (string, PropertyData, error) {
 	kvpat := regexp.MustCompile("(.+?):(.*)")
 	m := kvpat.FindStringSubmatch(line)
@@ -177,6 +209,8 @@ func propertyFromLine(line string) (string, PropertyData, error) {
 		return "", PropertyData{}, fmt.Errorf("Couldnt find key value pair on the line %s", line)
 	}
 }
+
+// Sections are separated by new lines.
 func parseDMISection(section string) DMISection {
 	dmi := DMISection{}
 	lines := strings.Split(section, "\n")
@@ -209,14 +243,17 @@ func parseDMISection(section string) DMISection {
 }
 
 // ParseDMI Parses dmidecode output into DMI structure
-func ParseDMI(input string) DMI {
+func ParseDMI(input string) (DMI, error) {
 	dmi := DMI{}
 	sections := getSections(input)
+	if len(sections) == 0 {
+		return DMI{}, fmt.Errorf("Couldn't parse valid dmi sections from input")
+	}
 	for _, section := range sections {
 		dmisec := parseDMISection(section)
 		dmi.Sections = append(dmi.Sections, dmisec)
 	}
-	return dmi
+	return dmi, nil
 }
 
 func getLineLevel(line string) int {
