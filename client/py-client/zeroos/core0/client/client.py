@@ -1601,7 +1601,7 @@ class DiskManager:
     def mktable(self, disk, table_type='gpt'):
         """
         Make partition table on block device.
-        :param disk: device name (sda, sdb, etc...)
+        :param disk: device path (/dev/sda, /dev/disk/by-id/ata-Samsung..., etc...)
         :param table_type: Partition table type as accepted by parted
         """
         args = {
@@ -1622,8 +1622,8 @@ class DiskManager:
         """
         Get more info about a disk or a disk partition
 
-        :param disk: (sda, sdb, etc..)
-        :param part: (sda1, sdb2, etc...)
+        :param disk: (/dev/sda, /dev/sdb, etc..)
+        :param part: (/dev/sda1, /dev/sdb2, etc...)
         :return: a dict with {"blocksize", "start", "size", and "free" sections}
         """
         args = {
@@ -1652,7 +1652,7 @@ class DiskManager:
     def mkpart(self, disk, start, end, part_type='primary'):
         """
         Make partition on disk
-        :param disk: device name (sda, sdb, etc...)
+        :param disk: device path (/dev/sda, /dev/sdb, etc...)
         :param start: partition start as accepted by parted mkpart
         :param end: partition end as accepted by parted mkpart
         :param part_type: partition type as accepted by parted mkpart
@@ -1676,7 +1676,7 @@ class DiskManager:
     def rmpart(self, disk, number):
         """
         Remove partion from disk
-        :param disk: device name (sda, sdb, etc...)
+        :param disk: device path (/dev/sda, /dev/sdb, etc...)
         :param number: Partition number (starting from 1)
         """
         args = {
