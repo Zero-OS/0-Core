@@ -6,7 +6,10 @@ import (
 	"sync"
 	"syscall"
 
+	"encoding/json"
+
 	"github.com/op/go-logging"
+	"github.com/zero-os/0-core/base/builtin"
 	"github.com/zero-os/0-core/base/pm"
 )
 
@@ -19,20 +22,20 @@ func SetPortForward(id string, ip string, host int, dest int) error {
 	lock.Lock()
 	defer lock.Unlock()
 
-	//var ports []*builtin.Port
-	//job, err := pm.Run(&pm.Command{
-	//	Command: "info.port",
-	//})
-	//result := job.Wait()
-	//if err := json.Unmarshal([]byte(result.Data), &ports); err != nil {
-	//	pm.BadRequestError(err)
-	//}
-	//
-	//for _, port := range ports {
-	//	if port.IP == "0.0.0.0" && port.Port == host {
-	//		return fmt.Errorf("Can't forward from port %s, host is already listening on it", host)
-	//	}
-	//}
+	var ports []*builtin.Port
+	job, err := pm.Run(&pm.Command{
+		Command: "info.port",
+	})
+	result := job.Wait()
+	if err := json.Unmarshal([]byte(result.Data), &ports); err != nil {
+		pm.BadRequestError(err)
+	}
+
+	for _, port := range ports {
+		if port.Network != "unix" && int(port.Port) == host {
+			return fmt.Errorf("Can't forward from port %d, host is already listening on it", host)
+		}
+	}
 
 	//nft add rule nat prerouting iif eth0 tcp dport { 80, 443 } dnat 192.168.1.120
 	cmd := &pm.Command{
@@ -57,7 +60,7 @@ func SetPortForward(id string, ip string, host int, dest int) error {
 		},
 	}
 
-	_, err := pm.Run(cmd, onExit)
+	_, err = pm.Run(cmd, onExit)
 	return err
 }
 
