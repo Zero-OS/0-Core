@@ -150,7 +150,7 @@ func isListProperty(lidx int, lines []string) bool {
 		return false
 	}
 	nxtlvl := getLineLevel(lines[lidx+1])
-	return nxtlvl != lvl
+	return nxtlvl > lvl
 }
 
 // searches where the lines dedent again indicating the end of the property.
@@ -234,7 +234,7 @@ func parseDMISection(section string) DMISection {
 						p.Items = append(p.Items, strings.TrimSpace(item))
 					}
 				}
-				i = endidx //skip till the end
+				i = endidx - 1 //skip the beginning of the new property (i will increment afterwards.)
 			}
 			dmi.Properties[k] = p
 		}
