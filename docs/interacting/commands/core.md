@@ -40,12 +40,12 @@ Values:
 <a id="kill"></a>
 ## core.kill
 
-Kills the process with given process/command ID. The process/command ID is the ID of the command used to start this process in the first place.
+Kills the process with given command ID. The command ID is the ID of the command used to start this process in the first place.
 
 Arguments:
 ```javascript
 {
-    "id": "{process-id-to-kill}"
+    "id": "{command-id-to-kill}"
 }
 ```
 

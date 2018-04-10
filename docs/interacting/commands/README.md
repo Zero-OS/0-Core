@@ -8,6 +8,10 @@ Interacting with Zero-OS is done by sending commands to 0-core, allowing you to 
 
 When Zero-OS starts, 0-core is the first process that starts. First it configures the networking, and then starts a local Redis instance through which the actual commands are received, and dispatches the commands to the other processes, e.g. the CoreX cores. CoreX is the master process of a container running on Zero-OS, the equivalent of 0-core in the containers.
 
+You always certainly won't need to compose and push a command to the zero-os queue manually. All available commands are abstracted in the [python client](../../client/py-client) 0-core repo and JumpScale.
+
+A command is a json serialized string of the following object structure
+
 ## Command structure
 
 ```javascript
@@ -25,6 +29,19 @@ When Zero-OS starts, 0-core is the first process that starts. First it configure
 }
 ```
 
+- id: unique command id. This ID is generated or set by the client. If 2 commands are pushed to zero-os with the same ID. the second one will get **DROPPED**.
+- command: the actual command name (ex: core.system)
+- arguments: arguments of the command
+- queue: Push the command to an internal queue for synchronization. Commands on queues are process sequentially.
+- max_time: If command execution takes more that this given time in seconds the process is forced to stop.
+- max_restart: How many times to restart the command if it exited with error.
+- recurring_period: If set, the command execution is rescheduled to execute repeatedly, wating for `recurring_period` seconds between each excution.
+- stream: Enable command output streaming
+- log_levels: Which log levels are captured from command output.
+
+> `arguments` structure totally depends on the command name. the py-client is promissed to always be up-to-date with the available commands and their arguments
+
+
 Hereby:
 - See [Streaming Process Output from Zero-OS](../streaming.md) for more details about the `stream` attribute.
 - With the `log_levels` attribute you can filter which log levels will get passed to the loggers, if nothing specified all log levels will be passed. See [Logging](../../monitoring/logging.md) for more details.
@@ -41,12 +58,3 @@ Hereby:
 - [Job commands](job.md)
 - [Process commands](process.md)
 - [Filesystem commands](filesystem.md)
-
-## Check wether Redis is listening
-
-A basic test to check if your Zero-OS is ready to receive commands, is using the `redis-cli` Redis command line tool:
-```shell
-ZEROTIER_NETWORK="..."
-REDIS_PORT="6379"
-redis-cli -h $ZEROTIER_NETWORK -p $REDIS_PORT ping
-```
