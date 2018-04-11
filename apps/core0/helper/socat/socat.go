@@ -28,7 +28,7 @@ func SetPortForward(id string, ip string, host int, dest int) error {
 	})
 	result := job.Wait()
 	if err := json.Unmarshal([]byte(result.Data), &ports); err != nil {
-		pm.BadRequestError(err)
+		return err
 	}
 
 	for _, port := range ports {
