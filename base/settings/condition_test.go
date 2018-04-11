@@ -112,6 +112,27 @@ func TestConditionParseComplexUserInput(t *testing.T) {
 	}
 }
 
+func TestConditionParseComplexUserInputSpaces(t *testing.T) {
+
+	exp, err := GetExpression("and(true, or( not(user-input) , false ) )")
+
+	if ok := assert.NoError(t, err); !ok {
+		t.Fatal()
+	}
+
+	if ok := assert.True(t, exp.Examine(nil)); !ok {
+		t.Error()
+	}
+
+	input := map[string]interface{}{
+		"user-input": "1",
+	}
+
+	if ok := assert.False(t, exp.Examine(input)); !ok {
+		t.Error()
+	}
+}
+
 func TestConditionParseComplexExmpty(t *testing.T) {
 
 	exp, err := GetExpression("")

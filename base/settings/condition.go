@@ -104,6 +104,13 @@ func (u userExp) Examine(in map[string]interface{}) bool {
 	return ok
 }
 
+//forward return position of the first non space char starting at from
+func forward(from int, s string) int {
+	return strings.IndexFunc(s[from:], func(c rune) bool {
+		return c != ' '
+	}) + from
+}
+
 func getOne(at int, expression string) (Expression, int, error) {
 	at = strings.IndexFunc(expression[at:], func(c rune) bool {
 		return c != ' '
@@ -111,7 +118,7 @@ func getOne(at int, expression string) (Expression, int, error) {
 
 	loc := word.FindStringIndex(expression[at:])
 	if loc == nil {
-		return nil, 0, nil
+		return nil, at, nil
 	}
 
 	token := expression[loc[0]+at : loc[1]+at]
@@ -130,14 +137,20 @@ func getOne(at int, expression string) (Expression, int, error) {
 				var err error
 				sub, next, err = getOne(next+1, expression)
 				if err != nil {
-					return nil, 0, err
+					return nil, next, err
 				}
 				args = append(args, sub)
+
+				//find next non space char
+				next = strings.IndexFunc(expression[next:], func(c rune) bool {
+					return c != ' '
+				}) + next
+
 				if expression[next] == ')' {
 					next++
 					break
 				} else if expression[next] != ',' {
-					return nil, 0, fmt.Errorf("expecting , or )")
+					return nil, next, fmt.Errorf("expecting , or )")
 				}
 			}
 		}
@@ -159,7 +172,8 @@ func getOne(at int, expression string) (Expression, int, error) {
 	return exp, next, err
 }
 
-//GetExpression gets an expression object from string
+//GetExpression gets an expression object from string, empty string always evaluates
+//to a `true` expression.
 func GetExpression(expression string) (Expression, error) {
 	if len(expression) == 0 {
 		//Note, an empty expression is evaluated as true
@@ -171,8 +185,8 @@ func GetExpression(expression string) (Expression, error) {
 	if err == EOL && exp != nil {
 		return exp, nil
 	} else if l != len(expression) {
-		return nil, fmt.Errorf("garbage at end of expression: '%s'", expression)
+		return nil, fmt.Errorf("garbage at end of expression: '%s' pos: %d", expression, l)
 	} else {
-		return nil, fmt.Errorf("syntax error(%s): '%s'", err, expression)
+		return nil, fmt.Errorf("syntax error(%s): '%s' pos: %d", err, expression, l)
 	}
 }
