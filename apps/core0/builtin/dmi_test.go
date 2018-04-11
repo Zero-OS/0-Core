@@ -201,16 +201,16 @@ func TestParseSectionSimple(t *testing.T) {
 	if ok := assert.Equal(t, err, nil); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, 1, len(dmi.Sections)); !ok {
+	if ok := assert.Equal(t, 1, len(dmi)); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, 8, len(dmi.Sections["System Information"].Properties)); !ok {
+	if ok := assert.Equal(t, 8, len(dmi["System Information"].Properties)); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, "System Information", dmi.Sections["System Information"].Title); !ok {
+	if ok := assert.Equal(t, "System Information", dmi["System Information"].Title); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, "2677240001087", dmi.Sections["System Information"].Properties["Serial Number"].Val); !ok {
+	if ok := assert.Equal(t, "2677240001087", dmi["System Information"].Properties["Serial Number"].Val); !ok {
 		t.Fatal()
 	}
 
@@ -220,19 +220,19 @@ func TestParseSectionWithListProperty(t *testing.T) {
 	if ok := assert.Equal(t, err, nil); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, 1, len(dmi.Sections)); !ok {
+	if ok := assert.Equal(t, 1, len(dmi)); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, 6, len(dmi.Sections["BIOS Information"].Properties)); !ok {
+	if ok := assert.Equal(t, 6, len(dmi["BIOS Information"].Properties)); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, "BIOS Information", dmi.Sections["BIOS Information"].Title); !ok {
+	if ok := assert.Equal(t, "BIOS Information", dmi["BIOS Information"].Title); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, "1.40", dmi.Sections["BIOS Information"].Properties["BIOS Revision"].Val); !ok {
+	if ok := assert.Equal(t, "1.40", dmi["BIOS Information"].Properties["BIOS Revision"].Val); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, 18, len(dmi.Sections["BIOS Information"].Properties["Characteristics"].Items)); !ok {
+	if ok := assert.Equal(t, 18, len(dmi["BIOS Information"].Properties["Characteristics"].Items)); !ok {
 
 		t.Fatal()
 	}
@@ -244,27 +244,27 @@ func TestParseMultipleSectionsSimple(t *testing.T) {
 	if ok := assert.Equal(t, err, nil); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, len(dmi.Sections), 4); !ok {
+	if ok := assert.Equal(t, len(dmi), 4); !ok {
 		t.Fatal()
 	}
 
-	if ok := assert.Equal(t, "System Information", dmi.Sections["System Information"].Title); !ok {
+	if ok := assert.Equal(t, "System Information", dmi["System Information"].Title); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, 8, len(dmi.Sections["System Information"].Properties)); !ok {
+	if ok := assert.Equal(t, 8, len(dmi["System Information"].Properties)); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, "System Event Log", dmi.Sections["System Event Log"].Title); !ok {
+	if ok := assert.Equal(t, "System Event Log", dmi["System Event Log"].Title); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, 15, len(dmi.Sections["System Event Log"].Properties)); !ok {
+	if ok := assert.Equal(t, 15, len(dmi["System Event Log"].Properties)); !ok {
 		t.Fatal()
 	}
 	fmt.Println("")
-	if ok := assert.Equal(t, "0 bytes", dmi.Sections["System Event Log"].Properties["Area Length"].Val); !ok {
+	if ok := assert.Equal(t, "0 bytes", dmi["System Event Log"].Properties["Area Length"].Val); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, DMITypeSystemBoot, dmi.Sections["System Boot Information"].Type); !ok {
+	if ok := assert.Equal(t, DMITypeSystemBoot, dmi["System Boot Information"].Type); !ok {
 		t.Fatal()
 	}
 }
@@ -273,42 +273,42 @@ func TestParseMultipleSectionsWithListProperties(t *testing.T) {
 	if ok := assert.Equal(t, err, nil); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, 2, len(dmi.Sections)); !ok {
+	if ok := assert.Equal(t, 2, len(dmi)); !ok {
 		t.Fatal()
 	}
 
-	if ok := assert.Equal(t, "BIOS Information", dmi.Sections["BIOS Information"].Title); !ok {
+	if ok := assert.Equal(t, "BIOS Information", dmi["BIOS Information"].Title); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, len(dmi.Sections["BIOS Information"].Properties), 6); !ok {
+	if ok := assert.Equal(t, len(dmi["BIOS Information"].Properties), 6); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, 18, len(dmi.Sections["BIOS Information"].Properties["Characteristics"].Items)); !ok {
+	if ok := assert.Equal(t, 18, len(dmi["BIOS Information"].Properties["Characteristics"].Items)); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, "PCI is supported", dmi.Sections["BIOS Information"].Properties["Characteristics"].Items[0]); !ok {
+	if ok := assert.Equal(t, "PCI is supported", dmi["BIOS Information"].Properties["Characteristics"].Items[0]); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, "LENOVO", dmi.Sections["BIOS Information"].Properties["Vendor"].Val); !ok {
-		t.Fatal()
-	}
-
-	if ok := assert.Equal(t, "Processor Information", dmi.Sections["Processor Information"].Title); !ok {
+	if ok := assert.Equal(t, "LENOVO", dmi["BIOS Information"].Properties["Vendor"].Val); !ok {
 		t.Fatal()
 	}
 
-	if ok := assert.Equal(t, len(dmi.Sections["Processor Information"].Properties), 24); !ok {
+	if ok := assert.Equal(t, "Processor Information", dmi["Processor Information"].Title); !ok {
 		t.Fatal()
 	}
 
-	if ok := assert.Equal(t, "2", dmi.Sections["Processor Information"].Properties["Core Count"].Val); !ok {
+	if ok := assert.Equal(t, len(dmi["Processor Information"].Properties), 24); !ok {
 		t.Fatal()
 	}
 
-	if ok := assert.Equal(t, 28, len(dmi.Sections["Processor Information"].Properties["Flags"].Items)); !ok {
+	if ok := assert.Equal(t, "2", dmi["Processor Information"].Properties["Core Count"].Val); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, "FPU (Floating-point unit on-chip)", dmi.Sections["Processor Information"].Properties["Flags"].Items[0]); !ok {
+
+	if ok := assert.Equal(t, 28, len(dmi["Processor Information"].Properties["Flags"].Items)); !ok {
+		t.Fatal()
+	}
+	if ok := assert.Equal(t, "FPU (Floating-point unit on-chip)", dmi["Processor Information"].Properties["Flags"].Items[0]); !ok {
 		t.Fatal()
 	}
 }
