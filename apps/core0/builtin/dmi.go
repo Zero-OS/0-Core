@@ -26,7 +26,7 @@ k: [v]
 		...
 	]
 */
-type DMI = map[string]DMISection
+type DMI map[string]DMISection
 
 const (
 	DMITypeBIOS DMIType = iota
