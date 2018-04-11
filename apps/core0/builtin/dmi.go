@@ -182,7 +182,7 @@ type DMISection struct {
 
 // DMI represents a lists of DMISections parsed from dmidecode output.
 type DMI struct {
-	Sections []DMISection `json:"sections"`
+	Sections map[string]DMISection `json:"sections"`
 }
 
 /*
@@ -245,13 +245,14 @@ func parseDMISection(section string) DMISection {
 // ParseDMI Parses dmidecode output into DMI structure
 func ParseDMI(input string) (DMI, error) {
 	dmi := DMI{}
+	dmi.Sections = make(map[string]DMISection)
 	sections := getSections(input)
 	if len(sections) == 0 {
 		return DMI{}, fmt.Errorf("Couldn't parse valid dmi sections from input")
 	}
 	for _, section := range sections {
 		dmisec := parseDMISection(section)
-		dmi.Sections = append(dmi.Sections, dmisec)
+		dmi.Sections[dmisec.Title] = dmisec
 	}
 	return dmi, nil
 }
