@@ -38,4 +38,4 @@ condition = "and(development, zerotier)"
 
 [startup."redis-proxy-zt".args]
 port=6379
-interface="zt"
+interface="zt0"
