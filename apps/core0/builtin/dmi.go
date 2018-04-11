@@ -1,6 +1,7 @@
 package builtin
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -12,6 +13,20 @@ import (
 
 //DMIType (allowed types 0 -> 42)
 type DMIType int
+
+// DMI represents a map of DMISectionName to DMISection parsed from dmidecode output.
+
+/*
+Property in section is in the form of key value pairs where values are optional
+and may include a list of items as well.
+k: [v]
+	[
+		item1
+		item2
+		...
+	]
+*/
+type DMI = map[string]DMISection
 
 const (
 	DMITypeBIOS DMIType = iota
@@ -110,11 +125,35 @@ func init() {
 }
 
 func dmidecodeRunAndParse(cmd *pm.Command) (interface{}, error) {
-	result, err := pm.System("dmidecode")
-	if err != nil {
+	var args struct {
+		Types []int `json:"typenums"`
+	}
+	cmdbin := "dmidecode"
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
 	}
-	output := result.Streams.Stdout()
+	output := ""
+	var cmdargs []string
+	if len(args.Types) == 0 {
+		result, err := pm.System(cmdbin)
+		output = result.Streams.Stdout()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		for _, arg := range args.Types {
+			if arg < 0 && arg > 42 {
+				return nil, fmt.Errorf("Invalid type number %d", arg)
+			}
+			cmdargs = append(cmdargs, fmt.Sprintf(" -t %d", arg))
+		}
+		result, err := pm.System(cmdbin, cmdargs...)
+
+		if err != nil {
+			return nil, err
+		}
+		output = result.Streams.Stdout()
+	}
 	return ParseDMI(output)
 
 }
@@ -180,22 +219,6 @@ type DMISection struct {
 	Properties map[string]PropertyData `json:"properties,omitempty"`
 }
 
-// DMI represents a lists of DMISections parsed from dmidecode output.
-type DMI struct {
-	Sections map[string]DMISection `json:"sections"`
-}
-
-/*
-Property in section is in the form of key value pairs where values are optional
-and may include a list of items as well.
-k: [v]
-	[
-		item1
-		item2
-		...
-	]
-*/
-
 func propertyFromLine(line string) (string, PropertyData, error) {
 	kvpat := regexp.MustCompile("(.+?):(.*)")
 	m := kvpat.FindStringSubmatch(line)
@@ -244,16 +267,16 @@ func parseDMISection(section string) DMISection {
 
 // ParseDMI Parses dmidecode output into DMI structure
 func ParseDMI(input string) (DMI, error) {
-	dmi := DMI{}
-	dmi.Sections = make(map[string]DMISection)
+	dmi := make(map[string]DMISection)
 	sections := getSections(input)
 	if len(sections) == 0 {
 		return DMI{}, fmt.Errorf("Couldn't parse valid dmi sections from input")
 	}
 	for _, section := range sections {
 		dmisec := parseDMISection(section)
-		dmi.Sections[dmisec.Title] = dmisec
+		dmi[dmisec.Title] = dmisec
 	}
+
 	return dmi, nil
 }
 
