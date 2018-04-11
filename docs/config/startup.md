@@ -9,6 +9,7 @@ Startup services are defined as follows in a `[startup.{service-id}]` section:
 ```toml
 [startup.{service-id}]
 name = "command.name"
+condition = "condition expression"
 after = ["dep-1", "dep-2"]
 running_delay = 0
 running_match = ""
@@ -23,7 +24,7 @@ key2 = 100
 - **{service-id}**: Unique identification tag for referencing the startup service in other configuration files
 
 - **name**: Name the Core0 command to execute, e.g. `core.system`, can also be an extension
-
+- **condition**: (optional) condition expression that must be true to auto start the service. default to a "true" expression. Check [condition syntax](#condition-syntax) below
 - **after**: Lists the services identified by their {service-id} that must be considered running before Core0 attempts to start this service, these services can be any of the services defined in the other TOML files, or one of the Core0 built-in services `init, net, and boot`:
   - **init**: Service must be started as fast as possible, even before Core0 attempts to setup the networking, services like that are needed for the hardware operation (e.g. loading modules or starting udev), when the init run is complete Core0 will attempt to setup networking
   - **net**: Service must run as fast as possible once networking is up, this can include joining a ZeroTier network, or registering itself with an AYS service, once those services are up, Core0 will move on starting the other services which have `after` = ['boot']
@@ -50,3 +51,38 @@ Bash for example requires only `script` argument also accepts `stdin`
 
 > Startup `args` section also supports the `{variable}` name substitution. But it substitute the keys
 with values passed to the kernel cmdline.
+
+## Condition Syntax
+```
+expression := and(expression, expression, ...)
+expression := or(expression, expression, ...)
+expression := not(expression)
+expression := kernel-param
+```
+
+### Examples
+```
+condition = "development"
+```
+will evaluate to true if the kerenl has `development` as one of the kerenl params
+
+
+```
+condition = "not(development)"
+```
+true if `development` is NOT set
+
+
+```
+condition = "and(development, debug)"
+```
+condition is `true` if both `development` AND `debug` are set
+
+
+more exmpales
+```
+condition = "or(development, debug)"
+condition = "and(or(cond1, cond2), not(cond3))"
+```
+
+Note: empty expression is evaluated to true, which is the default behavior to start a service if a condition is not set

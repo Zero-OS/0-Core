@@ -106,15 +106,19 @@ func (u userExp) Examine(in map[string]interface{}) bool {
 
 //forward return position of the first non space char starting at from
 func forward(from int, s string) int {
-	return strings.IndexFunc(s[from:], func(c rune) bool {
+	pos := strings.IndexFunc(s[from:], func(c rune) bool {
 		return c != ' '
-	}) + from
+	})
+
+	if pos == -1 {
+		return from
+	}
+
+	return pos + from
 }
 
 func getOne(at int, expression string) (Expression, int, error) {
-	at = strings.IndexFunc(expression[at:], func(c rune) bool {
-		return c != ' '
-	}) + at
+	at = forward(at, expression)
 
 	loc := word.FindStringIndex(expression[at:])
 	if loc == nil {
@@ -122,11 +126,7 @@ func getOne(at int, expression string) (Expression, int, error) {
 	}
 
 	token := expression[loc[0]+at : loc[1]+at]
-	next := loc[1] + at
-
-	next = strings.IndexFunc(expression[at:], func(c rune) bool {
-		return c != ' '
-	}) + next
+	next := forward(loc[1]+at, expression)
 
 	var args []Expression
 

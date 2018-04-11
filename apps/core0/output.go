@@ -31,7 +31,7 @@ in sync mode
 
 func redirect(name string) (err error) {
 	flags := os.O_CREATE | os.O_WRONLY | os.O_APPEND
-	if options.Options.Kernel.Is("debug") {
+	if options.Options.Kernel.Is("log-sync") {
 		flags |= os.O_SYNC
 	}
 

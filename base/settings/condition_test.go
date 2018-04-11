@@ -114,7 +114,7 @@ func TestConditionParseComplexUserInput(t *testing.T) {
 
 func TestConditionParseComplexUserInputSpaces(t *testing.T) {
 
-	exp, err := GetExpression("and(true, or( not(user-input) , false ) )")
+	exp, err := GetExpression(" and (true, or( not(user-input) , false ) )")
 
 	if ok := assert.NoError(t, err); !ok {
 		t.Fatal()

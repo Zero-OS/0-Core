@@ -70,7 +70,7 @@ func Splash() {
 	screen.Push(&screen.TextSection{
 		Attributes: screen.Attributes{screen.Bold},
 		Text: fmt.Sprintf("Boot Params: %s",
-			options.Options.Kernel.String("debug", "organization", "zerotier", "quiet"), //flags we care about
+			options.Options.Kernel.String("debug", "organization", "zerotier", "quiet", "development"), //flags we care about
 		),
 	})
 	screen.Push(&screen.TextSection{})
