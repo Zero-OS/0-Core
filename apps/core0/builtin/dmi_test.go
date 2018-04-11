@@ -197,10 +197,8 @@ Processor Information
 )
 
 func TestParseSectionSimple(t *testing.T) {
-	dmi, err := ParseDMI(sample1)
-	if ok := assert.Equal(t, err, nil); !ok {
-		t.Fatal()
-	}
+	dmi := ParseDMI(sample1)
+
 	if ok := assert.Equal(t, 1, len(dmi)); !ok {
 		t.Fatal()
 	}
@@ -216,10 +214,8 @@ func TestParseSectionSimple(t *testing.T) {
 
 }
 func TestParseSectionWithListProperty(t *testing.T) {
-	dmi, err := ParseDMI(sample2)
-	if ok := assert.Equal(t, err, nil); !ok {
-		t.Fatal()
-	}
+	dmi := ParseDMI(sample2)
+
 	if ok := assert.Equal(t, 1, len(dmi)); !ok {
 		t.Fatal()
 	}
@@ -240,10 +236,7 @@ func TestParseSectionWithListProperty(t *testing.T) {
 }
 
 func TestParseMultipleSectionsSimple(t *testing.T) {
-	dmi, err := ParseDMI(sample3)
-	if ok := assert.Equal(t, err, nil); !ok {
-		t.Fatal()
-	}
+	dmi := ParseDMI(sample3)
 	if ok := assert.Equal(t, len(dmi), 4); !ok {
 		t.Fatal()
 	}
@@ -269,10 +262,7 @@ func TestParseMultipleSectionsSimple(t *testing.T) {
 	}
 }
 func TestParseMultipleSectionsWithListProperties(t *testing.T) {
-	dmi, err := ParseDMI(sample4)
-	if ok := assert.Equal(t, err, nil); !ok {
-		t.Fatal()
-	}
+	dmi := ParseDMI(sample4)
 	if ok := assert.Equal(t, 2, len(dmi)); !ok {
 		t.Fatal()
 	}
