@@ -120,13 +120,19 @@ var dmitypeToString = map[DMIType]string{
 	DMITypeManagementControllerHostInterface: "ManagementControllerHostInterface",
 }
 
+var dmiKeywords = map[string]bool{"bios": true, "system": true,
+	"baseboard": true, "chassis": true, "processor": true,
+	"memory": true, "cache": true, "connector": true,
+	"slot": true}
+
 func init() {
 	pm.RegisterBuiltIn("core.dmidecode", dmidecodeRunAndParse)
 }
 
 func dmidecodeRunAndParse(cmd *pm.Command) (interface{}, error) {
 	var args struct {
-		Types []int `json:"typenums"`
+		TypeNums     []int    `json:"typenums"`
+		TypeKeywords []string `json:"typekeywords"`
 	}
 	cmdbin := "dmidecode"
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
@@ -134,28 +140,31 @@ func dmidecodeRunAndParse(cmd *pm.Command) (interface{}, error) {
 	}
 	output := ""
 	var cmdargs []string
-	if len(args.Types) == 0 {
-		result, err := pm.System(cmdbin)
-		output = result.Streams.Stdout()
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		for _, arg := range args.Types {
+	if len(args.TypeNums) > 0 {
+		for _, arg := range args.TypeNums {
 			if arg < 0 && arg > 42 {
 				return nil, fmt.Errorf("Invalid type number %d", arg)
 			}
-			cmdargs = append(cmdargs, "-t")
-			cmdargs = append(cmdargs, fmt.Sprintf("%d", arg))
+			cmdargs = append(cmdargs, "-t", fmt.Sprintf("%d", arg))
 		}
-		result, err := pm.System(cmdbin, cmdargs...)
-
-		if err != nil {
-			return nil, err
-		}
-		output = result.Streams.Stdout()
 	}
-	return ParseDMI(output)
+	if len(args.TypeKeywords) > 0 {
+		for _, arg := range args.TypeKeywords {
+			exists := dmiKeywords[arg]
+			if !exists {
+				return nil, fmt.Errorf("Invalid dmi keyword %s", arg)
+			}
+			cmdargs = append(cmdargs, "-t", arg)
+		}
+	}
+
+	result, err := pm.System(cmdbin, cmdargs...)
+
+	if err != nil {
+		return nil, err
+	}
+	output = result.Streams.Stdout()
+	return ParseDMI(output), nil
 
 }
 
@@ -267,18 +276,17 @@ func parseDMISection(section string) DMISection {
 }
 
 // ParseDMI Parses dmidecode output into DMI structure
-func ParseDMI(input string) (DMI, error) {
+func ParseDMI(input string) DMI {
 	dmi := make(map[string]DMISection)
 	sections := getSections(input)
 	if len(sections) == 0 {
-		return DMI{}, fmt.Errorf("Couldn't parse valid dmi sections from input")
+		return DMI{}
 	}
 	for _, section := range sections {
 		dmisec := parseDMISection(section)
 		dmi[dmisec.Title] = dmisec
 	}
-
-	return dmi, nil
+	return dmi
 }
 
 func getLineLevel(line string) int {
