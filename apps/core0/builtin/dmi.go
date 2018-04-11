@@ -145,7 +145,8 @@ func dmidecodeRunAndParse(cmd *pm.Command) (interface{}, error) {
 			if arg < 0 && arg > 42 {
 				return nil, fmt.Errorf("Invalid type number %d", arg)
 			}
-			cmdargs = append(cmdargs, fmt.Sprintf(" -t %d", arg))
+			cmdargs = append(cmdargs, "-t")
+			cmdargs = append(cmdargs, fmt.Sprintf("%d", arg))
 		}
 		result, err := pm.System(cmdbin, cmdargs...)
 
