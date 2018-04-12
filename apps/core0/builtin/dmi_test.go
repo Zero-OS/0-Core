@@ -1,9 +1,7 @@
 package builtin
 
 import (
-	"fmt"
 	"testing"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -195,6 +193,80 @@ Processor Information
 
 	`
 )
+var	biosInfoTests = map[string]string{
+		"Vendor": "LENOVO",
+		"Version": "29CN40WW(V2.17)",
+		"Release Date": "04/13/2011",
+		"ROM Size": "2048 kB",
+		"Characteristics": "",
+		"BIOS Revision": "1.40",
+}
+var sysInfoTests = map[string]string{
+		"Manufacturer": "LENOVO",
+		"Product Name": "20042",
+		"Version": "Lenovo G560",
+		"Serial Number": "2677240001087",
+		"UUID": "CB3E6A50-A77B-E011-88E9-B870F4165734",
+		"Wake-up Type": "Power Switch",
+		"SKU Number" : "Calpella_CRB",
+		"Family": "Intel_Mobile",
+}
+
+var sysConfigurationTests = map[string]string{
+	"Option 1": "String1 for Type12 Equipment Manufacturer",
+	"Option 2": "String2 for Type12 Equipment Manufacturer",
+	"Option 3": "String3 for Type12 Equipment Manufacturer",
+	"Option 4": "String4 for Type12 Equipment Manufacturer",
+}
+
+var sysEventLogTests =  map[string]string{
+	"Area Length": "0 bytes",
+	"Header Start Offset": "0x0000",
+	"Data Start Offset": "0x0000",
+	"Access Method": "General-purpose non-volatile data functions",
+	"Access Address": "0x0000",
+	"Status": "Valid, Not Full",
+	"Change Token": "0x12345678",
+	"Header Format": "OEM-specific",
+	"Supported Log Type Descriptors": "3",
+	"Descriptor 1": "POST memory resize",
+	"Data Format 1": "None",
+	"Descriptor 2": "POST error",
+	"Data Format 2": "POST results bitmap",
+	"Descriptor 3": "Log area reset/cleared",
+	"Data Format 3": "None",
+}
+
+var sysBootTests = map[string]string {
+	"Status": "No errors detected",
+}
+
+var processorTests = map[string]string {
+		"Socket Designation": "CPU",
+		"Type": "Central Processor",
+		"Family": "Core 2 Duo",
+		"Manufacturer": "Intel(R) Corporation",
+		"ID": "55 06 02 00 FF FB EB BF",
+		"Signature": "Type 0, Family 6, Model 37, Stepping 5",
+		"Flags": "",
+		"Version": "Intel(R) Core(TM) i3 CPU       M 370  @ 2.40GHz",
+		"Voltage": "0.0 V",
+		"External Clock": "1066 MHz",
+		"Max Speed": "2400 MHz",
+		"Current Speed": "2399 MHz",
+		"Status": "Populated, Enabled",
+		"Upgrade": "ZIF Socket",
+		"L1 Cache Handle": "0x0030",
+		"L2 Cache Handle": "0x002F",
+		"L3 Cache Handle": "0x002D",
+		"Serial Number": "Not Specified",
+		"Asset Tag": "FFFF",
+		"Part Number": "Not Specified",
+		"Core Count": "2",
+		"Core Enabled": "2",
+		"Thread Count": "4",
+		"Characteristics":"",
+}
 
 func TestParseSectionSimple(t *testing.T) {
 	dmi := ParseDMI(sample1)
@@ -208,8 +280,11 @@ func TestParseSectionSimple(t *testing.T) {
 	if ok := assert.Equal(t, "System Information", dmi["System Information"].Title); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, "2677240001087", dmi["System Information"].Properties["Serial Number"].Val); !ok {
-		t.Fatal()
+
+	for k, v := range sysInfoTests {
+		if ok := assert.Equal(t, v, dmi["System Information"].Properties[k].Val); !ok {
+			t.Fatal()
+		} 
 	}
 
 }
@@ -225,12 +300,15 @@ func TestParseSectionWithListProperty(t *testing.T) {
 	if ok := assert.Equal(t, "BIOS Information", dmi["BIOS Information"].Title); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, "1.40", dmi["BIOS Information"].Properties["BIOS Revision"].Val); !ok {
-		t.Fatal()
-	}
 	if ok := assert.Equal(t, 18, len(dmi["BIOS Information"].Properties["Characteristics"].Items)); !ok {
 
 		t.Fatal()
+	}
+
+	for k, v := range biosInfoTests {
+		if ok := assert.Equal(t, v, dmi["BIOS Information"].Properties[k].Val); !ok {
+			t.Fatal()
+		} 
 	}
 
 }
@@ -253,13 +331,31 @@ func TestParseMultipleSectionsSimple(t *testing.T) {
 	if ok := assert.Equal(t, 15, len(dmi["System Event Log"].Properties)); !ok {
 		t.Fatal()
 	}
-	fmt.Println("")
-	if ok := assert.Equal(t, "0 bytes", dmi["System Event Log"].Properties["Area Length"].Val); !ok {
-		t.Fatal()
-	}
 	if ok := assert.Equal(t, DMITypeSystemBoot, dmi["System Boot Information"].Type); !ok {
 		t.Fatal()
 	}
+
+	for k, v := range sysInfoTests {
+		if ok := assert.Equal(t, v, dmi["System Information"].Properties[k].Val); !ok {
+			t.Fatal()
+		} 
+	}
+	for k, v := range sysConfigurationTests {
+		if ok := assert.Equal(t, v, dmi["System Configuration Options"].Properties[k].Val); !ok {
+			t.Fatal()
+		} 
+	}
+	for k, v := range sysEventLogTests {
+		if ok := assert.Equal(t, v, dmi["System Event Log"].Properties[k].Val); !ok {
+			t.Fatal()
+		} 
+	}
+	for k, v := range sysBootTests {
+		if ok := assert.Equal(t, v, dmi["System Boot Information"].Properties[k].Val); !ok {
+			t.Fatal()
+		} 
+	}
+
 }
 func TestParseMultipleSectionsWithListProperties(t *testing.T) {
 	dmi := ParseDMI(sample4)
@@ -276,12 +372,6 @@ func TestParseMultipleSectionsWithListProperties(t *testing.T) {
 	if ok := assert.Equal(t, 18, len(dmi["BIOS Information"].Properties["Characteristics"].Items)); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, "PCI is supported", dmi["BIOS Information"].Properties["Characteristics"].Items[0]); !ok {
-		t.Fatal()
-	}
-	if ok := assert.Equal(t, "LENOVO", dmi["BIOS Information"].Properties["Vendor"].Val); !ok {
-		t.Fatal()
-	}
 
 	if ok := assert.Equal(t, "Processor Information", dmi["Processor Information"].Title); !ok {
 		t.Fatal()
@@ -291,14 +381,23 @@ func TestParseMultipleSectionsWithListProperties(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Equal(t, "2", dmi["Processor Information"].Properties["Core Count"].Val); !ok {
-		t.Fatal()
-	}
 
 	if ok := assert.Equal(t, 28, len(dmi["Processor Information"].Properties["Flags"].Items)); !ok {
 		t.Fatal()
 	}
 	if ok := assert.Equal(t, "FPU (Floating-point unit on-chip)", dmi["Processor Information"].Properties["Flags"].Items[0]); !ok {
 		t.Fatal()
+	}
+
+	for k, v := range biosInfoTests {
+		if ok := assert.Equal(t, v, dmi["BIOS Information"].Properties[k].Val); !ok {
+			t.Fatal()
+		} 
+	}
+
+	for k, v := range processorTests {
+		if ok := assert.Equal(t, v, dmi["Processor Information"].Properties[k].Val); !ok {
+			t.Fatal()
+		}	
 	}
 }
