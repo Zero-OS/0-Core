@@ -120,10 +120,21 @@ var dmitypeToString = map[DMIType]string{
 	DMITypeManagementControllerHostInterface: "ManagementControllerHostInterface",
 }
 
-var dmiKeywords = map[string]bool{"bios": true, "system": true,
-	"baseboard": true, "chassis": true, "processor": true,
-	"memory": true, "cache": true, "connector": true,
-	"slot": true}
+var dmiKeywords = map[string]bool{
+	"bios": true,
+	"system": true,
+	"baseboard": true,
+	"chassis": true,
+	"processor": true,
+	"memory": true, 
+	"cache": true, 
+	"connector": true,
+	"slot": true,
+}
+
+var sectionRegex = regexp.MustCompile("(?ms:Handle .+?\n\n)")
+var dmiTypeRegex = regexp.MustCompile("DMI type ([0-9]+)")
+var kvRegex = regexp.MustCompile("(.+?):(.*)")
 
 func init() {
 	pm.RegisterBuiltIn("core.dmidecode", dmidecodeRunAndParse)
@@ -131,8 +142,7 @@ func init() {
 
 func dmidecodeRunAndParse(cmd *pm.Command) (interface{}, error) {
 	var args struct {
-		TypeNums     []int    `json:"typenums"`
-		TypeKeywords []string `json:"typekeywords"`
+		Types []interface{} `json:"types"`
 	}
 	cmdbin := "dmidecode"
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
@@ -140,21 +150,22 @@ func dmidecodeRunAndParse(cmd *pm.Command) (interface{}, error) {
 	}
 	output := ""
 	var cmdargs []string
-	if len(args.TypeNums) > 0 {
-		for _, arg := range args.TypeNums {
-			if arg < 0 && arg > 42 {
-				return nil, fmt.Errorf("Invalid type number %d", arg)
+	if len(args.Types) > 0 {
+		for _, arg := range args.Types {
+			switch iarg := arg.(type) {
+			case float64:
+				num := int(iarg)
+				if num < 0 || num > 42{
+					return nil, pm.BadRequestError(fmt.Errorf("type out of range: %v", num))
+				}
+			case string:
+				if exists := dmiKeywords[iarg]; !exists {
+					return nil, fmt.Errorf("invalid keyword %v", arg)
+				}
+			default:
+				return nil, pm.BadRequestError(fmt.Errorf("invalid type: %v(%T)", iarg, iarg))
 			}
-			cmdargs = append(cmdargs, "-t", fmt.Sprintf("%d", arg))
-		}
-	}
-	if len(args.TypeKeywords) > 0 {
-		for _, arg := range args.TypeKeywords {
-			exists := dmiKeywords[arg]
-			if !exists {
-				return nil, fmt.Errorf("Invalid dmi keyword %s", arg)
-			}
-			cmdargs = append(cmdargs, "-t", arg)
+			cmdargs = append(cmdargs, "-t", fmt.Sprintf("%v", arg))
 		}
 	}
 
@@ -164,7 +175,7 @@ func dmidecodeRunAndParse(cmd *pm.Command) (interface{}, error) {
 		return nil, err
 	}
 	output = result.Streams.Stdout()
-	return ParseDMI(output), nil
+	return ParseDMI(output)
 
 }
 
@@ -175,19 +186,17 @@ func DMITypeToString(t DMIType) string {
 
 // section starts with handle until it reaches 2 new lines.
 func getSections(input string) []string {
-	sectionParams := regexp.MustCompile("(?ms:Handle .+?\n\n)")
-	return sectionParams.FindAllString(input, -1)
+	return sectionRegex.FindAllString(input, -1)
 }
 
 // Extract the DMI type from the handleline.
 func getDMITypeFromHandleLine(line string) (DMIType, error) {
-	dmitypepat := regexp.MustCompile("DMI type ([0-9]+)")
-	m := dmitypepat.FindStringSubmatch(line)
+	m := dmiTypeRegex.FindStringSubmatch(line)
 	if len(m) == 2 {
 		t, err := strconv.Atoi(m[1])
 		return DMIType(t), err
 	}
-	return 0, fmt.Errorf("Couldn't find dmitype in handleline %s", line)
+	return 0, fmt.Errorf("couldn't find dmitype in handleline %s", line)
 }
 
 // list property spans overs multiple indented lines.
@@ -195,7 +204,7 @@ func getDMITypeFromHandleLine(line string) (DMIType, error) {
 func isListProperty(lidx int, lines []string) bool {
 	lvl := getLineLevel(lines[lidx])
 	nxtline := lines[lidx+1]
-	if strings.TrimSpace(nxtline) == "" {
+	if strings.TrimSpace(nxtline) == "" || lidx+1 >= len(lines){
 		return false
 	}
 	nxtlvl := getLineLevel(lines[lidx+1])
@@ -230,8 +239,7 @@ type DMISection struct {
 }
 
 func propertyFromLine(line string) (string, PropertyData, error) {
-	kvpat := regexp.MustCompile("(.+?):(.*)")
-	m := kvpat.FindStringSubmatch(line)
+	m := kvRegex.FindStringSubmatch(line)
 	if len(m) == 3 {
 		k, v := strings.TrimSpace(m[1]), strings.TrimSpace(m[2])
 		return k, PropertyData{Val: v}, nil
@@ -239,12 +247,12 @@ func propertyFromLine(line string) (string, PropertyData, error) {
 		k := strings.TrimSpace(m[1])
 		return k, PropertyData{Val: ""}, nil
 	} else {
-		return "", PropertyData{}, fmt.Errorf("Couldnt find key value pair on the line %s", line)
+		return "", PropertyData{}, fmt.Errorf("couldn't find key value pair on the line %s", line)
 	}
 }
 
 // Sections are separated by new lines.
-func parseDMISection(section string) DMISection {
+func parseDMISection(section string) (DMISection, error) {
 	dmi := DMISection{}
 	lines := strings.Split(section, "\n")
 	dmi.HandleLine = lines[0]
@@ -258,35 +266,43 @@ func parseDMISection(section string) DMISection {
 	propertieslines := lines[2:]
 	for i := 0; i < len(propertieslines); i++ {
 		l := propertieslines[i]
-		if k, p, err := propertyFromLine(l); err == nil {
-			if isListProperty(i, propertieslines) {
-				endidx := whereListPropertyEnds(i, propertieslines)
-				subpropslines := propertieslines[i+1 : endidx]
-				for _, item := range subpropslines {
-					if trimmeditem := strings.TrimSpace(item); trimmeditem != "" {
-						p.Items = append(p.Items, strings.TrimSpace(item))
-					}
-				}
-				i = endidx - 1 //skip the beginning of the new property (i will increment afterwards.)
-			}
-			dmi.Properties[k] = p
+		if strings.TrimSpace(l) == ""{
+			continue
 		}
+		k, p, err := propertyFromLine(l)
+		if err != nil {
+			return dmi, fmt.Errorf("couldn't find key value pair on the line %s", l)
+		}
+		if isListProperty(i, propertieslines) {
+			endidx := whereListPropertyEnds(i, propertieslines)
+			subpropslines := propertieslines[i+1 : endidx]
+			for _, item := range subpropslines {
+				if trimmeditem := strings.TrimSpace(item); trimmeditem != "" {
+					p.Items = append(p.Items, strings.TrimSpace(item))
+				}
+			}
+				i = endidx - 1 //skip the beginning of the new property (i will increment afterwards.)
+		}
+		dmi.Properties[k] = p
 	}
-	return dmi
+	return dmi, nil
 }
 
 // ParseDMI Parses dmidecode output into DMI structure
-func ParseDMI(input string) DMI {
+func ParseDMI(input string) (DMI, error) {
 	dmi := make(map[string]DMISection)
 	sections := getSections(input)
 	if len(sections) == 0 {
-		return DMI{}
+		return DMI{}, nil
 	}
 	for _, section := range sections {
-		dmisec := parseDMISection(section)
+		dmisec, err := parseDMISection(section)
+		if err != nil {
+			return dmi, err
+		}
 		dmi[dmisec.Title] = dmisec
 	}
-	return dmi
+	return dmi, nil
 }
 
 func getLineLevel(line string) int {
