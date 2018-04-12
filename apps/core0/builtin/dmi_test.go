@@ -100,6 +100,7 @@ Handle 0x0011, DMI type 32, 20 bytes
 System Boot Information
 		Status: No errors detected
 
+
 	`
 	sample4 = `
 # dmidecode 3.1
@@ -188,8 +189,6 @@ Processor Information
 		Thread Count: 4
 		Characteristics:
 				64-bit capable
-	
-
 
 	`
 )
@@ -269,8 +268,10 @@ var processorTests = map[string]string {
 }
 
 func TestParseSectionSimple(t *testing.T) {
-	dmi := ParseDMI(sample1)
-
+	dmi, err := ParseDMI(sample1)
+	if ok:= assert.Equal(t, nil, err); !ok {
+		t.Fatal()
+	}
 	if ok := assert.Equal(t, 1, len(dmi)); !ok {
 		t.Fatal()
 	}
@@ -289,7 +290,10 @@ func TestParseSectionSimple(t *testing.T) {
 
 }
 func TestParseSectionWithListProperty(t *testing.T) {
-	dmi := ParseDMI(sample2)
+	dmi, err := ParseDMI(sample2)
+	if ok:= assert.Equal(t, nil, err); !ok {
+		t.Fatal()
+	}
 
 	if ok := assert.Equal(t, 1, len(dmi)); !ok {
 		t.Fatal()
@@ -314,7 +318,10 @@ func TestParseSectionWithListProperty(t *testing.T) {
 }
 
 func TestParseMultipleSectionsSimple(t *testing.T) {
-	dmi := ParseDMI(sample3)
+	dmi, err := ParseDMI(sample3)
+	if ok:= assert.Equal(t, nil, err); !ok {
+		t.Fatal()
+	}
 	if ok := assert.Equal(t, len(dmi), 4); !ok {
 		t.Fatal()
 	}
@@ -358,7 +365,10 @@ func TestParseMultipleSectionsSimple(t *testing.T) {
 
 }
 func TestParseMultipleSectionsWithListProperties(t *testing.T) {
-	dmi := ParseDMI(sample4)
+	dmi, err := ParseDMI(sample4)
+	if ok:= assert.Equal(t, nil, err); !ok {
+		t.Fatal()
+	}
 	if ok := assert.Equal(t, 2, len(dmi)); !ok {
 		t.Fatal()
 	}
