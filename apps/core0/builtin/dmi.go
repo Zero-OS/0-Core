@@ -119,12 +119,6 @@ var dmitypeToString = map[DMIType]string{
 	DMITypeManagementControllerHostInterface: "ManagementControllerHostInterface",
 }
 
-const (
-	StateSectionName   = 1
-	StateReadKV        = 2
-	StateReadItemsList = 3
-)
-
 var dmiKeywords = map[string]bool{
 	"bios":      true,
 	"system":    true,
@@ -242,59 +236,87 @@ type DMISection struct {
 }
 
 func newSection() DMISection {
-	s := DMISection{}
-	s.Properties = make(map[string]PropertyData)
-	return s
+	return DMISection{
+		Properties: make(map[string]PropertyData),
+	}
 }
+
+func readSection(section *DMISection, lines []string, start int) (int, error){
+	if (start+2) > len(lines) {
+		return 0, fmt.Errorf("invalid section size")
+	}
+
+	section.HandleLine = lines[start]
+	start++
+	section.Title = lines[start]
+	start++
+	dmitype, err := getDMITypeFromHandleLine(section.HandleLine)
+	section.Type = dmitype
+	section.TypeStr = DMITypeToString(dmitype)
+	
+	key := ""
+	propertyData := PropertyData{}
+	items := []string{}
+	if err != nil {
+		return 0, err
+	}
+
+	for start < len(lines) {
+		l := lines[start]
+		indentLevel := getLineLevel(l)
+
+		switch indentLevel {
+		case 0:
+			return start, nil
+		case 2:
+			key, propertyData, err = propertyFromLine(l)
+			if err != nil {
+				return 0, err
+			}
+			section.Properties[key] = propertyData
+		case 4:
+			items, start = readList(lines, start)	
+			propertyData.Items = items
+			section.Properties[key] = propertyData
+		}
+		start++
+	}
+	return start, nil
+}
+
+func readList(lines []string, start int)([]string, int){
+	items := []string{}
+	for start <len(lines) {
+		l := lines[start]
+		indentLevel := getLineLevel(l)
+		if  indentLevel > 2{
+			items = append(items, strings.TrimSpace(l))
+		} else {
+			return items, start - 1
+		}
+		start++
+	}
+	return items, start 
+}
+
 
 // ParseDMI Parses dmidecode output into DMI structure
 func ParseDMI(input string) (DMI, error) {
 	lines := strings.Split(input, "\n")
 	secs := make(map[string]DMISection)
-	state := 0
-	currentSection := newSection()
-	currentPropertyKey := ""              
-	currentPropertyData := PropertyData{}
-	var err error
-	for i, l := range lines {
-		if strings.HasPrefix(l, "Handle") {
-			currentSection.HandleLine = l
-			dmitype, err := getDMITypeFromHandleLine(l)
+	
+	for start := 0; start<len(lines) ; start++ {
+		line := lines[start]
+		if strings.HasPrefix(line, "Handle") {
+			section := newSection()
+			var err error
+			start, err = readSection(&section, lines, start)
 			if err != nil {
 				return DMI{}, err
 			}
-			currentSection.Type = dmitype
-			currentSection.TypeStr = DMITypeToString(dmitype)
-			state = StateSectionName
-			continue
-		}
-		if strings.TrimSpace(l) == "" && state > 0 {
-			secs[currentSection.Title] = currentSection
-			currentSection = newSection()
-			state = 0
-			continue
-		}
-
-		switch state {
-		case StateSectionName:
-			currentSection.Title = l
-			state = StateReadKV
-		case StateReadKV:
-			currentPropertyKey, currentPropertyData, err = propertyFromLine(l)
-			if err != nil {
-				return DMI{}, err
-			}
-			currentSection.Properties[currentPropertyKey] = currentPropertyData
-			if i < len(lines) && getLineLevel(l) < getLineLevel(lines[i+1]) {
-				state = StateReadItemsList
-			}
-		case StateReadItemsList:
-			currentPropertyData.Items = append(currentPropertyData.Items, strings.TrimSpace(l))
-			if i<len(lines) && getLineLevel(l) > getLineLevel(lines[i+1]) {
-				state = StateReadKV
-				currentSection.Properties[currentPropertyKey] = currentPropertyData
-			}
-		}
+			secs[section.Title] = section
+		}	
 	}
+
 	return secs, nil
 }
