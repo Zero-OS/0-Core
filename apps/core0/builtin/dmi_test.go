@@ -21,7 +21,6 @@ System Information
 		Wake-up Type: Power Switch
 		SKU Number: Calpella_CRB
 		Family: Intel_Mobile
-
 	`
 	sample2 = `
 Getting SMBIOS data from sysfs.
@@ -53,7 +52,6 @@ BIOS Information
 				BIOS boot specification is supported
 				Targeted content distribution is supported
 		BIOS Revision: 1.40
-
 	`
 	sample3 = `
 # dmidecode 3.1
@@ -99,8 +97,6 @@ System Event Log
 Handle 0x0011, DMI type 32, 20 bytes
 System Boot Information
 		Status: No errors detected
-
-
 	`
 	sample4 = `
 # dmidecode 3.1
@@ -189,7 +185,6 @@ Processor Information
 		Thread Count: 4
 		Characteristics:
 				64-bit capable
-
 	`
 )
 var	biosInfoTests = map[string]string{
