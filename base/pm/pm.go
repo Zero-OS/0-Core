@@ -39,6 +39,7 @@ var (
 	log = logging.MustGetLogger("pm")
 
 	n        sync.Once
+	s        sync.Once
 	jobs     map[string]Job
 	jobsM    sync.RWMutex
 	jobsCond *sync.Cond
@@ -167,18 +168,18 @@ func processWait() {
 	}
 }
 
-func registerPID(g GetPID) error {
+func registerPID(g GetPID) (int, error) {
 	pidsMux.Lock()
 	defer pidsMux.Unlock()
 	pid, err := g()
 	if err != nil {
-		return err
+		return pid, err
 	}
 
 	ch := make(chan syscall.WaitStatus)
 	pids[pid] = ch
 
-	return nil
+	return pid, nil
 }
 
 func waitPID(pid int) syscall.WaitStatus {
@@ -191,11 +192,12 @@ func waitPID(pid int) syscall.WaitStatus {
 	return <-c
 }
 
-//Start starts the r manager.
+//Start starts the process manager.
 func Start() {
-	//r and start all commands according to args.
-	go processWait()
-	go loop()
+	s.Do(func() {
+		go processWait()
+		go loop()
+	})
 }
 
 func processArgs(args map[string]interface{}, values map[string]interface{}) {

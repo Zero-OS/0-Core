@@ -5,11 +5,12 @@ package pm
 import "C"
 import (
 	"fmt"
-	"github.com/zero-os/0-core/base/pm/stream"
 	"runtime"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/zero-os/0-core/base/pm/stream"
 )
 
 const (
@@ -42,6 +43,9 @@ type jobImb struct {
 	o      sync.Once
 	result *JobResult
 	wg     sync.WaitGroup
+
+	registerPID func(GetPID) (int, error)
+	waitPID     func(int) syscall.WaitStatus
 }
 
 /*
@@ -68,9 +72,21 @@ func newJob(command *Command, factory ProcessFactory, hooks ...RunnerHook) Job {
 		signal:  make(chan syscall.Signal),
 		hooks:   hooks,
 		backlog: stream.NewBuffer(GenericStreamBufferSize),
+
+		registerPID: registerPID,
+		waitPID:     waitPID,
 	}
 
 	job.wg.Add(1)
+	return job
+}
+
+func newTestJob(command *Command, factory ProcessFactory, hooks ...RunnerHook) Job {
+	job := newJob(command, factory, hooks...).(*jobImb)
+	var testTable TestingPIDTable
+	job.registerPID = testTable.RegisterPID
+	job.waitPID = testTable.WaitPID
+
 	return job
 }
 
@@ -367,23 +383,21 @@ func (r *jobImb) Wait() *JobResult {
 
 //implement PIDTable
 //intercept pid registration to fire the correct hooks.
-func (r *jobImb) RegisterPID(g GetPID) error {
-	return registerPID(func() (int, error) {
-		pid, err := g()
-		if err != nil {
-			return 0, err
-		}
+func (r *jobImb) RegisterPID(g GetPID) (int, error) {
+	pid, err := r.registerPID(g)
+	if err != nil {
+		return 0, err
+	}
 
-		for _, hook := range r.hooks {
-			go hook.PID(pid)
-		}
+	for _, hook := range r.hooks {
+		go hook.PID(pid)
+	}
 
-		return pid, err
-	})
+	return 0, nil
 }
 
 func (r *jobImb) WaitPID(pid int) syscall.WaitStatus {
-	return waitPID(pid)
+	return r.waitPID(pid)
 }
 
 func (r *jobImb) StartTime() int64 {

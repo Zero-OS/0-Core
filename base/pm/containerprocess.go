@@ -210,7 +210,7 @@ func (p *containerProcessImpl) Run() (ch <-chan *stream.Message, err error) {
 	var ps *os.Process
 	args := []string{name}
 	args = append(args, p.args.Args...)
-	err = p.table.RegisterPID(func() (int, error) {
+	_, err = p.table.RegisterPID(func() (int, error) {
 		ps, err = os.StartProcess(name, args, &attrs)
 		if err != nil {
 			return 0, err
