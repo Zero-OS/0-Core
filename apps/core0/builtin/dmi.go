@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
-
 	"github.com/zero-os/0-core/base/pm"
 )
 
@@ -120,16 +119,22 @@ var dmitypeToString = map[DMIType]string{
 	DMITypeManagementControllerHostInterface: "ManagementControllerHostInterface",
 }
 
+const (
+	StateSectionName   = 1
+	StateReadKV        = 2
+	StateReadItemsList = 3
+)
+
 var dmiKeywords = map[string]bool{
-	"bios": true,
-	"system": true,
+	"bios":      true,
+	"system":    true,
 	"baseboard": true,
-	"chassis": true,
+	"chassis":   true,
 	"processor": true,
-	"memory": true, 
-	"cache": true, 
+	"memory":    true,
+	"cache":     true,
 	"connector": true,
-	"slot": true,
+	"slot":      true,
 }
 
 var sectionRegex = regexp.MustCompile("(?ms:Handle .+?\n\n)")
@@ -155,7 +160,7 @@ func dmidecodeRunAndParse(cmd *pm.Command) (interface{}, error) {
 			switch iarg := arg.(type) {
 			case float64:
 				num := int(iarg)
-				if num < 0 || num > 42{
+				if num < 0 || num > 42 {
 					return nil, pm.BadRequestError(fmt.Errorf("type out of range: %v", num))
 				}
 			case string:
@@ -199,28 +204,26 @@ func getDMITypeFromHandleLine(line string) (DMIType, error) {
 	return 0, fmt.Errorf("couldn't find dmitype in handleline %s", line)
 }
 
-// list property spans overs multiple indented lines.
-// so we check basically if the next line isn't on the same level of indentations
-func isListProperty(lidx int, lines []string) bool {
-	lvl := getLineLevel(lines[lidx])
-	nxtline := lines[lidx+1]
-	if strings.TrimSpace(nxtline) == "" || lidx+1 >= len(lines){
-		return false
-	}
-	nxtlvl := getLineLevel(lines[lidx+1])
-	return nxtlvl > lvl
-}
-
-// searches where the lines dedent again indicating the end of the property.
-func whereListPropertyEnds(startIdx int, lines []string) int {
-	lvl := getLineLevel(lines[startIdx])
-	for i := startIdx + 1; i < len(lines); i++ {
-		current := lines[i]
-		if lvl == getLineLevel(current) {
+func getLineLevel(line string) int {
+	for i, c := range line {
+		if !unicode.IsSpace(c) {
 			return i
 		}
 	}
-	return len(lines)
+	return 0
+}
+
+func propertyFromLine(line string) (string, PropertyData, error) {
+	m := kvRegex.FindStringSubmatch(line)
+	if len(m) == 3 {
+		k, v := strings.TrimSpace(m[1]), strings.TrimSpace(m[2])
+		return k, PropertyData{Val: v}, nil
+	} else if len(m) == 2 {
+		k := strings.TrimSpace(m[1])
+		return k, PropertyData{Val: ""}, nil
+	} else {
+		return "", PropertyData{}, fmt.Errorf("couldn't find key value pair on the line %s", line)
+	}
 }
 
 // PropertyData represents a key value pair with optional list of items
@@ -238,78 +241,60 @@ type DMISection struct {
 	Properties map[string]PropertyData `json:"properties,omitempty"`
 }
 
-func propertyFromLine(line string) (string, PropertyData, error) {
-	m := kvRegex.FindStringSubmatch(line)
-	if len(m) == 3 {
-		k, v := strings.TrimSpace(m[1]), strings.TrimSpace(m[2])
-		return k, PropertyData{Val: v}, nil
-	} else if len(m) == 2 {
-		k := strings.TrimSpace(m[1])
-		return k, PropertyData{Val: ""}, nil
-	} else {
-		return "", PropertyData{}, fmt.Errorf("couldn't find key value pair on the line %s", line)
-	}
-}
-
-// Sections are separated by new lines.
-func parseDMISection(section string) (DMISection, error) {
-	dmi := DMISection{}
-	lines := strings.Split(section, "\n")
-	dmi.HandleLine = lines[0]
-	dmi.Properties = make(map[string]PropertyData)
-	if t, err := getDMITypeFromHandleLine(lines[0]); err == nil {
-		dmi.Type = t
-		dmi.TypeStr = dmitypeToString[dmi.Type]
-	}
-	dmi.Title = lines[1]
-
-	propertieslines := lines[2:]
-	for i := 0; i < len(propertieslines); i++ {
-		l := propertieslines[i]
-		if strings.TrimSpace(l) == ""{
-			continue
-		}
-		k, p, err := propertyFromLine(l)
-		if err != nil {
-			return dmi, fmt.Errorf("couldn't find key value pair on the line %s", l)
-		}
-		if isListProperty(i, propertieslines) {
-			endidx := whereListPropertyEnds(i, propertieslines)
-			subpropslines := propertieslines[i+1 : endidx]
-			for _, item := range subpropslines {
-				if trimmeditem := strings.TrimSpace(item); trimmeditem != "" {
-					p.Items = append(p.Items, strings.TrimSpace(item))
-				}
-			}
-				i = endidx - 1 //skip the beginning of the new property (i will increment afterwards.)
-		}
-		dmi.Properties[k] = p
-	}
-	return dmi, nil
+func newSection() DMISection {
+	s := DMISection{}
+	s.Properties = make(map[string]PropertyData)
+	return s
 }
 
 // ParseDMI Parses dmidecode output into DMI structure
 func ParseDMI(input string) (DMI, error) {
-	dmi := make(map[string]DMISection)
-	sections := getSections(input)
-	if len(sections) == 0 {
-		return DMI{}, nil
-	}
-	for _, section := range sections {
-		dmisec, err := parseDMISection(section)
-		if err != nil {
-			return dmi, err
+	lines := strings.Split(input, "\n")
+	secs := make(map[string]DMISection)
+	state := 0
+	currentSection := newSection()
+	currentPropertyKey := ""              
+	currentPropertyData := PropertyData{}
+	var err error
+	for i, l := range lines {
+		if strings.HasPrefix(l, "Handle") {
+			currentSection.HandleLine = l
+			dmitype, err := getDMITypeFromHandleLine(l)
+			if err != nil {
+				return DMI{}, err
+			}
+			currentSection.Type = dmitype
+			currentSection.TypeStr = DMITypeToString(dmitype)
+			state = StateSectionName
+			continue
 		}
-		dmi[dmisec.Title] = dmisec
-	}
-	return dmi, nil
-}
+		if strings.TrimSpace(l) == "" && state > 0 {
+			secs[currentSection.Title] = currentSection
+			currentSection = newSection()
+			state = 0
+			continue
+		}
 
-func getLineLevel(line string) int {
-	for i, c := range line {
-		if !unicode.IsSpace(c) {
-			return i
+		switch state {
+		case StateSectionName:
+			currentSection.Title = l
+			state = StateReadKV
+		case StateReadKV:
+			currentPropertyKey, currentPropertyData, err = propertyFromLine(l)
+			if err != nil {
+				return DMI{}, err
+			}
+			currentSection.Properties[currentPropertyKey] = currentPropertyData
+			if i < len(lines) && getLineLevel(l) < getLineLevel(lines[i+1]) {
+				state = StateReadItemsList
+			}
+		case StateReadItemsList:
+			currentPropertyData.Items = append(currentPropertyData.Items, strings.TrimSpace(l))
+			if i<len(lines) && getLineLevel(l) > getLineLevel(lines[i+1]) {
+				state = StateReadKV
+				currentSection.Properties[currentPropertyKey] = currentPropertyData
+			}
 		}
 	}
-	return 0
+	return secs, nil
 }
