@@ -406,3 +406,10 @@ func TestParseMultipleSectionsWithListProperties(t *testing.T) {
 		}	
 	}
 }
+
+func BenchmarkParseMultipleSectionsWithLists(b *testing.B) {
+	// run the Fib function b.N times
+	for n := 0; n < b.N; n++ {
+		ParseDMI(sample4)
+	}
+}
