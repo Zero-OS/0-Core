@@ -53,10 +53,10 @@ var (
 	unprivileged bool
 )
 
-//NewPM creates a new PM
+//New initialize singleton process manager
 func New() {
 	n.Do(func() {
-		log.Debugf("initializing r manager")
+		log.Debugf("initializing manager")
 		jobs = make(map[string]Job)
 		jobsCond = sync.NewCond(&sync.Mutex{})
 		pids = make(map[int]chan syscall.WaitStatus)
@@ -65,14 +65,19 @@ func New() {
 	})
 }
 
+//AddHandle add handler to various process events
 func AddHandle(handler Handler) {
 	handlers = append(handlers, handler)
 }
 
+//SetUnprivileged switch to unprivileged mode (no way back) all process
+//that runs after calling this will has some of their capabilities dropped
 func SetUnprivileged() {
 	unprivileged = true
 }
 
+//RunFactory run a command by creating a process by calling the factory with that command.
+//accepts optional hooks to certain process events.
 func RunFactory(cmd *Command, factory ProcessFactory, hooks ...RunnerHook) (Job, error) {
 	if len(cmd.ID) == 0 {
 		cmd.ID = uuid.New()

@@ -11,13 +11,12 @@ var factories = map[string]ProcessFactory{
 	CommandSystem: NewSystemProcess,
 }
 
-/*
-NewProcess creates a new process from a command
-*/
+//GetProcessFactory gets a process factory from command name
 func GetProcessFactory(cmd *Command) ProcessFactory {
 	return factories[cmd.Command]
 }
 
+//Register registers a command process factory
 func Register(name string, factory ProcessFactory) {
 	if _, ok := factories[name]; ok {
 		panic(fmt.Sprintf("command registered with same name: %s", name))
@@ -37,10 +36,12 @@ func RegisterExtension(cmd string, exe string, workdir string, cmdargs []string,
 	return nil
 }
 
+//RegisterBuiltIn registers a built in function
 func RegisterBuiltIn(name string, runnable Runnable) {
 	Register(name, internalProcessFactory(runnable))
 }
 
+//RegisterBuiltInWithCtx registers a built in function that accepts a command and a context
 func RegisterBuiltInWithCtx(name string, runnable RunnableWithCtx) {
 	Register(name, internalProcessFactoryWithCtx(runnable))
 }

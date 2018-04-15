@@ -199,7 +199,6 @@ func (p *containerProcessImpl) Run() (ch <-chan *stream.Message, err error) {
 		},
 	}
 
-	log.Debugf("system: %s", p.args)
 	var ps *os.Process
 	args := []string{name}
 	args = append(args, p.args.Args...)
