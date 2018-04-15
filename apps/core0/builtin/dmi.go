@@ -131,7 +131,6 @@ var dmiKeywords = map[string]bool{
 	"slot":      true,
 }
 
-var sectionRegex = regexp.MustCompile("(?ms:Handle .+?\n\n)")
 var dmiTypeRegex = regexp.MustCompile("DMI type ([0-9]+)")
 var kvRegex = regexp.MustCompile("(.+?):(.*)")
 
@@ -181,11 +180,6 @@ func dmidecodeRunAndParse(cmd *pm.Command) (interface{}, error) {
 // DMITypeToString returns string representation of DMIType t
 func DMITypeToString(t DMIType) string {
 	return dmitypeToString[t]
-}
-
-// section starts with handle until it reaches 2 new lines.
-func getSections(input string) []string {
-	return sectionRegex.FindAllString(input, -1)
 }
 
 // Extract the DMI type from the handleline.
