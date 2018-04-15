@@ -1,5 +1,7 @@
 set -e
 
+udevadm settle
+
 LABEL="sp_zos-cache"
 CACHE="/var/cache"
 STORAGEPOOL="/mnt/storagepools"

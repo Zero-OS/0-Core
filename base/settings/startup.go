@@ -35,7 +35,7 @@ func (s Startup) Weight(i *IncludedSettings, chain ...string) (int64, error) {
 		return 0, CyclicDependency
 	}
 
-	nextChain := append(chain, s.Key())
+	chain = append(chain, s.Key())
 	var w int64
 	if len(s.After) == 0 {
 		//if no After is specified, AfterBoot value is considered
@@ -46,7 +46,7 @@ func (s Startup) Weight(i *IncludedSettings, chain ...string) (int64, error) {
 		if x, ok := Priority[After(a)]; ok {
 			w += x
 		} else if d, ok := i.Startup[a]; ok {
-			dw, err := d.Weight(i, nextChain...)
+			dw, err := d.Weight(i, chain...)
 			if err != nil {
 				return 0, err
 			}
