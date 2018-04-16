@@ -264,13 +264,13 @@ var processorTests = map[string]string {
 
 func TestParseSectionSimple(t *testing.T) {
 	dmi, err := ParseDMI(sample1)
-	if ok:= assert.Equal(t, nil, err); !ok {
+	if ok:= assert.NoError(t, err); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, 1, len(dmi)); !ok {
+	if ok := assert.Len(t, dmi, 1); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, 8, len(dmi["System Information"].Properties)); !ok {
+	if ok := assert.Len(t, dmi["System Information"].Properties, 8); !ok {
 		t.Fatal()
 	}
 	if ok := assert.Equal(t, "System Information", dmi["System Information"].Title); !ok {
@@ -286,20 +286,20 @@ func TestParseSectionSimple(t *testing.T) {
 }
 func TestParseSectionWithListProperty(t *testing.T) {
 	dmi, err := ParseDMI(sample2)
-	if ok:= assert.Equal(t, nil, err); !ok {
+	if ok:= assert.NoError(t, err); !ok {
 		t.Fatal()
 	}
 
-	if ok := assert.Equal(t, 1, len(dmi)); !ok {
+	if ok := assert.Len(t, dmi, 1); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, 6, len(dmi["BIOS Information"].Properties)); !ok {
+	if ok := assert.Len(t, dmi["BIOS Information"].Properties, 6); !ok {
 		t.Fatal()
 	}
 	if ok := assert.Equal(t, "BIOS Information", dmi["BIOS Information"].Title); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, 18, len(dmi["BIOS Information"].Properties["Characteristics"].Items)); !ok {
+	if ok := assert.Len(t, dmi["BIOS Information"].Properties["Characteristics"].Items, 18); !ok {
 
 		t.Fatal()
 	}
@@ -314,23 +314,23 @@ func TestParseSectionWithListProperty(t *testing.T) {
 
 func TestParseMultipleSectionsSimple(t *testing.T) {
 	dmi, err := ParseDMI(sample3)
-	if ok:= assert.Equal(t, nil, err); !ok {
+	if ok:= assert.NoError(t, err); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, len(dmi), 4); !ok {
+	if ok := assert.Len(t, dmi, 4); !ok {
 		t.Fatal()
 	}
 
 	if ok := assert.Equal(t, "System Information", dmi["System Information"].Title); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, 8, len(dmi["System Information"].Properties)); !ok {
+	if ok := assert.Len(t, dmi["System Information"].Properties, 8); !ok {
 		t.Fatal()
 	}
 	if ok := assert.Equal(t, "System Event Log", dmi["System Event Log"].Title); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, 15, len(dmi["System Event Log"].Properties)); !ok {
+	if ok := assert.Len(t, dmi["System Event Log"].Properties, 15); !ok {
 		t.Fatal()
 	}
 	if ok := assert.Equal(t, DMITypeSystemBoot, dmi["System Boot Information"].Type); !ok {
@@ -361,20 +361,20 @@ func TestParseMultipleSectionsSimple(t *testing.T) {
 }
 func TestParseMultipleSectionsWithListProperties(t *testing.T) {
 	dmi, err := ParseDMI(sample4)
-	if ok:= assert.Equal(t, nil, err); !ok {
+	if ok:= assert.NoError(t, err); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, 2, len(dmi)); !ok {
+	if ok := assert.Len(t, dmi, 2); !ok {
 		t.Fatal()
 	}
 
 	if ok := assert.Equal(t, "BIOS Information", dmi["BIOS Information"].Title); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, len(dmi["BIOS Information"].Properties), 6); !ok {
+	if ok := assert.Len(t, dmi["BIOS Information"].Properties, 6); !ok {
 		t.Fatal()
 	}
-	if ok := assert.Equal(t, 18, len(dmi["BIOS Information"].Properties["Characteristics"].Items)); !ok {
+	if ok := assert.Len(t, dmi["BIOS Information"].Properties["Characteristics"].Items, 18); !ok {
 		t.Fatal()
 	}
 
@@ -382,12 +382,12 @@ func TestParseMultipleSectionsWithListProperties(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Equal(t, len(dmi["Processor Information"].Properties), 24); !ok {
+	if ok := assert.Len(t, dmi["Processor Information"].Properties, 24); !ok {
 		t.Fatal()
 	}
 
 
-	if ok := assert.Equal(t, 28, len(dmi["Processor Information"].Properties["Flags"].Items)); !ok {
+	if ok := assert.Len(t, dmi["Processor Information"].Properties["Flags"].Items, 28); !ok {
 		t.Fatal()
 	}
 	if ok := assert.Equal(t, "FPU (Floating-point unit on-chip)", dmi["Processor Information"].Properties["Flags"].Items[0]); !ok {

@@ -173,7 +173,9 @@ func dmidecodeRunAndParse(cmd *pm.Command) (interface{}, error) {
 		return nil, err
 	}
 	output = result.Streams.Stdout()
+
 	return ParseDMI(output)
+
 
 }
 
@@ -245,52 +247,54 @@ func readSection(section *DMISection, lines []string, start int) (int, error){
 	section.Title = lines[start]
 	start++
 	dmitype, err := getDMITypeFromHandleLine(section.HandleLine)
-	section.Type = dmitype
-	section.TypeStr = DMITypeToString(dmitype)
-	
-	key := ""
-	propertyData := PropertyData{}
-	items := []string{}
+
 	if err != nil {
 		return 0, err
 	}
 
-	for start < len(lines) {
-		l := lines[start]
-		indentLevel := getLineLevel(l)
+	section.Type = dmitype
+	section.TypeStr = DMITypeToString(dmitype)
 
-		switch indentLevel {
-		case 0:
+
+	for start < len(lines){
+		line := lines[start]
+		if strings.TrimSpace(line) == "" {
 			return start, nil
-		case 2:
-			key, propertyData, err = propertyFromLine(l)
-			if err != nil {
-				return 0, err
-			}
-			section.Properties[key] = propertyData
-		case 4:
-			items, start = readList(lines, start)	
-			propertyData.Items = items
-			section.Properties[key] = propertyData
 		}
+		indentLevel := getLineLevel(line)
+		key, propertyData, err := propertyFromLine(line)
+		if err != nil {
+			return 0, err
+		}
+	    nxtIndentLevel := 0
+		if len(lines) > start + 1 {
+			nxtIndentLevel = getLineLevel(lines[start+1])
+		}
+
+		if nxtIndentLevel > indentLevel {
+			start = readList(&propertyData, lines, start+1)
+		}
+
 		start++
+		section.Properties[key] = propertyData
 	}
 	return start, nil
 }
 
-func readList(lines []string, start int)([]string, int){
-	items := []string{}
+func readList(propertyData *PropertyData, lines []string, start int)( int){
+	startIndentLevel := getLineLevel(lines[start])
 	for start <len(lines) {
-		l := lines[start]
-		indentLevel := getLineLevel(l)
-		if  indentLevel > 2{
-			items = append(items, strings.TrimSpace(l))
+		line := lines[start]
+		indentLevel := getLineLevel(line)
+		
+		if indentLevel == startIndentLevel {
+			propertyData.Items = append(propertyData.Items, strings.TrimSpace(line))
 		} else {
-			return items, start - 1
+			return start - 1
 		}
 		start++
 	}
-	return items, start 
+	return start 
 }
 
 
@@ -298,7 +302,7 @@ func readList(lines []string, start int)([]string, int){
 func ParseDMI(input string) (DMI, error) {
 	lines := strings.Split(input, "\n")
 	secs := make(map[string]DMISection)
-	
+
 	for start := 0; start<len(lines) ; start++ {
 		line := lines[start]
 		if strings.HasPrefix(line, "Handle") {
@@ -311,6 +315,5 @@ func ParseDMI(input string) (DMI, error) {
 			secs[section.Title] = section
 		}	
 	}
-
 	return secs, nil
 }
