@@ -4,6 +4,7 @@
 [startup."zerotier-init"]
 name = "core.system"
 running_delay = -1
+after = ["init"]
 
 [startup."zerotier-init".args]
 name = "ztid"
@@ -11,7 +12,7 @@ args = ["-out", "/tmp/zt"]
 
 [startup.zerotier]
 name = "core.system"
-after = ["zerotier-init"]
+after = ["net", "zerotier-init"]
 protected = true
 
 [startup.zerotier.args]

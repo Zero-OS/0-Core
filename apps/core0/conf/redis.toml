@@ -12,6 +12,7 @@ args = [
 
 [startup.redis-proxy]
 name = "core.system"
+condition = "development"
 after = ["redis"]
 protected = true
 
@@ -21,3 +22,20 @@ args = [
     "--redis", "/var/run/redis.sock",
     "--listen", "0.0.0.0:6379"
 ]
+
+[startup."redis-proxy-pub"]
+name = "nft.open_port"
+#open on all interfaces if development is set and zerotier is not set
+condition = "and(development, not(zerotier))"
+
+[startup."redis-proxy-pub".args]
+port=6379
+
+[startup."redis-proxy-zt"]
+name = "nft.open_port"
+# only open on the zt interface if both development and zerotier are set
+condition = "and(development, zerotier)"
+
+[startup."redis-proxy-zt".args]
+port=6379
+interface="zt0"

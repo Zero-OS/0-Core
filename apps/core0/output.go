@@ -19,20 +19,44 @@ var (
 	output *os.File
 )
 
-//Redirect stdout logs to file
-func Redirect(p string) error {
+/*
+Logs are written to stdout if not `quiet`
+Stderr is redirected to a `log` file
+Stderr is written to by default (if redirection succeeded)
+
+Note, in case of panic, the panic will only show up in the logs
+if only `debug` flag is set. since this will open the log file
+in sync mode
+*/
+
+func redirect(name string) (err error) {
+	flags := os.O_CREATE | os.O_WRONLY | os.O_APPEND
+	if options.Options.Kernel.Is("log-sync") {
+		flags |= os.O_SYNC
+	}
+
+	output, err = os.OpenFile(name, flags, 0600)
+	if err != nil {
+		return err
+	}
+	os.Stderr.Close()
+	return syscall.Dup2(int(output.Fd()), 2)
+}
+
+//setLogging stdout logs to file
+func setLogging(p string) error {
 	var backends []logging.Backend
 	if !options.Options.Kernel.Is("quiet") {
-		normal := logging.NewLogBackend(os.Stderr, "", 0)
+		normal := logging.NewLogBackend(os.Stdout, "", 0)
 		backends = append(backends, normal)
 	}
 
-	if log, err := os.Create(p); err == nil {
-		output = log
+	if err := redirect(p); err == nil {
 		backends = append(backends,
-			logging.NewLogBackend(log, "", 0),
+			logging.NewLogBackend(output, "", 0),
 		)
 	}
+
 	level := logging.GetLevel("")
 	logging.SetBackend(backends...)
 	logging.SetLevel(level, "")
@@ -49,7 +73,7 @@ func Rotate(p string) error {
 		)
 	}
 
-	return Redirect(p)
+	return setLogging(p)
 }
 
 //HandleRotation force log rotation on

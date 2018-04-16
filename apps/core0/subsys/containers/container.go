@@ -9,9 +9,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zero-os/0-core/apps/core0/logger"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/stream"
-	"github.com/zero-os/0-core/apps/core0/logger"
 )
 
 const (

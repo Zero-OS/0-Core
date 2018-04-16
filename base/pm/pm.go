@@ -224,6 +224,25 @@ func RunSlice(slice settings.StartupSlice) {
 	cmdline := utils.GetKernelOptions().GetLast()
 
 	for _, startup := range slice {
+		expression, err := settings.GetExpression(startup.Condition)
+
+		cond := true
+		if err != nil {
+			log.Errorf("failed to parse condition for %s: %v", startup, err)
+			cond = false
+		} else {
+			//evaluate condition
+			cond = expression.Examine(cmdline)
+		}
+
+		if !cond {
+			//do not run the service, but we must free any
+			//other resource that is waiting for it to run
+			log.Warningf("skipping %s due to condition '%s' unmet", startup.Key(), startup.Condition)
+			state.Release(startup.Key(), false)
+			continue
+		}
+
 		if startup.Args == nil {
 			startup.Args = make(map[string]interface{})
 		}

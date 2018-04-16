@@ -2,7 +2,7 @@ set -e
 
 LABEL="sp_zos-cache"
 CACHE="/var/cache"
-STORAGEPOOL="/mnt/storagepool"
+STORAGEPOOL="/mnt/storagepools"
 
 MNT="${STORAGEPOOL}/${LABEL}"
 
@@ -39,7 +39,7 @@ function preparedisk {
 
 function hook {
     # create required subvols and mount them if not exits
-
+    echo "create and mount subvolume for ${LABEL}"
     # 1 - cache subvol
     btrfs subvol create $1/cache || true
     mount $1/cache /var/cache/
@@ -64,6 +64,7 @@ function main {
     if ! labelmount ${LABEL} ${MNT}; then
         # no parition found with that label
         # prepare the first availabel disk
+	echo "${LABEL} not mounted, search for available disk"
         preparedisk
         labelmount ${LABEL} ${MNT}
     fi

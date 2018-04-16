@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
-	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/settings"
-	"github.com/zero-os/0-core/base/utils"
+	"github.com/zero-os/0-core/apps/core0/helper/socat"
 	"github.com/zero-os/0-core/apps/core0/screen"
 	"github.com/zero-os/0-core/apps/core0/subsys/cgroups"
 	"github.com/zero-os/0-core/apps/core0/transport"
+	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/settings"
+	"github.com/zero-os/0-core/base/utils"
 	"math"
 	"net/url"
 	"os"
@@ -20,18 +21,20 @@ import (
 )
 
 const (
-	cmdContainerCreate       = "corex.create"
-	cmdContainerCreateSync   = "corex.create-sync"
-	cmdContainerList         = "corex.list"
-	cmdContainerDispatch     = "corex.dispatch"
-	cmdContainerTerminate    = "corex.terminate"
-	cmdContainerFind         = "corex.find"
-	cmdContainerZerotierInfo = "corex.zerotier.info"
-	cmdContainerZerotierList = "corex.zerotier.list"
-	cmdContainerNicAdd       = "corex.nic-add"
-	cmdContainerNicRemove    = "corex.nic-remove"
-	cmdContainerBackup       = "corex.backup"
-	cmdContainerRestore      = "corex.restore"
+	cmdContainerCreate            = "corex.create"
+	cmdContainerCreateSync        = "corex.create-sync"
+	cmdContainerList              = "corex.list"
+	cmdContainerDispatch          = "corex.dispatch"
+	cmdContainerTerminate         = "corex.terminate"
+	cmdContainerFind              = "corex.find"
+	cmdContainerZerotierInfo      = "corex.zerotier.info"
+	cmdContainerZerotierList      = "corex.zerotier.list"
+	cmdContainerNicAdd            = "corex.nic-add"
+	cmdContainerNicRemove         = "corex.nic-remove"
+	cmdContainerBackup            = "corex.backup"
+	cmdContainerRestore           = "corex.restore"
+	cmdContainerPortForwardAdd    = "corex.portforward-add"
+	cmdContainerPortForwardRemove = "corex.portforward-remove"
 
 	coreXResponseQueue = "corex:results"
 	coreXBinaryName    = "coreX"
@@ -96,6 +99,12 @@ type ContainerCreateArguments struct {
 type ContainerDispatchArguments struct {
 	Container uint16     `json:"container"`
 	Command   pm.Command `json:"command"`
+}
+
+type containerPortForward struct {
+	Container     uint16 `json:"container"`
+	ContainerPort int    `json:"container_port"`
+	HostPort      int    `json:"host_port"`
 }
 
 func (c *ContainerCreateArguments) Validate() error {
@@ -251,6 +260,8 @@ func ContainerSubsystem(sink *transport.Sink, cell *screen.RowCell) (ContainerMa
 	pm.RegisterBuiltIn(cmdContainerFind, containerMgr.find)
 	pm.RegisterBuiltIn(cmdContainerNicAdd, containerMgr.nicAdd)
 	pm.RegisterBuiltIn(cmdContainerNicRemove, containerMgr.nicRemove)
+	pm.RegisterBuiltIn(cmdContainerPortForwardAdd, containerMgr.portforwardAdd)
+	pm.RegisterBuiltIn(cmdContainerPortForwardRemove, containerMgr.portforwardRemove)
 	pm.RegisterBuiltIn(cmdContainerBackup, containerMgr.backup)
 	pm.RegisterBuiltIn(cmdContainerRestore, containerMgr.restore)
 
@@ -678,4 +689,57 @@ func (m *containerManager) Of(id uint16) Container {
 	defer m.conM.RUnlock()
 	cont, _ := m.containers[id]
 	return cont
+}
+
+func (m *containerManager) portforwardAdd(cmd *pm.Command) (interface{}, error) {
+	var args containerPortForward
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, pm.BadRequestError(err)
+	}
+
+	m.conM.RLock()
+	defer m.conM.RUnlock()
+
+	container, ok := m.containers[args.Container]
+	if !ok {
+		return nil, pm.NotFoundError(fmt.Errorf("container does not exist"))
+	}
+	var defaultNic bool
+	for _, nic := range container.Args.Nics {
+		if nic.Type == "default" {
+			defaultNic = true
+			break
+		}
+	}
+	if !defaultNic {
+		return nil, fmt.Errorf("Container doesn't have a default nic")
+	}
+
+	if err := container.setPortForward(args.HostPort, args.ContainerPort); err != nil {
+		return nil, err
+	}
+
+	container.Args.Port[args.HostPort] = args.ContainerPort
+	return nil, nil
+}
+
+func (m *containerManager) portforwardRemove(cmd *pm.Command) (interface{}, error) {
+	var args containerPortForward
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, pm.BadRequestError(err)
+	}
+
+	m.conM.RLock()
+	defer m.conM.RUnlock()
+
+	container, ok := m.containers[args.Container]
+	if !ok {
+		return nil, pm.NotFoundError(fmt.Errorf("container does not exist"))
+	}
+
+	if err := socat.RemovePortForward(container.forwardId(), args.HostPort, args.ContainerPort); err != nil {
+		return nil, err
+	}
+	delete(container.Args.Port, args.HostPort)
+	return nil, nil
 }

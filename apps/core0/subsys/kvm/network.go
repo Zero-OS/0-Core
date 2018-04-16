@@ -8,9 +8,6 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"strings"
-
-	"syscall"
 
 	"github.com/libvirt/libvirt-go"
 	"github.com/pborman/uuid"
@@ -302,14 +299,6 @@ func (m *kvmManager) setDHCPHost(seq uint16) error {
 	return nil
 }
 
-func (m *kvmManager) forwardId(uuid string, host int) string {
-	return fmt.Sprintf("kvm-socat-%v-%v", uuid, host)
-}
-
-func (m *kvmManager) unPortForward(uuid string) {
-	for key, job := range pm.Jobs() {
-		if strings.HasPrefix(key, fmt.Sprintf("kvm-socat-%s", uuid)) {
-			job.Signal(syscall.SIGTERM)
-		}
-	}
+func (m *kvmManager) forwardId(uuid string) string {
+	return fmt.Sprintf("kvm-%v", uuid)
 }

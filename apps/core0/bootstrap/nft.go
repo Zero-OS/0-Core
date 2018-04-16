@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 
 	"github.com/zero-os/0-core/base/nft"
-	"github.com/zero-os/0-core/apps/core0/options"
 )
 
 var (
@@ -98,17 +97,5 @@ func (b *Bootstrap) writeRules(r string) (string, error) {
 }
 
 func (b *Bootstrap) setNFT() error {
-	if err := nft.Apply(nftInit); err != nil {
-		return err
-	}
-
-	if options.Options.Kernel.Is("zerotier") && !options.Options.Kernel.Is("debug") {
-		if err := nft.Apply(zt); err != nil {
-			return err
-		}
-	} else if err := nft.Apply(pub); err != nil {
-		return err
-	}
-
-	return nil
+	return nft.Apply(nftInit)
 }

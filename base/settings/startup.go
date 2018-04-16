@@ -2,6 +2,7 @@ package settings
 
 import (
 	"fmt"
+
 	"github.com/zero-os/0-core/base/utils"
 )
 
@@ -16,6 +17,7 @@ type Startup struct {
 	Name            string
 	Tags            []string
 	Args            map[string]interface{}
+	Condition       string
 
 	key string
 }

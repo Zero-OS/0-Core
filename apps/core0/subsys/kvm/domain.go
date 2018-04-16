@@ -2,7 +2,10 @@
 
 package kvm
 
-import "encoding/xml"
+import (
+	"encoding/xml"
+	"github.com/zero-os/0-core/base/pm"
+)
 
 /*
 <domain type='kvm'>
@@ -86,6 +89,7 @@ type Domain struct {
 	Features FeaturesType `xml:"features"`
 	Devices  Devices      `xml:"devices"`
 	Qemu     Qemu         `xml:"qemu:commandline"`
+	MetaData MetaDataXML  `xml:"metadata"`
 }
 
 type DiskType string
@@ -102,8 +106,18 @@ const (
 	DiskDeviceTypeCDROM DiskDeviceType = "cdrom"
 )
 
-type MetaData struct {
+type MetaDataXML struct {
+	Tags     pm.Tags `xml:"tags"`
+	Sequence uint16  `xml:"sequence"`
+}
+
+type TagsMetaData struct {
 	XMLName xml.Name `xml:"tags"`
+	Value   string   `xml:",chardata"`
+}
+
+type SequenceMetaData struct {
+	XMLName xml.Name `xml:"sequence"`
 	Value   string   `xml:",chardata"`
 }
 

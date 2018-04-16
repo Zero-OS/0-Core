@@ -7,7 +7,7 @@ import (
 	"path"
 	"syscall"
 
-	"github.com/zero-os/0-core/apps/core0/helper"
+	"github.com/zero-os/0-core/apps/core0/helper/filesystem"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/settings"
 	"github.com/zero-os/0-core/base/utils"
@@ -50,7 +50,7 @@ func (m *kvmManager) flistMount(uuid, src string, cfg map[string]string) (config
 		},
 	}
 
-	if err = helper.MountFList(namespace, storage, src, target, onExit); err != nil {
+	if err = filesystem.MountFList(namespace, storage, src, target, onExit); err != nil {
 		return
 	}
 

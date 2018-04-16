@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	InternetTestAddress = "http://www.google.com/"
+	InternetTestAddress = "http://unsecure.bootstrap.gig.tech/"
 
 	screenStateLine = "->%25s: %s %s"
 )
@@ -119,11 +119,23 @@ func (b *Bootstrap) setupNetworking() error {
 
 		inf.Clear()
 		inf.SetUP(true)
-		if err := inf.Configure(); err != nil {
-			log.Errorf("%s", err)
+		go func(inf network.Interface) {
+			if err := inf.Configure(); err != nil {
+				log.Errorf("%s", err)
+			}
+		}(inf)
+	}
+
+	log.Debugf("waiting for internet reachability")
+	now := time.Now()
+	for time.Since(now) < time.Minute {
+		if b.canReachInternet() {
+			log.Info("can reach the internet")
+			return nil
 		}
 	}
 
+	log.Warning("can not reach interent, continue booting anyway")
 	return nil
 }
 

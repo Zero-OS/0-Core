@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/apps/core0/helper"
+	"github.com/zero-os/0-core/apps/core0/helper/filesystem"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -176,7 +176,7 @@ func (m *containerManager) restore(cmd *pm.Command) (interface{}, error) {
 
 	defer os.RemoveAll(tmp)
 
-	if err := helper.RestoreRepo(args.URL, tmp, backupMetaName); err != nil {
+	if err := filesystem.RestoreRepo(args.URL, tmp, backupMetaName); err != nil {
 		return nil, err
 	}
 

@@ -6,7 +6,7 @@ Alternatively you can of course create one yourself, after having build your own
 
 This is how:
 ```shell
-dd if=/dev/zero of=zero-os.iso bs=1M count=90
+dd if=/dev/zero of=zero-os.iso bs=1M count=150
 mkfs.vfat zero-os.iso
 mount zero-os.iso /mnt
 mkdir -p /mnt/EFI/BOOT

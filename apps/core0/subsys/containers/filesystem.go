@@ -13,7 +13,7 @@ import (
 	"syscall"
 
 	"github.com/shirou/gopsutil/disk"
-	"github.com/zero-os/0-core/apps/core0/helper"
+	"github.com/zero-os/0-core/apps/core0/helper/filesystem"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/settings"
 )
@@ -36,7 +36,7 @@ func (c *container) mountFList(src string, target string, hooks ...pm.RunnerHook
 		c.Args.Storage = storage
 	}
 
-	return helper.MountFList(namespace, storage, src, target, hooks...)
+	return filesystem.MountFList(namespace, storage, src, target, hooks...)
 }
 
 func (c *container) root() string {

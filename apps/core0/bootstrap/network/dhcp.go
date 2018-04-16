@@ -1,13 +1,17 @@
 package network
 
 import (
+	"bytes"
 	"fmt"
-	"github.com/pborman/uuid"
+	"io/ioutil"
+
 	"github.com/zero-os/0-core/base/pm"
 )
 
 const (
 	ProtocolDHCP = "dhcp"
+
+	carrierFile = "/sys/class/net/%s/carrier"
 )
 
 func init() {
@@ -17,9 +21,42 @@ func init() {
 type dhcpProtocol struct {
 }
 
+func (d *dhcpProtocol) getZerotierId() (string, error) {
+	bytes, err := ioutil.ReadFile("/tmp/zt/identity.public")
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes)[0:10], nil
+}
+
+func (d *dhcpProtocol) isPlugged(inf string) error {
+	data, err := ioutil.ReadFile(fmt.Sprintf(carrierFile, inf))
+	if err != nil {
+		return err
+	}
+	data = bytes.TrimSpace(data)
+	if string(data) == "1" {
+		return nil
+	}
+
+	return fmt.Errorf("interface %s has no carrier(%s)", inf, string(data))
+}
+
 func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
+	// if err := d.isPlugged(inf); err != nil {
+	// 	return err
+	// }
+
+	hostid := "hostname:zero-os"
+
+	ztid, err := d.getZerotierId()
+	if err == nil {
+		hostid = fmt.Sprintf("hostname:zero-os-%s", ztid)
+	}
+
 	cmd := &pm.Command{
-		ID:      uuid.New(),
+		ID:      fmt.Sprintf("udhcpc/%s", inf),
 		Command: pm.CommandSystem,
 		Arguments: pm.MustArguments(
 			pm.SystemCommandArguments{
@@ -29,21 +66,16 @@ func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
 					"-i", inf,
 					"-t", "10", //try 10 times before giving up
 					"-A", "3", //wait 3 seconds between each trial
-					"--now",  //exit if failed after consuming all the trials (otherwise stay alive)
-					"--quit", //quit once the lease is obtained
-					"-s", "/usr/share/udhcp/simple.script"},
+					"-s", "/usr/share/udhcp/simple.script",
+					"--now",      // exit if lease is not optained
+					"-x", hostid, //set hostname on dhcp request
+				},
 			},
 		),
 	}
 
-	job, err := pm.Run(cmd)
-	if err != nil {
+	if _, err := pm.Run(cmd); err != nil {
 		return err
-	}
-
-	result := job.Wait()
-	if result.State != pm.StateSuccess {
-		return fmt.Errorf("udhcpc failed: %s", result.Streams.Stderr())
 	}
 
 	return nil
