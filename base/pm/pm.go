@@ -134,18 +134,15 @@ func processWait() {
 	c := make(chan os.Signal, 2)
 	signal.Notify(c, syscall.SIGCHLD)
 	for range c {
-		//we wait for sigchld
 		for {
 			//once we get a signal, we consume ALL the died children
 			//since signal.Notify will not wait on channel writes
 			//we create a buffer of 2 and on each signal we loop until wait gives an error
 			var status syscall.WaitStatus
-			var rusage syscall.Rusage
 
-			log.Debug("Waiting for children")
-			pid, err := syscall.Wait4(-1, &status, 0, &rusage)
+			pid, err := syscall.Wait4(-1, &status, 0, nil)
 			if err != nil {
-				log.Debugf("wait error: %s", err)
+				log.Errorf("wait error: %s", err)
 				break
 			}
 
@@ -164,7 +161,6 @@ func processWait() {
 				}(ch, status)
 			}
 		}
-
 	}
 }
 
