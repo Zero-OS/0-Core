@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -46,6 +47,8 @@ type jobImb struct {
 
 	registerPID func(GetPID) (int, error)
 	waitPID     func(int) syscall.WaitStatus
+
+	running int32
 }
 
 /*
@@ -69,7 +72,7 @@ func newJob(command *Command, factory ProcessFactory, hooks ...RunnerHook) Job {
 	job := &jobImb{
 		command: command,
 		factory: factory,
-		signal:  make(chan syscall.Signal),
+		//signal:  make(chan syscall.Signal),
 		hooks:   hooks,
 		backlog: stream.NewBuffer(GenericStreamBufferSize),
 
@@ -294,9 +297,15 @@ loop:
 }
 
 func (r *jobImb) start(unprivileged bool) {
+	atomic.StoreInt32(&r.running, 1)
+	r.signal = make(chan syscall.Signal)
+
 	runs := 0
 	var result *JobResult
 	defer func() {
+		atomic.StoreInt32(&r.running, 0)
+		close(r.signal)
+
 		if result != nil {
 			r.result = result
 			callback(r.command, result)
@@ -324,7 +333,7 @@ loop:
 		}
 
 		if result.State == StateKilled {
-			//we never restart a killed r.
+			//we never restart a killed job.
 			break
 		}
 
@@ -361,13 +370,14 @@ loop:
 }
 
 func (r *jobImb) Signal(sig syscall.Signal) error {
+	if atomic.LoadInt32(&r.running) != 1 {
+		return fmt.Errorf("job is not running")
+	}
+
 	select {
 	case r.signal <- sig:
-		if sig == syscall.SIGKILL {
-			close(r.signal)
-		}
 		return nil
-	case <-time.After(1 * time.Second):
+	default:
 		return fmt.Errorf("job not receiving singnals")
 	}
 }
