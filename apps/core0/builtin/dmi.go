@@ -148,23 +148,21 @@ func dmidecodeRunAndParse(cmd *pm.Command) (interface{}, error) {
 	}
 	output := ""
 	var cmdargs []string
-	if len(args.Types) > 0 {
-		for _, arg := range args.Types {
-			switch iarg := arg.(type) {
-			case float64:
-				num := int(iarg)
-				if num < 0 || num > 42 {
-					return nil, pm.BadRequestError(fmt.Errorf("type out of range: %v", num))
-				}
-			case string:
-				if exists := dmiKeywords[iarg]; !exists {
-					return nil, fmt.Errorf("invalid keyword %v", arg)
-				}
-			default:
-				return nil, pm.BadRequestError(fmt.Errorf("invalid type: %v(%T)", iarg, iarg))
+	for _, arg := range args.Types {
+		switch iarg := arg.(type) {
+		case float64:
+			num := int(iarg)
+			if num < 0 || num > 42 {
+				return nil, pm.BadRequestError(fmt.Errorf("type out of range: %v", num))
 			}
-			cmdargs = append(cmdargs, "-t", fmt.Sprintf("%v", arg))
+		case string:
+			if exists := dmiKeywords[iarg]; !exists {
+				return nil, fmt.Errorf("invalid keyword %v", arg)
+			}
+		default:
+			return nil, pm.BadRequestError(fmt.Errorf("invalid type: %v(%T)", iarg, iarg))
 		}
+		cmdargs = append(cmdargs, "-t", fmt.Sprintf("%v", arg))
 	}
 
 	result, err := pm.System(cmdbin, cmdargs...)
