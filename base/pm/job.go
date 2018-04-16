@@ -72,7 +72,7 @@ func newJob(command *Command, factory ProcessFactory, hooks ...RunnerHook) Job {
 	job := &jobImb{
 		command: command,
 		factory: factory,
-		//signal:  make(chan syscall.Signal),
+		signal:  make(chan syscall.Signal),
 		hooks:   hooks,
 		backlog: stream.NewBuffer(GenericStreamBufferSize),
 
@@ -298,7 +298,6 @@ loop:
 
 func (r *jobImb) start(unprivileged bool) {
 	atomic.StoreInt32(&r.running, 1)
-	r.signal = make(chan syscall.Signal)
 
 	runs := 0
 	var result *JobResult
