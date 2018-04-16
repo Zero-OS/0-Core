@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	InternetTestAddress = "http://unsecure.bootstrap.gig.tech/"
+	InternetTestAddress = "http://1.1.1.1/"
 
 	screenStateLine = "->%25s: %s %s"
 )
