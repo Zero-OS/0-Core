@@ -8,11 +8,13 @@ import (
 	"github.com/zero-os/0-core/base/pm"
 )
 
+//ApplyFromFile applies nft rules from a file
 func ApplyFromFile(cfg string) error {
 	_, err := pm.System("nft", "-f", cfg)
 	return err
 }
 
+//Apply (merge) nft rules
 func Apply(nft Nft) error {
 	data, err := nft.MarshalText()
 	if err != nil {
@@ -35,6 +37,7 @@ func Apply(nft Nft) error {
 	return ApplyFromFile(f.Name())
 }
 
+//DropRules removes nft rules from a file
 func DropRules(nft Nft) error {
 	current, err := Get()
 
@@ -78,7 +81,8 @@ func DropRules(nft Nft) error {
 	return nil
 }
 
-func Drop(table, chain string, handle int) error {
+//Drop drops a single rule given a handle
+var Drop = func(table, chain string, handle int) error {
 	_, err := pm.System("nft", "delete", "rule", "inet", table, chain, "handle", fmt.Sprint(handle))
 	return err
 }
