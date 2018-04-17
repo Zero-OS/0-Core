@@ -11,8 +11,7 @@
 ## Boot Options
 
 Zero-OS handles the following kernel params:
-* `debug` sets the log level to debug.
-* `log-sync` Sets the `sync` flag on the log file so if the system crashes for an unknown reason we make sure that the crash logs are committed to permanent storage (cache) before the system halt.
+* `debug` sets the initial log level to debug, can be changed later via the client.
 * `organization=<org>` When set, Zero-OS will only accept ItsYou.online signed JWT tokens that have the `user:memberof:<org>` role set and are valid
 If not provided, zero-os will not require a password
 * `zerotier=<id>` Join this zerotier network on boot

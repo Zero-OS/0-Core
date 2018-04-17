@@ -112,12 +112,12 @@ func main() {
 	}
 
 	if !options.Agent() {
-		//Redirect the stdout, and stderr so we make sure we don't lose crashes that terminates
-		//the process.
-		if err := Rotate(LogPath); err != nil {
-			log.Errorf("failed to redirect output streams: %s", err)
+		//Logging prepration
+		if err := Rotate(); err != nil {
+			log.Errorf("failed to setup logging: %s", err)
 		}
 
+		//Handle log rotation requests (SIGNALS)
 		HandleRotation()
 	}
 
