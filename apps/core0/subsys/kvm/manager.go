@@ -654,7 +654,7 @@ func (m *kvmManager) mkZDBDisk(media Media) (arg QemuArg, err error) {
 		args = append(args, fmt.Sprintf("socket=%s", u.Path))
 	}
 
-	arg.Value = fmt.Sprintf("driver=zdb,%s", strings.Join(args, ","))
+	arg.Value = fmt.Sprintf("driver=zdb,%s,if=virtio", strings.Join(args, ","))
 	return
 }
 
