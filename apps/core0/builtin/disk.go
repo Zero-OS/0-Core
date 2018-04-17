@@ -6,9 +6,8 @@ import (
 	"io/ioutil"
 	"regexp"
 	"strconv"
-
 	"strings"
-
+	"github.com/zero-os/0-core/base/utils"
 	"github.com/zero-os/0-core/base/pm"
 )
 
@@ -34,6 +33,7 @@ func init() {
 	pm.RegisterBuiltIn("disk.mounts", d.mounts)
 	pm.RegisterBuiltIn("disk.smartctl-info", d.smartctlInfo)
 	pm.RegisterBuiltIn("disk.smartctl-health", d.smartctlHealth)
+	pm.RegisterBuiltIn("disk.spindown", d.spindown)
 }
 
 type diskInfo struct {
@@ -523,6 +523,34 @@ func (d *diskMgr) protect(cmd *pm.Command) (interface{}, error) {
 				return nil, err
 			}
 		}
+	}
+
+	return nil, nil
+}
+
+
+
+func (d *diskMgr) spindown(cmd *pm.Command) (interface{}, error) {
+	var args struct {
+		DiskPath string `json:"disk_path"`
+		Spindown uint	`json:"spindown"`
+	}
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, err
+	}
+	// assert disk exists
+	if !utils.Exists(args.DiskPath){
+		return nil, pm.BadRequestError(fmt.Errorf("disk doesn't exist: %s", args.DiskPath))
+
+	}
+	if !(args.Spindown<241){
+		return nil, pm.BadRequestError(fmt.Errorf("spindown %d out of range 1 - 240", args.Spindown))
+	
+	} 
+	_, err := pm.System("hdparm", "-S", fmt.Sprintf("%d", args.Spindown), args.DiskPath)
+
+	if err != nil {
+		return nil, err
 	}
 
 	return nil, nil
