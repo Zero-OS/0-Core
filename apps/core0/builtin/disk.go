@@ -265,24 +265,24 @@ func (d *diskMgr) info(cmd *pm.Command) (interface{}, error) {
 	return d.partInfo(args.Disk, args.Part)
 }
 
+type smartctlInfo struct {
+	Model                 string `json:"model"`
+	SerialNumber          string `json:"serial_number"`
+	DeviceID              string `json:"device_id"`
+	FirmwareVersion       string `json:"firmware_version"`
+	UserCapacity          int    `json:"user_capacity"`
+	SectorSize            int    `json:"sector_size"`
+	RotationRate          string `json:"rotation_rate"`
+	Device                string `json:"device"`
+	ATAVersion            string `json:"ata_version"`
+	SATAVersion           string `json:"sata_version"`
+	SmartSupportAvailable bool   `json:"smart_support_available"`
+	SmartSupportEnabled   bool   `json:"smart_support_enabled"`
+}
+
 func (d *diskMgr) smartctlInfo(cmd *pm.Command) (interface{}, error) {
 	var args struct {
 		Device string `json:"device"`
-	}
-
-	var info struct {
-		Model                 string `json:"model"`
-		SerialNumber          string `json:"serial_number"`
-		DeviceID              string `json:"device_id"`
-		FirmwareVersion       string `json:"firmware_version"`
-		UserCapacity          int    `json:"user_capacity"`
-		SectorSize            int    `json:"sector_size"`
-		RotationRate          string `json:"rotation_rate"`
-		Device                string `json:"device"`
-		ATAVersion            string `json:"ata_version"`
-		SATAVersion           string `json:"sata_version"`
-		SmartSupportAvailable bool   `json:"smart_support_available"`
-		SmartSupportEnabled   bool   `json:"smart_support_enabled"`
 	}
 
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
@@ -294,7 +294,14 @@ func (d *diskMgr) smartctlInfo(cmd *pm.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	lines := strings.Split(result.Streams.Stdout(), "\n")
+	return parseSmartctlInfo(result.Streams.Stdout())
+}
+
+func parseSmartctlInfo(input string) (smartctlInfo, error) {
+	var info smartctlInfo
+	var err error
+
+	lines := strings.Split(input, "\n")
 
 	for _, line := range lines {
 		if !strings.Contains(line, ":") {
@@ -314,9 +321,15 @@ func (d *diskMgr) smartctlInfo(cmd *pm.Command) (interface{}, error) {
 		case "User Capacity":
 			sizeBytes := strings.Split(value, "bytes")[0]
 			info.UserCapacity, err = strconv.Atoi(strings.Replace(strings.TrimSpace(sizeBytes), ",", "", -1))
+			if err != nil {
+				return info, err
+			}
 		case "Sector Size":
 			sizeBytes := strings.Split(value, "bytes")[0]
 			info.SectorSize, err = strconv.Atoi(strings.Replace(strings.TrimSpace(sizeBytes), ",", "", -1))
+			if err != nil {
+				return info, err
+			}
 		case "Rotation Rate":
 			info.RotationRate = value
 		case "Device is":
