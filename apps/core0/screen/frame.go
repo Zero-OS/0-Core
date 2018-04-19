@@ -11,10 +11,6 @@ type Section interface {
 	write(io.Writer)
 }
 
-type dynamic interface {
-	tick() bool
-}
-
 type Frame []Section
 
 var (
@@ -59,7 +55,7 @@ func (s *TextSection) String() string {
 type ProgressSection struct {
 	Text  string
 	clock TextSection
-	off   bool
+	on    bool
 }
 
 func (s *ProgressSection) write(f io.Writer) {
@@ -83,18 +79,20 @@ func (s *ProgressSection) write(f io.Writer) {
 	s.clock.Text = c
 	fmt.Fprint(f, s.Text)
 
-	if !s.off {
+	if s.on {
 		fmt.Fprint(f, " ")
 		s.clock.write(f)
 	}
 }
 
-func (s *ProgressSection) tick() bool {
-	return !s.off
+func (s *ProgressSection) Enter() {
+	s.on = true
+	pushProgress()
 }
 
-func (s *ProgressSection) Stop(off bool) {
-	s.off = off
+func (s *ProgressSection) Leave() {
+	s.on = false
+	popProgress()
 }
 
 type GroupSection struct {
@@ -107,21 +105,8 @@ func (s *GroupSection) write(f io.Writer) {
 		if idx != len(s.Sections)-1 {
 			f.Write([]byte{'\n'})
 		}
-		idx += 1
+		idx++
 	}
-}
-
-func (s *GroupSection) tick() bool {
-	v := false
-	for _, sub := range s.Sections {
-		if sub, ok := sub.(dynamic); ok {
-			if sub.tick() {
-				v = true
-			}
-		}
-	}
-
-	return v
 }
 
 type SplitterSection struct {
@@ -202,7 +187,7 @@ func Refresh() {
 
 //Push section to screen
 func Push(section Section) {
-	m.Lock()
+	frameMutex.Lock()
 	frame = append(frame, section)
-	m.Unlock()
+	frameMutex.Unlock()
 }

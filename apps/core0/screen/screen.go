@@ -33,9 +33,14 @@ var (
 	tty    *os.File
 	serr   error
 
-	m sync.RWMutex
+	frameMutex sync.RWMutex
 
 	refresh chan int
+
+	tickerMutex sync.Mutex
+
+	progress int32
+	ticker   *time.Ticker
 )
 
 func getSize(tty string) {
@@ -66,6 +71,33 @@ func New(vt int) error {
 	return newScreen(vt)
 }
 
+func pushProgress() {
+	tickerMutex.Lock()
+	defer tickerMutex.Unlock()
+
+	progress++
+	if progress != 1 {
+		return
+	}
+
+	ticker = time.NewTicker(200 * time.Millisecond)
+	go func() {
+		for range ticker.C {
+			Refresh()
+		}
+	}()
+}
+
+func popProgress() {
+	tickerMutex.Lock()
+	defer tickerMutex.Unlock()
+
+	progress--
+	if progress == 0 {
+		ticker.Stop()
+	}
+}
+
 //makes sure that screen always have what in the current frame
 func render() {
 	//fmt.Fprint(tty, wipeSequence)
@@ -79,14 +111,14 @@ func render() {
 	var fb bytes.Buffer
 	for {
 		fb.Reset()
-		m.RLock()
+		frameMutex.RLock()
 		for _, section := range frame {
 			if fb.Len() > 0 {
 				fb.WriteByte('\n')
 			}
 			section.write(&fb)
 		}
-		m.RUnlock()
+		frameMutex.RUnlock()
 
 		tty, err := os.OpenFile(path, syscall.O_RDWR|syscall.O_NOCTTY, 0644)
 		if err != nil {

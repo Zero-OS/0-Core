@@ -20,7 +20,7 @@ import (
 const (
 	InternetTestAddress = "http://unsecure.bootstrap.gig.tech/"
 
-	screenStateLine = "->%25s: %s %s"
+	screenStateLine = "->%25s: %s"
 )
 
 var (
@@ -175,17 +175,16 @@ func (b *Bootstrap) screen() {
 		}
 
 		section.Sections = append(section.Sections, progress, reachability)
-		screen.Refresh()
-		progress.Stop(false)
-		progress.Text = fmt.Sprintf(screenStateLine, "Internet Connectivity", "", "")
+		progress.Enter()
+		progress.Text = fmt.Sprintf(screenStateLine, "Internet Connectivity", "")
 
 		if b.canReachInternet() {
-			progress.Text = fmt.Sprintf(screenStateLine, "Internet Connectivity", "OK", "")
+			progress.Text = fmt.Sprintf(screenStateLine, "Internet Connectivity", "OK")
 		} else {
-			progress.Text = fmt.Sprintf(screenStateLine, "Internet Connectivity", "NOT OK", "")
+			progress.Text = fmt.Sprintf(screenStateLine, "Internet Connectivity", "NOT OK")
 		}
 
-		progress.Stop(true)
+		progress.Leave()
 		screen.Refresh()
 		<-time.After(5 * time.Second)
 	}
@@ -279,7 +278,7 @@ func (b *Bootstrap) Second() {
 		Text: "Bootstrapping: Core Services",
 	}
 	screen.Push(progress)
-	screen.Refresh()
+	progress.Enter()
 
 	//start up all init services ([init, net[ slice)
 	b.startupServices(settings.AfterInit, settings.AfterNet)
@@ -288,7 +287,6 @@ func (b *Bootstrap) Second() {
 
 	if !b.agent {
 		progress.Text = "Bootstrapping: Networking"
-		screen.Refresh()
 		for {
 			err := b.setupNetworking()
 			if err == nil {
@@ -304,19 +302,17 @@ func (b *Bootstrap) Second() {
 	}
 
 	progress.Text = "Bootstrapping: Network Services"
-	screen.Refresh()
 
 	//start up all net services ([net, boot[ slice)
 	b.startupServices(settings.AfterNet, settings.AfterBoot)
 
 	progress.Text = "Bootstrapping: Services"
-	screen.Refresh()
 
 	//start up all boot services ([boot, end] slice)
 	b.startupServices(settings.AfterBoot, settings.ToTheEnd)
 
 	progress.Text = "Bootstrapping: Done"
-	progress.Stop(true)
+	progress.Leave()
 
 	b.watchers()
 
