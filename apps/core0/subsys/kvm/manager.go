@@ -719,6 +719,105 @@ func (m *kvmManager) ipAddr(s uint16) string {
 	return fmt.Sprintf("%d.%d.%d.%d", BridgeIP[0], BridgeIP[1], (s&0xff00)>>8, s&0x00ff)
 }
 
+func (m *kvmManager) getCreationParamsForDomain(UUID string) (CreateParams, error){
+
+	_, err := m.libvirt.getConnection()
+	if err != nil {
+		return CreateParams{}, err
+	}
+	var createParams CreateParams
+	// type CreateParams struct {
+	// 	NicParams
+	// 	FList  string            `json:"flist"`
+	// 	Mount  []Mount           `json:"mount"`
+	// 	Config map[string]string `json:"config"` //overrides vm config (from flist)
+	// 	Tags   pm.Tags           `json:"tags"`
+	// }
+	domainstruct, err := m.getDomainStruct(UUID)
+	if err != nil {
+		return CreateParams{}, err
+	}
+	createParams.Name = domainstruct.Name
+	createParams.CPU = domainstruct.VCPU
+	createParams.Memory = domainstruct.Memory.Capacity  // mib
+	
+	medias := make([]Media, len(domainstruct.Devices.Disks)) 
+	// createParams.Media 
+
+	for _, disk := range domainstruct.Devices.Disks {
+		url := url.URL{}
+		m := Media{}
+		m.Type = disk.Device
+		m.Bus = disk.Target.Bus
+		switch disk.Type {
+		case DiskTypeNetwork:
+			url.Scheme = "nbd+tcp"
+			url.Host = disk.Source.Host.Name + fmt.Sprintf(":%s", disk.Source.Host.Port)
+			m.URL = url.String()
+		case DiskTypeFile:
+			m.URL = disk.Source.File
+		}
+		medias = append(medias, m)
+	}
+	for _, arg := range domainstruct.Qemu.Args {
+		if strings.HasPrefix(arg.Value, "driver=zdb"){
+			m := Media{}
+			qparams := url.Values{}
+			url := url.URL{}
+			parts := strings.Split(arg.Value, ",")
+			var urlprotocol, socketpath, host, port, password, namespace, blocksize, size string
+			for _, part := range parts {
+				pair := strings.Split(part, "=")
+				k, v := pair[0], pair[1]
+				switch k {
+				case "socket":
+					socketpath = v
+					urlprotocol = "zdb+unix://"
+				case "host":
+					host = v
+					urlprotocol = "zdb+tcp://"
+				case "port":
+					port = v
+				case "password":
+					password = v
+				case "namespace":
+					namespace = v
+				case "blocksize":
+					blocksize = v
+				case size:
+					size = v
+			}
+			if socketpath != ""{
+				url.Path = urlprotocol + socketpath
+			}
+			if host != "" {
+				url.Host = urlprotocol + host 
+			}
+			if port != "" {
+				url.Host = url.Host + ":"+port
+			}
+			if password != "" {
+				qparams.Add("password", password)
+			}
+			if namespace != "" {
+				qparams.Add("namespace", namespace)
+			}
+			if blocksize != "" {
+				qparams.Add("blocksize", blocksize)
+			}
+			if size != "" {
+				qparams.Add("size", size)
+			}
+			url.RawQuery = qparams.Encode()
+			m.URL = url.String()
+			medias = append(medias, m)
+			}
+		}
+	}
+	return createParams, nil
+}
+
+
 func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error) {
 	domain := Domain{
 		Type:   DomainTypeKVM,
