@@ -176,12 +176,12 @@ func (b *Bootstrap) screen() {
 
 		section.Sections = append(section.Sections, progress, reachability)
 		progress.Enter()
-		progress.Text = fmt.Sprintf(screenStateLine, "Internet Connectivity", "")
+		progress.Text = fmt.Sprintf(screenStateLine, "Internet Connectivity", "", "")
 
 		if b.canReachInternet() {
-			progress.Text = fmt.Sprintf(screenStateLine, "Internet Connectivity", "OK")
+			progress.Text = fmt.Sprintf(screenStateLine, "Internet Connectivity", "OK", "")
 		} else {
-			progress.Text = fmt.Sprintf(screenStateLine, "Internet Connectivity", "NOT OK")
+			progress.Text = fmt.Sprintf(screenStateLine, "Internet Connectivity", "NOT OK", "")
 		}
 
 		progress.Leave()
