@@ -30,7 +30,6 @@ var (
 	width  int = DefaultWidth
 	height int = DefaultHeight
 	o      sync.Once
-	tty    *os.File
 	serr   error
 
 	frameMutex sync.RWMutex
@@ -98,6 +97,10 @@ func popProgress() {
 	}
 }
 
+func open() (*os.File, error) {
+	return os.OpenFile(path, syscall.O_WRONLY, 0644)
+}
+
 //makes sure that screen always have what in the current frame
 func render() {
 	//fmt.Fprint(tty, wipeSequence)
@@ -108,12 +111,13 @@ func render() {
 	}
 	refresh = make(chan int, 1)
 
-	var fb bytes.Buffer
-	tty, err := os.OpenFile(path, syscall.O_WRONLY, 0644)
+	tty, err := open()
 	if err != nil {
-		log.Error("failed to open screen terminal: %s", err)
+		log.Error("failed to open screen terminal")
 		return
 	}
+
+	var fb bytes.Buffer
 
 	for {
 		fb.Reset()
@@ -126,7 +130,14 @@ func render() {
 		}
 		frameMutex.RUnlock()
 
-		fmt.Fprint(tty, resetSequence)
+		if _, err := fmt.Fprint(tty, resetSequence); err != nil {
+			//NOTE: sometimes the tty goes bananas and the tty descriptor becaome
+			//invalid, a reopen fixes the problem
+			log.Debug("invalid tty for screen, reopening", err)
+			tty.Close()
+			tty, err = open()
+			continue
+		}
 		reader := bufio.NewScanner(bytes.NewReader(fb.Bytes()))
 		var c int
 		for reader.Scan() {
