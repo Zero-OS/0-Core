@@ -20,7 +20,7 @@ import (
 const (
 	InternetTestAddress = "http://unsecure.bootstrap.gig.tech/"
 
-	screenStateLine = "->%25s: %s"
+	screenStateLine = "->%25s: %s %s"
 )
 
 var (
