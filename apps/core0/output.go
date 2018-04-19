@@ -9,6 +9,7 @@ import (
 
 	"github.com/op/go-logging"
 	"github.com/zero-os/0-core/apps/core0/options"
+	"github.com/zero-os/0-core/base/pm"
 )
 
 const (
@@ -82,6 +83,7 @@ func Rotate() error {
 		)
 	}
 
+	pm.Kill("syslogd") // make sure we also restart syslogd (in case /var/log) has changed.
 	return setLogging(LogPath, CrashPath)
 }
 

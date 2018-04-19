@@ -220,6 +220,39 @@ func (b *Bootstrap) watchers() {
 	}()
 }
 
+func (b *Bootstrap) syslogd() {
+	pm.Run(&pm.Command{
+		ID:      "syslogd",
+		Command: pm.CommandSystem,
+		Arguments: pm.MustArguments(
+			pm.SystemCommandArguments{
+				Name: "syslogd",
+				Args: []string{
+					"-n",
+					"-O", "/var/log/messages",
+				},
+			},
+		),
+		Flags: pm.JobFlags{Protected: true},
+	})
+
+	pm.Run(&pm.Command{
+		ID:      "klogd",
+		Command: pm.CommandSystem,
+		Arguments: pm.MustArguments(
+			pm.SystemCommandArguments{
+				Name: "klogd",
+				Args: []string{
+					"-n",
+				},
+			},
+		),
+		Flags: pm.JobFlags{Protected: true},
+	})
+
+	pm.System("dmesg", "-n", "1")
+}
+
 func (b *Bootstrap) First() {
 	if !b.agent {
 		if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &syscall.Rlimit{65536, 65536}); err != nil {
@@ -236,6 +269,8 @@ func (b *Bootstrap) First() {
 
 	//register included extensions
 	b.registerExtensions(b.i.Extension)
+
+	b.syslogd()
 }
 
 //Bootstrap registers extensions and startup system services.
