@@ -532,22 +532,22 @@ func (d *diskMgr) protect(cmd *pm.Command) (interface{}, error) {
 
 func (d *diskMgr) spindown(cmd *pm.Command) (interface{}, error) {
 	var args struct {
-		DiskPath string `json:"disk_path"`
+		Disk string `json:"disk"`
 		Spindown uint	`json:"spindown"`
 	}
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
 	}
 	// assert disk exists
-	if !utils.Exists(args.DiskPath){
-		return nil, pm.BadRequestError(fmt.Errorf("disk doesn't exist: %s", args.DiskPath))
+	if !utils.Exists(args.Disk){
+		return nil, pm.BadRequestError(fmt.Errorf("disk doesn't exist: %s", args.Disk))
 
 	}
 	if !(args.Spindown<241){
 		return nil, pm.BadRequestError(fmt.Errorf("spindown %d out of range 1 - 240", args.Spindown))
 	
 	} 
-	_, err := pm.System("hdparm", "-S", fmt.Sprintf("%d", args.Spindown), args.DiskPath)
+	_, err := pm.System("hdparm", "-S", fmt.Sprintf("%d", args.Spindown), args.Disk)
 
 	if err != nil {
 		return nil, err

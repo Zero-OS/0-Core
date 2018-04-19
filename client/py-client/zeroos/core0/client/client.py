@@ -1576,7 +1576,7 @@ class DiskManager:
     })
 
     _spindown_chk = typchk.Checker({
-        'disk_path': str,
+        'disk': str,
         'spindown': int,
     })
 
@@ -1741,14 +1741,14 @@ class DiskManager:
         if result.state != 'SUCCESS':
             raise RuntimeError('failed to umount partition: %s' % result.stderr)
 
-    def spindown(self, diskpath, spindown=1):
+    def spindown(self, disk, spindown=1):
         """
         Spindown a disk
-        :param dispath str: Full path to a disk like /dev/sda
+        :param disk str: Full path to a disk like /dev/sda
         :param spindown int: spindown value should be in [1, 240]
         """
         args = {
-            "disk_path": diskpath,
+            "disk": disk,
             "spindown": spindown
         }
         self._spindown_chk.check(args)
@@ -1756,7 +1756,7 @@ class DiskManager:
 
         result = response.get()
         if result.state != 'SUCCESS':
-            raise RuntimeError("Failed to spindown disk {} to {}.".format(diskpath, spindown))
+            raise RuntimeError("Failed to spindown disk {} to {}.".format(disk, spindown))
  
 class BtrfsManager:
     _create_chk = typchk.Checker({
