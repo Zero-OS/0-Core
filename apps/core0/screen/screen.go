@@ -109,6 +109,12 @@ func render() {
 	refresh = make(chan int, 1)
 
 	var fb bytes.Buffer
+	tty, err := os.OpenFile(path, syscall.O_WRONLY, 0644)
+	if err != nil {
+		log.Error("failed to open screen terminal: %s", err)
+		return
+	}
+
 	for {
 		fb.Reset()
 		frameMutex.RLock()
@@ -119,13 +125,6 @@ func render() {
 			section.write(&fb)
 		}
 		frameMutex.RUnlock()
-
-		tty, err := os.OpenFile(path, syscall.O_RDWR|syscall.O_NOCTTY, 0644)
-		if err != nil {
-			log.Error("failed to open screen terminal: %s", err)
-			<-time.After(time.Second)
-			continue
-		}
 
 		fmt.Fprint(tty, resetSequence)
 		reader := bufio.NewScanner(bytes.NewReader(fb.Bytes()))
@@ -143,7 +142,6 @@ func render() {
 			fmt.Fprint(tty, string(space), "\n")
 		}
 
-		tty.Close()
 		<-refresh
 	}
 }
