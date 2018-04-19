@@ -192,18 +192,17 @@ func (c *CenteredText) write(f io.Writer) {
 	}
 }
 
+//Refresh redraws the screen after an update of the sctions
 func Refresh() {
-	m.Lock()
-	defer m.Unlock()
-	fb.Reset()
-	for _, section := range frame {
-		if fb.Len() > 0 {
-			fb.WriteByte('\n')
-		}
-		section.write(&fb)
+	select {
+	case refresh <- 1:
+	default:
 	}
 }
 
+//Push section to screen
 func Push(section Section) {
+	m.Lock()
 	frame = append(frame, section)
+	m.Unlock()
 }
