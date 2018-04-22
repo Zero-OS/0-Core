@@ -37,7 +37,10 @@ const (
 
 var (
 	log = logging.MustGetLogger("kvm")
+	uuidToCreateParams = make(map[string]CreateParams)
+	createparamsLock = sync.RWMutex{}
 )
+
 
 type LibvirtConnection struct {
 	handler libvirt.DomainEventLifecycleCallback
@@ -91,8 +94,8 @@ const (
 	kvmGetCommand               = "kvm.get"
 	kvmPortForwardAddCommand    = "kvm.portforward-add"
 	kvmPortForwardRemoveCommand = "kvm.portforward-remove"
-
-	DefaultBridgeName = "kvm0"
+	kvmGetCreationParamsCommand = "kvm.getcreationparams"
+	DefaultBridgeName 		 	= "kvm0"
 )
 
 func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) error {
@@ -141,6 +144,7 @@ func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) erro
 	pm.RegisterBuiltIn(kvmGetCommand, mgr.get)
 	pm.RegisterBuiltIn(kvmPortForwardAddCommand, mgr.portforwardAdd)
 	pm.RegisterBuiltIn(kvmPortForwardRemoveCommand, mgr.portforwardRemove)
+	pm.RegisterBuiltIn(kvmGetCreationParamsCommand, mgr.GetCreationParamsForDomain)
 
 	//those next 2 commands should never be called by the client, unfortunately we don't have
 	//support for internal commands yet.
@@ -719,12 +723,14 @@ func (m *kvmManager) ipAddr(s uint16) string {
 	return fmt.Sprintf("%d.%d.%d.%d", BridgeIP[0], BridgeIP[1], (s&0xff00)>>8, s&0x00ff)
 }
 
-func (m *kvmManager) getCreationParamsForDomain(UUID string) (CreateParams, error){
+func (m *kvmManager) GetCreationParamsForDomain(cmd *pm.Command) (interface{}, error){
 
-	_, err := m.libvirt.getConnection()
+	_, uuid, err := m.getDomain(cmd)
+
 	if err != nil {
-		return CreateParams{}, err
+		return nil, err
 	}
+
 	var createParams CreateParams
 	// type CreateParams struct {
 	// 	NicParams
@@ -733,15 +739,17 @@ func (m *kvmManager) getCreationParamsForDomain(UUID string) (CreateParams, erro
 	// 	Config map[string]string `json:"config"` //overrides vm config (from flist)
 	// 	Tags   pm.Tags           `json:"tags"`
 	// }
-	domainstruct, err := m.getDomainStruct(UUID)
+	domainstruct, err := m.getDomainStruct(uuid)
 	if err != nil {
 		return CreateParams{}, err
 	}
 	createParams.Name = domainstruct.Name
 	createParams.CPU = domainstruct.VCPU
 	createParams.Memory = domainstruct.Memory.Capacity  // mib
-	
+	createParams.FList = domainstruct.MetaData.FList
+
 	medias := make([]Media, len(domainstruct.Devices.Disks)) 
+	mounts := make([]Mount, len(domainstruct.Devices.Filesystems))
 	// createParams.Media 
 
 	for _, disk := range domainstruct.Devices.Disks {
@@ -814,6 +822,42 @@ func (m *kvmManager) getCreationParamsForDomain(UUID string) (CreateParams, erro
 			}
 		}
 	}
+
+	for _, fs := range domainstruct.Devices.Filesystems {
+		mount := Mount{
+					Source: fs.Source.Dir,
+					Target:fs.Target.Dir,
+				}
+		mounts = append(mounts, mount)
+	}
+	createParams.Media = medias
+	createParams.Mount = mounts
+
+	for _, inf := range domainstruct.Devices.Devices {
+		interfaceDevice, ok := inf.(InterfaceDevice)
+		if !ok {
+			continue // not an interface device.
+		}
+		nic := Nic{}
+		// requires bridge info -> reverse lookup (vxlan/vlan)
+		nic.Type = string(interfaceDevice.Type)
+		nic.HWAddress = interfaceDevice.Mac.Address
+		// vxlandID or vlanID
+		nic.ID = interfaceDevice.Source.Bridge
+
+
+	}
+	// type Nic struct {
+	// 	Type      string `json:"type"`
+	// 	ID        string `json:"id"`
+	// 	HWAddress string `json:"hwaddr"`
+	// }
+	// type NicParams struct {
+	// 	Nics []Nic       `json:"nics"`
+	// 	Port map[int]int `json:"port"`
+	// }
+	
+
 	return createParams, nil
 }
 
@@ -1005,6 +1049,10 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 		return nil, err
 	}
 	//create domain
+	domain.MetaData.FList = params.FList
+	domain.MetaData.Sequence = seq
+	domain.MetaData.Tags = params.Tags
+
 	_, err = conn.DomainCreateXML(string(data), libvirt.DOMAIN_NONE)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create machine: %s", err)
@@ -1014,34 +1062,18 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("couldn't find domain with the uuid %s", domain.UUID)
 	}
+	metaXML, err := xml.Marshal(domain.MetaData)
 
-	tags, err := json.Marshal(&params.Tags)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't marshal tags for domain with the uuid %s", domain.UUID)
+		return nil, fmt.Errorf("couldn't marshal domain metadata")
 	}
-
-	tagsMetaData := TagsMetaData{Value: string(tags)}
-	metaXML, err := xml.Marshal(&tagsMetaData)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't marshal metadata for domain with the uuid %s", domain.UUID)
-	}
-
 	err = dom.SetMetadata(libvirt.DOMAIN_METADATA_ELEMENT, string(metaXML), metadataKey, metadataUri, libvirt.DOMAIN_AFFECT_LIVE)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't set tags metadata for domain with the uuid %s", domain.UUID)
+		return nil, fmt.Errorf("couldn't set flist metadata for domain with the uuid %s", domain.UUID)
 	}
-
-	seqMetaData := SequenceMetaData{Value: fmt.Sprintf("%d", seq)}
-	metaXML, err = xml.Marshal(&seqMetaData)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't marshal sequence metadata for domain with the uuid %s", domain.UUID)
-	}
-
-	err = dom.SetMetadata(libvirt.DOMAIN_METADATA_ELEMENT, string(metaXML), metadataKey, metadataUri, libvirt.DOMAIN_AFFECT_LIVE)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't set sequence metadata for domain with the uuid %s", domain.UUID)
-	}
-
+	createparamsLock.Lock()
+	uuidToCreateParams[domain.UUID] = params
+	createparamsLock.Unlock()
 	return domain.UUID, nil
 }
 
