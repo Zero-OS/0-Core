@@ -109,8 +109,13 @@ const (
 type MetaDataXML struct {
 	Tags     pm.Tags `xml:"tags"`
 	Sequence uint16  `xml:"sequence"`
+	FList    string  `xml:"flist"`
 }
 
+type FListMetaData struct {
+	XMLName xml.Name `xml:"flist"`
+	Value 	string	 `xml:",chardata"`
+}
 type TagsMetaData struct {
 	XMLName xml.Name `xml:"tags"`
 	Value   string   `xml:",chardata"`
@@ -120,6 +125,7 @@ type SequenceMetaData struct {
 	XMLName xml.Name `xml:"sequence"`
 	Value   string   `xml:",chardata"`
 }
+
 
 type Devices struct {
 	Emulator    string            `xml:"emulator"`
