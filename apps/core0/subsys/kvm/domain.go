@@ -89,7 +89,7 @@ type Domain struct {
 	Features FeaturesType `xml:"features"`
 	Devices  Devices      `xml:"devices"`
 	Qemu     Qemu         `xml:"qemu:commandline"`
-	MetaData MetaDataXML  `xml:"metadata"`
+	MetaData MetaDataXML  `xml:"metadata>metadata"`
 }
 
 type DiskType string
@@ -107,6 +107,7 @@ const (
 )
 
 type MetaDataXML struct {
+	XMLName  xml.Name `xml:"metadata"`
 	Tags     pm.Tags `xml:"tags"`
 	Sequence uint16  `xml:"sequence"`
 	FList    string  `xml:"flist"`
