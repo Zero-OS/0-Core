@@ -41,7 +41,7 @@ var (
 
 type DomainInfo struct {
 	CreateParams
-	Seq uint16	`json:"seq"`
+	Sequence uint16	`json:"seq"`
 }
 
 type LibvirtConnection struct {
@@ -917,7 +917,7 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 		domain.Devices.Filesystems = append(domain.Devices.Filesystems, fs)
 	}
 	m.domainsInfoRWMutex.Lock()
-	m.domainsInfo[domain.UUID] = &DomainInfo{CreateParams: params, Seq: seq}
+	m.domainsInfo[domain.UUID] = &DomainInfo{CreateParams: params, Sequence: seq}
 	m.domainsInfoRWMutex.Unlock()
 	//TODO: after this point, if an error occured, we need to rollback filesystem mount
 
@@ -1235,7 +1235,15 @@ func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 			}
 		}
 		// TODO: use the ports that the domain was created with initially
-		inf, err = m.prepareDefaultNetwork(params.UUID, domainstruct.MetaData.Sequence, map[int]int{})
+
+		m.domainsInfoRWMutex.Lock()
+		defer m.domainsInfoRWMutex.Unlock()
+		domainInfo, exists := m.domainsInfo[params.UUID]
+		if !exists {
+			return nil, fmt.Errorf("in setup networking couldn't get domaininfo for domain %s", params.UUID)
+		}
+
+		inf, err = m.prepareDefaultNetwork(params.UUID, domainInfo.Sequence, map[int]int{})
 	case "bridge":
 		if nic.ID == DefaultBridgeName {
 			err = fmt.Errorf("the default bridge for the vm should not be added manually")
@@ -1494,14 +1502,19 @@ func (m *kvmManager) getMachine(domain *libvirt.Domain) (Machine, error) {
 		targets = append(targets, ifc.Target.Dev)
 
 	}
-
+	m.domainsInfoRWMutex.Lock()
+	defer m.domainsInfoRWMutex.Unlock()
+	domainInfo, exists := m.domainsInfo[uuid]
+	if !exists {
+		return Machine{}, fmt.Errorf("couldn't get domaininfo for domain %s", uuid)
+	}
 	return Machine{
 		ID:         int(id),
 		UUID:       uuid,
 		Name:       name,
 		State:      StateToString(state),
 		Vnc:        port,
-		Tags:       domainstruct.MetaData.Tags,
+		Tags:       domainInfo.CreateParams.Tags,
 		IfcTargets: targets,
 	}, nil
 }
@@ -1783,7 +1796,14 @@ func (m *kvmManager) portforwardAdd(cmd *pm.Command) (interface{}, error) {
 	if !defaultNic {
 		return nil, fmt.Errorf("KVM doesn't have a default nic")
 	}
-	return nil, m.setPortForward(params.UUID, domainStruct.MetaData.Sequence, params.HostPort, params.ContainerPort)
+	m.domainsInfoRWMutex.Lock()
+	defer m.domainsInfoRWMutex.Unlock()
+	domainInfo, exists := m.domainsInfo[params.UUID]
+	if !exists {
+		return nil, fmt.Errorf("couldn't get domaininfo for domain %s", params.UUID)
+	}
+
+	return nil, m.setPortForward(params.UUID, domainInfo.Sequence, params.HostPort, params.ContainerPort)
 }
 
 func (m *kvmManager) portforwardRemove(cmd *pm.Command) (interface{}, error) {
