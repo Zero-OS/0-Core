@@ -852,24 +852,38 @@ func (m *kvmManager) updateView() {
 	screen.Refresh()
 }
 
-func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
+func (m *kvmManager) create(cmd *pm.Command) (result interface{}, err error) {
 	defer m.updateView()
 	var params CreateParams
-	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
+	if err = json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
 
 	params.Tags = cmd.Tags
-	if err := params.Valid(); err != nil {
+	if err = params.Valid(); err != nil {
 		return nil, err
 	}
 
 	seq := m.getNextSequence()
 
+
 	domain, err := m.mkDomain(seq, &params)
 	if err != nil {
 		return nil, err
 	}
+	conn, err := m.libvirt.getConnection()
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		if err != nil{
+			dom, err := conn.LookupDomainByUUIDString(domain.UUID)
+			if err != nil && dom != nil{
+				m.destroyDomain(domain.UUID, dom)
+			}
+		}
+	}()
 
 	if len(params.FList) != 0 {
 		config, err := m.flistMount(domain.UUID, params.FList, params.Config)
@@ -904,7 +918,7 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 	m.domainsInfoRWMutex.Unlock()
 	//TODO: after this point, if an error occured, we need to rollback filesystem mount
 
-	if err := m.setNetworking(&params.NicParams, seq, domain); err != nil {
+	if err = m.setNetworking(&params.NicParams, seq, domain); err != nil {
 		return nil, err
 	}
 
@@ -913,10 +927,6 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 		return nil, fmt.Errorf("failed to generate domain xml: %s", err)
 	}
 
-	conn, err := m.libvirt.getConnection()
-	if err != nil {
-		return nil, err
-	}
 	//create domain
 	_, err = conn.DomainCreateXML(string(data), libvirt.DOMAIN_NONE)
 	if err != nil {
