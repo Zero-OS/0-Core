@@ -71,11 +71,11 @@ func (m *kvmManager) setNetworking(args *NicParams, seq uint16, domain *Domain) 
 	
 		m.domainsInfoRWMutex.Lock()
 		defer m.domainsInfoRWMutex.Unlock()
-		v, exists := m.domainsInfo[domain.UUID]
+		domainInfo, exists := m.domainsInfo[domain.UUID]
 		if !exists {
 			return fmt.Errorf("in setup networking couldn't get creationparams for domain %s", domain.UUID)
 		}
-		v.Nics[i].HWAddress = inf.Mac.Address
+		domainInfo.Nics[i].HWAddress = inf.Mac.Address
 	}
 
 	return nil

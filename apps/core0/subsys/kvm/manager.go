@@ -99,7 +99,6 @@ const (
 	kvmGetCommand               = "kvm.get"
 	kvmPortForwardAddCommand    = "kvm.portforward-add"
 	kvmPortForwardRemoveCommand = "kvm.portforward-remove"
-	kvmGetDomainInfoCommand		= "kvm.getdomaininfo"
 	DefaultBridgeName           = "kvm0"
 )
 
@@ -150,7 +149,6 @@ func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) erro
 	pm.RegisterBuiltIn(kvmGetCommand, mgr.get)
 	pm.RegisterBuiltIn(kvmPortForwardAddCommand, mgr.portforwardAdd)
 	pm.RegisterBuiltIn(kvmPortForwardRemoveCommand, mgr.portforwardRemove)
-	pm.RegisterBuiltIn(kvmGetDomainInfoCommand, mgr.GetDomainInfo)
 
 	//those next 2 commands should never be called by the client, unfortunately we don't have
 	//support for internal commands yet.
@@ -729,22 +727,7 @@ func (m *kvmManager) ipAddr(s uint16) string {
 	return fmt.Sprintf("%d.%d.%d.%d", BridgeIP[0], BridgeIP[1], (s&0xff00)>>8, s&0x00ff)
 }
 
-func (m *kvmManager) GetDomainInfo(cmd *pm.Command) (interface{}, error) {
 
-	_, uuid, err := m.getDomain(cmd)
-
-	if err != nil {
-		return nil, err
-	}
-
-	m.domainsInfoRWMutex.RLock()
-	defer m.domainsInfoRWMutex.RUnlock()
-	domainInfo, exists := m.domainsInfo[uuid]
-	if !exists {
-		return nil, fmt.Errorf("in setup networking couldn't get creationparams for domain %s", uuid)
-	}
-	return domainInfo, nil
-}
 
 func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error) {
 	domain := Domain{
@@ -985,13 +968,7 @@ func (m *kvmManager) getDomain(cmd *pm.Command) (*libvirt.Domain, string, error)
 }
 
 func (m *kvmManager) destroyDomain(uuid string, domain *libvirt.Domain) error {
-	if err := domain.Destroy(); err != nil {
-		return fmt.Errorf("failed to destroy machine: %s", err)
-	}
-
-	socat.RemoveAll(m.forwardId(uuid))
-
-	return m.flistUnmount(uuid)
+	return domain.Destroy()
 }
 
 func (m *kvmManager) destroy(cmd *pm.Command) (interface{}, error) {
@@ -1466,6 +1443,7 @@ type Machine struct {
 	Vnc        int      `json:"vnc"`
 	Tags       pm.Tags  `json:"tags"`
 	IfcTargets []string `json:"ifctargets"`
+	DomainInfo *DomainInfo `json:"domaininfo"`
 }
 
 func (m *kvmManager) getMachine(domain *libvirt.Domain) (Machine, error) {
@@ -1516,6 +1494,7 @@ func (m *kvmManager) getMachine(domain *libvirt.Domain) (Machine, error) {
 		Vnc:        port,
 		Tags:       domainInfo.CreateParams.Tags,
 		IfcTargets: targets,
+		DomainInfo: domainInfo,
 	}, nil
 }
 
@@ -1578,7 +1557,6 @@ func (m *kvmManager) get(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return machine, nil
 }
 
