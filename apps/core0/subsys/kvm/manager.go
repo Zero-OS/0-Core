@@ -55,7 +55,7 @@ type LibvirtConnection struct {
 type kvmManager struct {
 	conmgr   containers.ContainerManager
 	sequence uint16
-	m        sync.Mutex
+	sequenceMutex        sync.Mutex
 	libvirt  LibvirtConnection
 	cell     *screen.RowCell
 	evch     chan map[string]interface{}
@@ -703,8 +703,8 @@ func (m *kvmManager) mkDisk(idx int, media Media) DiskDevice {
 }
 
 func (m *kvmManager) getNextSequence() uint16 {
-	m.m.Lock()
-	defer m.m.Unlock()
+	m.sequenceMutex.Lock()
+	defer m.sequenceMutex.Unlock()
 loop:
 	for {
 		m.sequence++
