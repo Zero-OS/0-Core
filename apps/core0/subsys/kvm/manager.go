@@ -990,15 +990,13 @@ func (m *kvmManager) destroy(cmd *pm.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) shutdown(cmd *pm.Command) (interface{}, error) {
-	domain, uuid, err := m.getDomain(cmd)
+	domain, _, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
 	}
 	if err := domain.Shutdown(); err != nil {
 		return nil, fmt.Errorf("failed to shutdown machine: %s", err)
 	}
-
-	socat.RemoveAll(m.forwardId(uuid))
 
 	return nil, nil
 }
