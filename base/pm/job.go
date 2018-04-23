@@ -318,7 +318,7 @@ loop:
 		if result.State != StateSuccess && r.command.MaxRestart > 0 {
 			runs++
 			if runs < r.command.MaxRestart {
-				log.Debugf("Restarting '%s' due to upnormal exit status, trials: %d/%d", r.command, runs+1, r.command.MaxRestart)
+				log.Debugf("Restarting '%s' due to abnormal exit status, trials: %d/%d", r.command, runs+1, r.command.MaxRestart)
 				restarting = true
 				restartIn = 1 * time.Second
 			}
