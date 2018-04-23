@@ -69,8 +69,8 @@ func (m *kvmManager) setNetworking(args *NicParams, seq uint16, domain *Domain) 
 		}
 		domain.Devices.Devices = append(domain.Devices.Devices, inf)
 	
-		m.rwm.Lock()
-		defer m.rwm.Unlock()
+		m.domainsInfoRWMutex.Lock()
+		defer m.domainsInfoRWMutex.Unlock()
 		v, exists := m.domainsInfo[domain.UUID]
 		if !exists {
 			return fmt.Errorf("in setup networking couldn't get creationparams for domain %s", domain.UUID)

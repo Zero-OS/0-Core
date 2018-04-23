@@ -61,7 +61,7 @@ type kvmManager struct {
 	evch     chan map[string]interface{}
 
 	domainsInfo  map[string]*DomainInfo
-	rwm      sync.RWMutex
+	domainsInfoRWMutex      sync.RWMutex
 }
 
 var (
@@ -738,8 +738,8 @@ func (m *kvmManager) GetCreationParamsForDomain(cmd *pm.Command) (interface{}, e
 		return nil, err
 	}
 
-	m.rwm.RLock()
-	defer m.rwm.RUnlock()
+	m.domainsInfoRWMutex.RLock()
+	defer m.domainsInfoRWMutex.RUnlock()
 	domainInfo, exists := m.domainsInfo[uuid]
 	if !exists {
 		return nil, fmt.Errorf("in setup networking couldn't get creationparams for domain %s", uuid)
@@ -918,9 +918,9 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 
 		domain.Devices.Filesystems = append(domain.Devices.Filesystems, fs)
 	}
-	m.rwm.Lock()
+	m.domainsInfoRWMutex.Lock()
 	m.domainsInfo[domain.UUID] = &DomainInfo{CreateParams: params, Seq:seq}
-	m.rwm.Unlock()
+	m.domainsInfoRWMutex.Unlock()
 	//TODO: after this point, if an error occured, we need to rollback filesystem mount
 
 	if err := m.setNetworking(&params.NicParams, seq, domain); err != nil {
