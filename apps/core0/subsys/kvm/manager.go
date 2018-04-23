@@ -41,7 +41,7 @@ var (
 
 type DomainInfo struct {
 	CreateParams
-	Sequence uint16	`json:"seq"`
+	Sequence uint16 `json:"seq"`
 }
 
 type LibvirtConnection struct {
@@ -727,8 +727,6 @@ func (m *kvmManager) ipAddr(s uint16) string {
 	return fmt.Sprintf("%d.%d.%d.%d", BridgeIP[0], BridgeIP[1], (s&0xff00)>>8, s&0x00ff)
 }
 
-
-
 func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error) {
 	domain := Domain{
 		Type:   DomainTypeKVM,
@@ -852,7 +850,7 @@ func (m *kvmManager) updateView() {
 	screen.Refresh()
 }
 
-func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
+func (m *kvmManager) create(cmd *pm.Command) (uuid interface{}, err error) {
 	defer m.updateView()
 	var params CreateParams
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
@@ -866,13 +864,15 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 
 	seq := m.getNextSequence()
 
-	domain, err := m.mkDomain(seq, &params)
+	var domain *Domain
+	domain, err = m.mkDomain(seq, &params)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(params.FList) != 0 {
-		config, err := m.flistMount(domain.UUID, params.FList, params.Config)
+		var config FListBootConfig
+		config, err = m.flistMount(domain.UUID, params.FList, params.Config)
 		if err != nil {
 			return nil, err
 		}
@@ -899,32 +899,29 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 
 		domain.Devices.Filesystems = append(domain.Devices.Filesystems, fs)
 	}
+
 	m.domainsInfoRWMutex.Lock()
 	m.domainsInfo[domain.UUID] = &DomainInfo{CreateParams: params, Sequence: seq}
 	m.domainsInfoRWMutex.Unlock()
-	//TODO: after this point, if an error occured, we need to rollback filesystem mount
 
-	if err := m.setNetworking(&params.NicParams, seq, domain); err != nil {
-		return nil, err
-	}
 	defer func() {
 		if err != nil {
-			m.domainsInfoRWMutex.Lock()
-			delete(m.domainsInfo, domain.UUID)
-			m.domainsInfoRWMutex.Unlock()
-			log.Info("IN DEFERED REMOVING ALL SOCAT PORTS NOW")
-			
-			socat.RemoveAll(m.forwardId(domain.UUID))
-			m.flistUnmount(domain.UUID)
+			m.handleStopped(domain.UUID, domain.Name, nil)
 		}
 	}()
 
-	data, err := xml.MarshalIndent(domain, "", "  ")
+	if err = m.setNetworking(&params.NicParams, seq, domain); err != nil {
+		return nil, err
+	}
+
+	var data []byte
+	data, err = xml.MarshalIndent(domain, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate domain xml: %s", err)
 	}
 
-	conn, err := m.libvirt.getConnection()
+	var conn *libvirt.Connect
+	conn, err = m.libvirt.getConnection()
 	if err != nil {
 		return nil, err
 	}
@@ -1447,13 +1444,13 @@ func (m *kvmManager) migrate(cmd *pm.Command) (interface{}, error) {
 }
 
 type Machine struct {
-	ID         int      `json:"id"`
-	UUID       string   `json:"uuid"`
-	Name       string   `json:"name"`
-	State      string   `json:"state"`
-	Vnc        int      `json:"vnc"`
-	Tags       pm.Tags  `json:"tags"`
-	IfcTargets []string `json:"ifctargets"`
+	ID         int         `json:"id"`
+	UUID       string      `json:"uuid"`
+	Name       string      `json:"name"`
+	State      string      `json:"state"`
+	Vnc        int         `json:"vnc"`
+	Tags       pm.Tags     `json:"tags"`
+	IfcTargets []string    `json:"ifctargets"`
 	DomainInfo *DomainInfo `json:"domaininfo"`
 }
 

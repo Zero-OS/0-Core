@@ -72,7 +72,7 @@ func newJob(command *Command, factory ProcessFactory, hooks ...RunnerHook) Job {
 	job := &jobImb{
 		command: command,
 		factory: factory,
-		signal:  make(chan syscall.Signal),
+		signal:  make(chan syscall.Signal, 5), //enough buffer for 5 signals
 		hooks:   hooks,
 		backlog: stream.NewBuffer(GenericStreamBufferSize),
 
