@@ -37,10 +37,12 @@ const (
 
 var (
 	log = logging.MustGetLogger("kvm")
-	uuidToCreateParams = make(map[string]CreateParams)
-	createparamsLock = sync.RWMutex{}
 )
 
+type DomainInfo struct {
+	CreateParams
+	Seq uint16
+}
 
 type LibvirtConnection struct {
 	handler libvirt.DomainEventLifecycleCallback
@@ -49,6 +51,7 @@ type LibvirtConnection struct {
 	conn *libvirt.Connect
 }
 
+
 type kvmManager struct {
 	conmgr   containers.ContainerManager
 	sequence uint16
@@ -56,6 +59,9 @@ type kvmManager struct {
 	libvirt  LibvirtConnection
 	cell     *screen.RowCell
 	evch     chan map[string]interface{}
+
+	domainsInfo  map[string]*DomainInfo
+	rwm      sync.RWMutex
 }
 
 var (
@@ -113,6 +119,7 @@ func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) erro
 		conmgr: conmgr,
 		cell:   cell,
 		evch:   make(chan map[string]interface{}, 100), //buffer 100 event
+		domainsInfo: make(map[string]*DomainInfo),
 	}
 
 	mgr.libvirt.handler = mgr.handle
@@ -700,7 +707,7 @@ func (m *kvmManager) getNextSequence() uint16 {
 	defer m.m.Unlock()
 loop:
 	for {
-		m.sequence += 1
+		m.sequence++
 		for _, r := range ReservedSequences {
 			if m.sequence == r {
 				continue loop
@@ -731,134 +738,13 @@ func (m *kvmManager) GetCreationParamsForDomain(cmd *pm.Command) (interface{}, e
 		return nil, err
 	}
 
-	var createParams CreateParams
-	// type CreateParams struct {
-	// 	NicParams
-	// 	FList  string            `json:"flist"`
-	// 	Mount  []Mount           `json:"mount"`
-	// 	Config map[string]string `json:"config"` //overrides vm config (from flist)
-	// 	Tags   pm.Tags           `json:"tags"`
-	// }
-	domainstruct, err := m.getDomainStruct(uuid)
-	if err != nil {
-		return CreateParams{}, err
+	m.rwm.RLock()
+	defer m.rwm.RUnlock()
+	domainInfo, exists := m.domainsInfo[uuid]
+	if !exists {
+		return nil, fmt.Errorf("in setup networking couldn't get creationparams for domain %s", uuid)
 	}
-	createParams.Name = domainstruct.Name
-	createParams.CPU = domainstruct.VCPU
-	createParams.Memory = domainstruct.Memory.Capacity  // mib
-	createParams.FList = domainstruct.MetaData.FList
-
-	medias := make([]Media, len(domainstruct.Devices.Disks)) 
-	mounts := make([]Mount, len(domainstruct.Devices.Filesystems))
-	// createParams.Media 
-
-	for _, disk := range domainstruct.Devices.Disks {
-		url := url.URL{}
-		m := Media{}
-		m.Type = disk.Device
-		m.Bus = disk.Target.Bus
-		switch disk.Type {
-		case DiskTypeNetwork:
-			url.Scheme = "nbd+tcp"
-			url.Host = disk.Source.Host.Name + fmt.Sprintf(":%s", disk.Source.Host.Port)
-			m.URL = url.String()
-		case DiskTypeFile:
-			m.URL = disk.Source.File
-		}
-		medias = append(medias, m)
-	}
-	for _, arg := range domainstruct.Qemu.Args {
-		if strings.HasPrefix(arg.Value, "driver=zdb"){
-			m := Media{}
-			qparams := url.Values{}
-			url := url.URL{}
-			parts := strings.Split(arg.Value, ",")
-			var urlprotocol, socketpath, host, port, password, namespace, blocksize, size string
-			for _, part := range parts {
-				pair := strings.Split(part, "=")
-				k, v := pair[0], pair[1]
-				switch k {
-				case "socket":
-					socketpath = v
-					urlprotocol = "zdb+unix://"
-				case "host":
-					host = v
-					urlprotocol = "zdb+tcp://"
-				case "port":
-					port = v
-				case "password":
-					password = v
-				case "namespace":
-					namespace = v
-				case "blocksize":
-					blocksize = v
-				case size:
-					size = v
-			}
-			if socketpath != ""{
-				url.Path = urlprotocol + socketpath
-			}
-			if host != "" {
-				url.Host = urlprotocol + host 
-			}
-			if port != "" {
-				url.Host = url.Host + ":"+port
-			}
-			if password != "" {
-				qparams.Add("password", password)
-			}
-			if namespace != "" {
-				qparams.Add("namespace", namespace)
-			}
-			if blocksize != "" {
-				qparams.Add("blocksize", blocksize)
-			}
-			if size != "" {
-				qparams.Add("size", size)
-			}
-			url.RawQuery = qparams.Encode()
-			m.URL = url.String()
-			medias = append(medias, m)
-			}
-		}
-	}
-
-	for _, fs := range domainstruct.Devices.Filesystems {
-		mount := Mount{
-					Source: fs.Source.Dir,
-					Target:fs.Target.Dir,
-				}
-		mounts = append(mounts, mount)
-	}
-	createParams.Media = medias
-	createParams.Mount = mounts
-
-	for _, inf := range domainstruct.Devices.Devices {
-		interfaceDevice, ok := inf.(InterfaceDevice)
-		if !ok {
-			continue // not an interface device.
-		}
-		nic := Nic{}
-		// requires bridge info -> reverse lookup (vxlan/vlan)
-		nic.Type = string(interfaceDevice.Type)
-		nic.HWAddress = interfaceDevice.Mac.Address
-		// vxlandID or vlanID
-		nic.ID = interfaceDevice.Source.Bridge
-
-
-	}
-	// type Nic struct {
-	// 	Type      string `json:"type"`
-	// 	ID        string `json:"id"`
-	// 	HWAddress string `json:"hwaddr"`
-	// }
-	// type NicParams struct {
-	// 	Nics []Nic       `json:"nics"`
-	// 	Port map[int]int `json:"port"`
-	// }
-	
-
-	return createParams, nil
+	return domainInfo, nil
 }
 
 
@@ -1032,7 +918,9 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 
 		domain.Devices.Filesystems = append(domain.Devices.Filesystems, fs)
 	}
-
+	m.rwm.Lock()
+	m.domainsInfo[domain.UUID] = &DomainInfo{CreateParams: params, Seq:seq}
+	m.rwm.Unlock()
 	//TODO: after this point, if an error occured, we need to rollback filesystem mount
 
 	if err := m.setNetworking(&params.NicParams, seq, domain); err != nil {
@@ -1049,31 +937,11 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 		return nil, err
 	}
 	//create domain
-	domain.MetaData.FList = params.FList
-	domain.MetaData.Sequence = seq
-	domain.MetaData.Tags = params.Tags
-
 	_, err = conn.DomainCreateXML(string(data), libvirt.DOMAIN_NONE)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create machine: %s", err)
 	}
 
-	dom, err := conn.LookupDomainByUUIDString(domain.UUID)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't find domain with the uuid %s", domain.UUID)
-	}
-	metaXML, err := xml.Marshal(domain.MetaData)
-
-	if err != nil {
-		return nil, fmt.Errorf("couldn't marshal domain metadata")
-	}
-	err = dom.SetMetadata(libvirt.DOMAIN_METADATA_ELEMENT, string(metaXML), metadataKey, metadataUri, libvirt.DOMAIN_AFFECT_LIVE)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't set flist metadata for domain with the uuid %s", domain.UUID)
-	}
-	createparamsLock.Lock()
-	uuidToCreateParams[domain.UUID] = params
-	createparamsLock.Unlock()
 	return domain.UUID, nil
 }
 
