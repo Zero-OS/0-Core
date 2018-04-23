@@ -41,7 +41,7 @@ var (
 
 type DomainInfo struct {
 	CreateParams
-	Seq uint16
+	Seq uint16	`json:"seq"`
 }
 
 type LibvirtConnection struct {
@@ -51,17 +51,16 @@ type LibvirtConnection struct {
 	conn *libvirt.Connect
 }
 
-
 type kvmManager struct {
-	conmgr   containers.ContainerManager
-	sequence uint16
-	sequenceMutex        sync.Mutex
-	libvirt  LibvirtConnection
-	cell     *screen.RowCell
-	evch     chan map[string]interface{}
+	conmgr        containers.ContainerManager
+	sequence      uint16
+	sequenceMutex sync.Mutex
+	libvirt       LibvirtConnection
+	cell          *screen.RowCell
+	evch          chan map[string]interface{}
 
-	domainsInfo  map[string]*DomainInfo
-	domainsInfoRWMutex      sync.RWMutex
+	domainsInfo        map[string]*DomainInfo
+	domainsInfoRWMutex sync.RWMutex
 }
 
 var (
@@ -100,8 +99,8 @@ const (
 	kvmGetCommand               = "kvm.get"
 	kvmPortForwardAddCommand    = "kvm.portforward-add"
 	kvmPortForwardRemoveCommand = "kvm.portforward-remove"
-	kvmGetCreationParamsCommand = "kvm.getcreationparams"
-	DefaultBridgeName 		 	= "kvm0"
+	kvmGetDomainInfoCommand		= "kvm.getdomaininfo"
+	DefaultBridgeName           = "kvm0"
 )
 
 func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) error {
@@ -116,9 +115,9 @@ func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) erro
 	}()
 
 	mgr := &kvmManager{
-		conmgr: conmgr,
-		cell:   cell,
-		evch:   make(chan map[string]interface{}, 100), //buffer 100 event
+		conmgr:      conmgr,
+		cell:        cell,
+		evch:        make(chan map[string]interface{}, 100), //buffer 100 event
 		domainsInfo: make(map[string]*DomainInfo),
 	}
 
@@ -151,7 +150,7 @@ func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) erro
 	pm.RegisterBuiltIn(kvmGetCommand, mgr.get)
 	pm.RegisterBuiltIn(kvmPortForwardAddCommand, mgr.portforwardAdd)
 	pm.RegisterBuiltIn(kvmPortForwardRemoveCommand, mgr.portforwardRemove)
-	pm.RegisterBuiltIn(kvmGetCreationParamsCommand, mgr.GetCreationParamsForDomain)
+	pm.RegisterBuiltIn(kvmGetDomainInfoCommand, mgr.GetDomainInfo)
 
 	//those next 2 commands should never be called by the client, unfortunately we don't have
 	//support for internal commands yet.
@@ -730,7 +729,7 @@ func (m *kvmManager) ipAddr(s uint16) string {
 	return fmt.Sprintf("%d.%d.%d.%d", BridgeIP[0], BridgeIP[1], (s&0xff00)>>8, s&0x00ff)
 }
 
-func (m *kvmManager) GetCreationParamsForDomain(cmd *pm.Command) (interface{}, error){
+func (m *kvmManager) GetDomainInfo(cmd *pm.Command) (interface{}, error) {
 
 	_, uuid, err := m.getDomain(cmd)
 
@@ -746,7 +745,6 @@ func (m *kvmManager) GetCreationParamsForDomain(cmd *pm.Command) (interface{}, e
 	}
 	return domainInfo, nil
 }
-
 
 func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error) {
 	domain := Domain{
@@ -919,7 +917,7 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 		domain.Devices.Filesystems = append(domain.Devices.Filesystems, fs)
 	}
 	m.domainsInfoRWMutex.Lock()
-	m.domainsInfo[domain.UUID] = &DomainInfo{CreateParams: params, Seq:seq}
+	m.domainsInfo[domain.UUID] = &DomainInfo{CreateParams: params, Seq: seq}
 	m.domainsInfoRWMutex.Unlock()
 	//TODO: after this point, if an error occured, we need to rollback filesystem mount
 
