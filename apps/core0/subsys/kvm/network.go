@@ -69,16 +69,13 @@ func (m *kvmManager) setNetworking(args *NicParams, seq uint16, domain *Domain) 
 		}
 		domain.Devices.Devices = append(domain.Devices.Devices, inf)
 	
-		m.rwm.RLock()
+		m.rwm.Lock()
+		defer m.rwm.Unlock()
 		v, exists := m.domainsInfo[domain.UUID]
 		if !exists {
 			return fmt.Errorf("in setup networking couldn't get creationparams for domain %s", domain.UUID)
 		}
-		m.rwm.RUnlock()
-
-		m.rwm.Lock()
 		v.Nics[i].HWAddress = inf.Mac.Address
-		m.rwm.Unlock()
 	}
 
 	return nil
