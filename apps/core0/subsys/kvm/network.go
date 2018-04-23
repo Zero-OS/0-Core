@@ -51,7 +51,7 @@ func (m *kvmManager) setNetworking(args *NicParams, seq uint16, domain *Domain) 
 		err error
 	)
 
-	for i, nic := range args.Nics {
+	for _, nic := range args.Nics {
 		switch nic.Type {
 		case "default":
 			inf, err = m.prepareDefaultNetwork(domain.UUID, seq, args.Port)
@@ -68,14 +68,6 @@ func (m *kvmManager) setNetworking(args *NicParams, seq uint16, domain *Domain) 
 			return err
 		}
 		domain.Devices.Devices = append(domain.Devices.Devices, inf)
-	
-		m.domainsInfoRWMutex.Lock()
-		defer m.domainsInfoRWMutex.Unlock()
-		domainInfo, exists := m.domainsInfo[domain.UUID]
-		if !exists {
-			return fmt.Errorf("in setup networking couldn't get creationparams for domain %s", domain.UUID)
-		}
-		domainInfo.Nics[i].HWAddress = inf.Mac.Address
 	}
 
 	return nil
