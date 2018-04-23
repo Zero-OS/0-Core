@@ -907,6 +907,17 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 	if err := m.setNetworking(&params.NicParams, seq, domain); err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err != nil {
+			m.domainsInfoRWMutex.Lock()
+			delete(m.domainsInfo, domain.UUID)
+			m.domainsInfoRWMutex.Unlock()
+			log.Info("IN DEFERED REMOVING ALL SOCAT PORTS NOW")
+			
+			socat.RemoveAll(m.forwardId(domain.UUID))
+			m.flistUnmount(domain.UUID)
+		}
+	}()
 
 	data, err := xml.MarshalIndent(domain, "", "  ")
 	if err != nil {
