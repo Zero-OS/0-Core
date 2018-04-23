@@ -1442,14 +1442,14 @@ func (m *kvmManager) migrate(cmd *pm.Command) (interface{}, error) {
 }
 
 type Machine struct {
-	ID         int         `json:"id"`
-	UUID       string      `json:"uuid"`
-	Name       string      `json:"name"`
-	State      string      `json:"state"`
-	Vnc        int         `json:"vnc"`
-	Tags       pm.Tags     `json:"tags"`
-	IfcTargets []string    `json:"ifctargets"`
-	DomainInfo *DomainInfo `json:"domaininfo"`
+	ID         int          `json:"id"`
+	UUID       string       `json:"uuid"`
+	Name       string       `json:"name"`
+	State      string       `json:"state"`
+	Vnc        int          `json:"vnc"`
+	Tags       pm.Tags      `json:"tags"`
+	IfcTargets []string     `json:"ifctargets"`
+	Params     CreateParams `json:"params"`
 }
 
 func (m *kvmManager) getMachine(domain *libvirt.Domain) (Machine, error) {
@@ -1498,9 +1498,9 @@ func (m *kvmManager) getMachine(domain *libvirt.Domain) (Machine, error) {
 		Name:       name,
 		State:      StateToString(state),
 		Vnc:        port,
-		Tags:       domainInfo.CreateParams.Tags,
+		Tags:       domainInfo.CreateParams.Tags, //we keep this here also for backward compatibility
 		IfcTargets: targets,
-		DomainInfo: domainInfo,
+		Params:     domainInfo.CreateParams,
 	}, nil
 }
 
