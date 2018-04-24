@@ -4,6 +4,7 @@
 * [Available Commands](commands/README.md)
 * [Python Client](python.md)
 * [JumpScale Client](jumpscale.md)
+* [0-Robot](0-robot.md)
 * [Go Client](go.md)
 * [Streaming](streaming.md)
 * [Examples](examples/README.md)

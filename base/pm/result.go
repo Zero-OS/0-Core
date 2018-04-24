@@ -15,10 +15,13 @@ const (
 	StateDuplicateID JobState = "DUPILICATE_ID"
 )
 
+//JobState of a job
 type JobState string
 
+//Streams holds stdout and stderr of a job
 type Streams []string
 
+//Stdout getter for stdout
 func (s Streams) Stdout() string {
 	if len(s) >= 1 {
 		return s[0]
@@ -26,6 +29,7 @@ func (s Streams) Stdout() string {
 	return ""
 }
 
+//Stderr getter for stderr
 func (s Streams) Stderr() string {
 	if len(s) >= 2 {
 		return s[1]

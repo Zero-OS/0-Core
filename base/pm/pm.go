@@ -39,6 +39,7 @@ var (
 	log = logging.MustGetLogger("pm")
 
 	n        sync.Once
+	s        sync.Once
 	jobs     map[string]Job
 	jobsM    sync.RWMutex
 	jobsCond *sync.Cond
@@ -53,10 +54,10 @@ var (
 	unprivileged bool
 )
 
-//NewPM creates a new PM
+//New initialize singleton process manager
 func New() {
 	n.Do(func() {
-		log.Debugf("initializing r manager")
+		log.Debugf("initializing manager")
 		jobs = make(map[string]Job)
 		jobsCond = sync.NewCond(&sync.Mutex{})
 		pids = make(map[int]chan syscall.WaitStatus)
@@ -65,14 +66,19 @@ func New() {
 	})
 }
 
+//AddHandle add handler to various process events
 func AddHandle(handler Handler) {
 	handlers = append(handlers, handler)
 }
 
+//SetUnprivileged switch to unprivileged mode (no way back) all process
+//that runs after calling this will has some of their capabilities dropped
 func SetUnprivileged() {
 	unprivileged = true
 }
 
+//RunFactory run a command by creating a process by calling the factory with that command.
+//accepts optional hooks to certain process events.
 func RunFactory(cmd *Command, factory ProcessFactory, hooks ...RunnerHook) (Job, error) {
 	if len(cmd.ID) == 0 {
 		cmd.ID = uuid.New()
@@ -128,18 +134,15 @@ func processWait() {
 	c := make(chan os.Signal, 2)
 	signal.Notify(c, syscall.SIGCHLD)
 	for range c {
-		//we wait for sigchld
 		for {
 			//once we get a signal, we consume ALL the died children
 			//since signal.Notify will not wait on channel writes
 			//we create a buffer of 2 and on each signal we loop until wait gives an error
 			var status syscall.WaitStatus
-			var rusage syscall.Rusage
 
-			log.Debug("Waiting for children")
-			pid, err := syscall.Wait4(-1, &status, 0, &rusage)
+			pid, err := syscall.Wait4(-1, &status, 0, nil)
 			if err != nil {
-				log.Debugf("wait error: %s", err)
+				log.Errorf("wait error: %s", err)
 				break
 			}
 
@@ -158,22 +161,21 @@ func processWait() {
 				}(ch, status)
 			}
 		}
-
 	}
 }
 
-func registerPID(g GetPID) error {
+func registerPID(g GetPID) (int, error) {
 	pidsMux.Lock()
 	defer pidsMux.Unlock()
 	pid, err := g()
 	if err != nil {
-		return err
+		return pid, err
 	}
 
 	ch := make(chan syscall.WaitStatus)
 	pids[pid] = ch
 
-	return nil
+	return pid, nil
 }
 
 func waitPID(pid int) syscall.WaitStatus {
@@ -186,11 +188,12 @@ func waitPID(pid int) syscall.WaitStatus {
 	return <-c
 }
 
-//Start starts the r manager.
+//Start starts the process manager.
 func Start() {
-	//r and start all commands according to args.
-	go processWait()
-	go loop()
+	s.Do(func() {
+		go processWait()
+		go loop()
+	})
 }
 
 func processArgs(args map[string]interface{}, values map[string]interface{}) {

@@ -56,7 +56,7 @@ func SetPortForward(id string, ip string, host int, dest int) error {
 	}
 	onExit := &pm.ExitHook{
 		Action: func(s bool) {
-			log.Infof("Port forward %d:%d with id %d exited", host, dest, id)
+			log.Infof("Port forward %d:%d with id %s exited", host, dest, id)
 		},
 	}
 
@@ -75,6 +75,7 @@ func RemovePortForward(id string, host int, dest int) error {
 func RemoveAll(id string) {
 	for key, job := range pm.Jobs() {
 		if strings.HasPrefix(key, fmt.Sprintf("socat-%s", id)) {
+			log.Debugf("stopping socat process: %s", key)
 			job.Signal(syscall.SIGTERM)
 		}
 	}
