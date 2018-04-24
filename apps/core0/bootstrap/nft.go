@@ -28,6 +28,12 @@ var (
 		"filter": nft.Table{
 			Family: nft.FamilyINET,
 			Chains: nft.Chains{
+				"pre": nft.Chain{
+					Type:     nft.TypeFilter,
+					Hook:     "prerouting",
+					Priority: 0,
+					Policy:   "accept",
+				},
 				"input": nft.Chain{
 					Type:     nft.TypeFilter,
 					Hook:     "input",
@@ -44,7 +50,11 @@ var (
 					Type:     nft.TypeFilter,
 					Hook:     "forward",
 					Priority: 0,
-					Policy:   "accept",
+					Policy:   "drop",
+					Rules: []nft.Rule{
+						{Body: "ct state {established, related} accept"},
+						{Body: "meta mark 1 accept"}, // all bridges we create with nat support has this mart set
+					},
 				},
 				"output": nft.Chain{
 					Type:     nft.TypeFilter,

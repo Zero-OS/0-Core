@@ -480,12 +480,6 @@ func (b *bridgeMgr) nft(br string) error {
 						{Body: fmt.Sprintf("iif %s udp dport {53,67,68} accept", name)},
 					},
 				},
-				"forward": nft.Chain{
-					Rules: []nft.Rule{
-						{Body: fmt.Sprintf("iif %s oif %s meta mark set 2", name, name)},
-						{Body: fmt.Sprintf("oif %s meta mark 1 drop", name)},
-					},
-				},
 			},
 		},
 	}
