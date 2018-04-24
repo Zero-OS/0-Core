@@ -509,7 +509,7 @@ func (b *bridgeMgr) unNFT(idx int) error {
 		for cname, chain := range table.Chains {
 			for _, rule := range chain.Rules {
 				if ok := pat.MatchString(rule.Body); ok {
-					if err := nft.Drop(tname, cname, rule.Handle); err != nil {
+					if err := nft.Drop(table.Family, tname, cname, rule.Handle); err != nil {
 						log.Errorf("nft delete rule: %s", err)
 						errored = true
 					}

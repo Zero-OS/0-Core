@@ -5,7 +5,12 @@ import (
 	"io/ioutil"
 	"os"
 
+	logging "github.com/op/go-logging"
 	"github.com/zero-os/0-core/base/pm"
+)
+
+var (
+	log = logging.MustGetLogger("nft")
 )
 
 //ApplyFromFile applies nft rules from a file
@@ -37,23 +42,19 @@ func Apply(nft Nft) error {
 	return ApplyFromFile(f.Name())
 }
 
-//DropRules removes nft rules from a file
-func DropRules(nft Nft) error {
-	current, err := Get()
-
-	if err != nil {
-		return err
-	}
-
-	for tn, t := range nft {
-		currenttable, ok := current[tn]
+//findRules validate that the sub is part of the ruleset, and fill the
+//rules handle with the values from the ruleset
+func findRules(ruleset, sub Nft) (Nft, error) {
+	for tn, t := range sub {
+		currenttable, ok := ruleset[tn]
 		if !ok {
-			return fmt.Errorf("table %s not found", tn)
+			return nil, fmt.Errorf("table %s not found", tn)
 		}
+
 		for cn, c := range t.Chains {
 			currentchain, ok := currenttable.Chains[cn]
 			if !ok {
-				return fmt.Errorf("chain %s not found in table %s", cn, tn)
+				return nil, fmt.Errorf("chain %s not found in table %s", cn, tn)
 			}
 			for r := range c.Rules {
 				for _, rr := range currentchain.Rules {
@@ -63,16 +64,32 @@ func DropRules(nft Nft) error {
 					}
 				}
 				if c.Rules[r].Handle == 0 {
-					return fmt.Errorf("rule \"%s\" not found", c.Rules[r].Body)
+					return nil, fmt.Errorf("rule '%s' not found", c.Rules[r].Body)
 				}
 			}
 		}
 	}
+
+	return sub, nil
+}
+
+//DropRules removes nft rules from a file
+func DropRules(sub Nft) error {
+	ruleset, err := Get()
+
+	if err != nil {
+		return err
+	}
+
+	sub, err = findRules(ruleset, sub)
+	if err != nil {
+		return err
+	}
 	// Two loops to achieve all or nothing
-	for tn, t := range nft {
+	for tn, t := range sub {
 		for cn, c := range t.Chains {
 			for _, r := range c.Rules {
-				if err := Drop(tn, cn, r.Handle); err != nil {
+				if err := Drop(t.Family, tn, cn, r.Handle); err != nil {
 					return err
 				}
 			}
@@ -82,7 +99,7 @@ func DropRules(nft Nft) error {
 }
 
 //Drop drops a single rule given a handle
-var Drop = func(table, chain string, handle int) error {
-	_, err := pm.System("nft", "delete", "rule", "inet", table, chain, "handle", fmt.Sprint(handle))
+func Drop(family Family, table, chain string, handle int) error {
+	_, err := pm.System("nft", "delete", "rule", string(family), table, chain, "handle", fmt.Sprint(handle))
 	return err
 }
