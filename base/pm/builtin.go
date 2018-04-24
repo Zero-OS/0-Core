@@ -38,10 +38,10 @@ func RegisterExtension(cmd string, exe string, workdir string, cmdargs []string,
 
 //RegisterBuiltIn registers a built in function
 func RegisterBuiltIn(name string, runnable Runnable) {
-	Register(name, internalProcessFactory(runnable))
+	Register(name, NewInternalProcess(runnable))
 }
 
 //RegisterBuiltInWithCtx registers a built in function that accepts a command and a context
 func RegisterBuiltInWithCtx(name string, runnable RunnableWithCtx) {
-	Register(name, internalProcessFactoryWithCtx(runnable))
+	Register(name, NewInternalProcessWithCtx(runnable))
 }

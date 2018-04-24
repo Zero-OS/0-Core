@@ -17,3 +17,20 @@ If not provided, zero-os will not require a password
 * `zerotier=<id>` Join this zerotier network on boot
 * `development` If set, start the redis-proxy allow direct client connections, also opening the required client ports. If not set, no direct client connections
 will be allowed
+
+## Booting modes
+Different booting modes can be achieved by mixing and matching the boot params documented above.
+
+### production:
+```
+zerotier=<network-id>
+```
+
+### development:
+```
+development [zerotier=<networkd-id>]
+```
+zerotier if not set, both the robot and the redis server can be reached over all interfaces
+
+
+> Adding `debug` param to any of the above flag combinations will output verbose logs.

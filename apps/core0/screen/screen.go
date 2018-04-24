@@ -5,12 +5,12 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/op/go-logging"
+	"github.com/zero-os/0-core/base/pm"
 )
 
 const (
@@ -26,73 +26,118 @@ const (
 var (
 	log = logging.MustGetLogger("screen")
 
+	path   string
 	width  int = DefaultWidth
 	height int = DefaultHeight
 	o      sync.Once
-	tty    *os.File
 	serr   error
 
-	m  sync.RWMutex
-	fb bytes.Buffer
+	frameMutex sync.RWMutex
+
+	refresh chan int
+
+	tickerMutex sync.Mutex
+
+	progress int32
+	ticker   *time.Ticker
 )
 
 func getSize(tty string) {
-	cmd := exec.Command("sh", "-c", fmt.Sprintf("ttysize < %s", tty))
-	out, err := cmd.Output()
+	result, err := pm.System("sh", "-c", fmt.Sprintf("ttysize < %s", tty))
 	if err != nil {
 		return
 	}
-	fmt.Sscanf(string(out), "%d %d", &width, &height)
+	fmt.Sscanf(string(result.Streams.Stdout()), "%d %d", &width, &height)
 }
 
 func newScreen(vt int) error {
 	o.Do(func() {
-		cmd := exec.Command("chvt", fmt.Sprintf("%d", vt))
-		serr = cmd.Run()
+		_, serr = pm.System("chvt", fmt.Sprintf("%d", vt))
 		if serr != nil {
 			return
 		}
-		ttyPath := fmt.Sprintf("/dev/tty%d", vt)
-		getSize(ttyPath)
-		tty, serr = os.OpenFile(ttyPath, syscall.O_RDWR|syscall.O_NOCTTY, 0644)
-		if serr == nil {
-			go render()
-		}
+		path = fmt.Sprintf("/dev/tty%d", vt)
+		getSize(path)
+
+		go render()
 	})
 
 	return serr
 }
 
+//New initialize new screen on tty2
 func New(vt int) error {
 	return newScreen(vt)
 }
 
+func pushProgress() {
+	tickerMutex.Lock()
+	defer tickerMutex.Unlock()
+
+	progress++
+	if progress != 1 {
+		return
+	}
+
+	ticker = time.NewTicker(200 * time.Millisecond)
+	go func() {
+		for range ticker.C {
+			Refresh()
+		}
+	}()
+}
+
+func popProgress() {
+	tickerMutex.Lock()
+	defer tickerMutex.Unlock()
+
+	progress--
+	if progress == 0 {
+		ticker.Stop()
+	}
+}
+
+func open() (*os.File, error) {
+	return os.OpenFile(path, syscall.O_WRONLY, 0644)
+}
+
 //makes sure that screen always have what in the current frame
 func render() {
-	fmt.Fprint(tty, wipeSequence)
+	//fmt.Fprint(tty, wipeSequence)
 	//get size
 	space := make([]byte, width)
 	for i := range space {
 		space[i] = ' '
 	}
+	refresh = make(chan int, 1)
+
+	tty, err := open()
+	if err != nil {
+		log.Error("failed to open screen terminal")
+		return
+	}
+
+	var fb bytes.Buffer
 
 	for {
-		//tick sections
-		refresh := false
+		fb.Reset()
+		frameMutex.RLock()
 		for _, section := range frame {
-			if section, ok := section.(dynamic); ok {
-				if section.tick() {
-					refresh = true
-				}
+			if fb.Len() > 0 {
+				fb.WriteByte('\n')
 			}
+			section.write(&fb)
 		}
+		frameMutex.RUnlock()
 
-		if refresh {
-			Refresh()
+		if _, err := fmt.Fprint(tty, resetSequence); err != nil {
+			//NOTE: sometimes the tty goes bananas and the tty descriptor becaome
+			//invalid, a reopen fixes the problem
+			log.Debug("invalid tty for screen, reopening", err)
+			tty.Close()
+			tty, err = open()
+			continue
 		}
-
-		fmt.Fprint(tty, resetSequence)
-		m.RLock()
 		reader := bufio.NewScanner(bytes.NewReader(fb.Bytes()))
 		var c int
 		for reader.Scan() {
@@ -104,12 +149,10 @@ func render() {
 			}
 		}
 
-		m.RUnlock()
-		//write to end of screen
 		for ; c < height-1; c++ {
 			fmt.Fprint(tty, string(space), "\n")
 		}
-		tty.Sync()
-		<-time.After(200 * time.Millisecond)
+
+		<-refresh
 	}
 }

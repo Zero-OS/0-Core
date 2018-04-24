@@ -72,7 +72,7 @@ func newJob(command *Command, factory ProcessFactory, hooks ...RunnerHook) Job {
 	job := &jobImb{
 		command: command,
 		factory: factory,
-		signal:  make(chan syscall.Signal),
+		signal:  make(chan syscall.Signal, 5), //enough buffer for 5 signals
 		hooks:   hooks,
 		backlog: stream.NewBuffer(GenericStreamBufferSize),
 
@@ -342,7 +342,7 @@ loop:
 		if result.State != StateSuccess && r.command.MaxRestart > 0 {
 			runs++
 			if runs < r.command.MaxRestart {
-				log.Debugf("Restarting '%s' due to upnormal exit status, trials: %d/%d", r.command, runs+1, r.command.MaxRestart)
+				log.Debugf("Restarting '%s' due to abnormal exit status, trials: %d/%d", r.command, runs+1, r.command.MaxRestart)
 				restarting = true
 				restartIn = 1 * time.Second
 			}

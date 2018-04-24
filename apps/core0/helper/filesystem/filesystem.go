@@ -225,7 +225,7 @@ func MountFList(namespace, storage, src string, target string, hooks ...pm.Runne
 		Action: func(s bool) {
 			o.Do(func() {
 				if !s {
-					err = fmt.Errorf("upnormal exit of filesystem mount at '%s'", target)
+					err = fmt.Errorf("abnormal exit of filesystem mount at '%s'", target)
 				}
 				wg.Done()
 			})

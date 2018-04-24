@@ -52,7 +52,7 @@ func TestJobMaxRestart(t *testing.T) {
 		MaxRestart: 3,
 	}
 
-	job := newTestJob(&cmd, internalProcessFactory(action))
+	job := newTestJob(&cmd, NewInternalProcess(action))
 
 	job.start(false)
 
@@ -79,7 +79,7 @@ func TestJobMessages(t *testing.T) {
 
 	cmd := Command{}
 
-	job := newTestJob(&cmd, internalProcessFactoryWithCtx(action))
+	job := newTestJob(&cmd, NewInternalProcessWithCtx(action))
 
 	var logs []*stream.Message
 	var subscriber = func(msg *stream.Message) {
@@ -184,7 +184,7 @@ func TestJobMaxRecurring(t *testing.T) {
 		RecurringPeriod: 1,
 	}
 
-	job := newTestJob(&cmd, internalProcessFactory(action))
+	job := newTestJob(&cmd, NewInternalProcess(action))
 
 	go func() {
 		time.Sleep(4 * time.Second)

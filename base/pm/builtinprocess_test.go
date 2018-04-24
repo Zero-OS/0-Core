@@ -13,7 +13,7 @@ func TestBuiltInProcess(t *testing.T) {
 		return nil, nil
 	}
 
-	builtin := internalProcessFactory(work)(nil, nil)
+	builtin := NewInternalProcess(work)(nil, nil)
 
 	ch, err := builtin.Run()
 
@@ -51,7 +51,7 @@ func TestBuiltInProcessData(t *testing.T) {
 		return "some data", nil
 	}
 
-	builtin := internalProcessFactory(work)(nil, nil)
+	builtin := NewInternalProcess(work)(nil, nil)
 
 	ch, err := builtin.Run()
 
@@ -93,7 +93,7 @@ func TestBuiltInProcessError(t *testing.T) {
 		return nil, fmt.Errorf("error string")
 	}
 
-	builtin := internalProcessFactory(work)(nil, nil)
+	builtin := NewInternalProcess(work)(nil, nil)
 
 	ch, err := builtin.Run()
 
@@ -135,7 +135,7 @@ func TestBuiltInProcessRecover(t *testing.T) {
 		panic("i paniced")
 	}
 
-	builtin := internalProcessFactory(work)(nil, nil)
+	builtin := NewInternalProcess(work)(nil, nil)
 
 	ch, err := builtin.Run()
 

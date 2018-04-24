@@ -12,7 +12,8 @@ import (
 
 //Get gets current nft ruleset
 func Get() (Nft, error) {
-	job, err := pm.System("nft", "--handle", "list", "ruleset", "--numeric")
+	//NOTE: YES --numeric MUST BE THERE 2 TIMES, PLEASE DO NOT REMOVE
+	job, err := pm.System("nft", "--handle", "list", "ruleset", "--numeric", "--numeric")
 	if err != nil {
 		return nil, err
 	}
