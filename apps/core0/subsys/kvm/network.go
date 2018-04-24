@@ -50,8 +50,14 @@ func (m *kvmManager) setNetworking(args *NicParams, seq uint16, domain *Domain) 
 		inf *InterfaceDevice
 		err error
 	)
+	m.domainsInfoRWMutex.RLock()
+	domainInfo, exists := m.domainsInfo[domain.UUID]
+	m.domainsInfoRWMutex.RUnlock()
+	if !exists {
+		return fmt.Errorf("couldn't find domain info for %s", domain.UUID)
+	}
 
-	for _, nic := range args.Nics {
+	for i, nic := range args.Nics {
 		switch nic.Type {
 		case "default":
 			inf, err = m.prepareDefaultNetwork(domain.UUID, seq, args.Port)
@@ -67,6 +73,9 @@ func (m *kvmManager) setNetworking(args *NicParams, seq uint16, domain *Domain) 
 		if err != nil {
 			return err
 		}
+		m.domainsInfoRWMutex.Lock()
+		domainInfo.Nics[i].HWAddress = inf.Mac.Address
+		m.domainsInfoRWMutex.Unlock()
 		domain.Devices.Devices = append(domain.Devices.Devices, inf)
 	}
 

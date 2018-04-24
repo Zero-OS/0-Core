@@ -1210,6 +1210,13 @@ func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 		return nil, err
 	}
 
+	m.domainsInfoRWMutex.RLock()
+	domainInfo, exists := m.domainsInfo[params.UUID]
+	m.domainsInfoRWMutex.RUnlock()
+	if !exists {
+		return nil, fmt.Errorf("couldn't find domaininfo for domain %s", params.UUID)
+	}
+
 	switch nic.Type {
 	case "default":
 		for _, nic := range domainstruct.Devices.Interfaces {
@@ -1218,14 +1225,6 @@ func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 			}
 		}
 		// TODO: use the ports that the domain was created with initially
-
-		m.domainsInfoRWMutex.Lock()
-		defer m.domainsInfoRWMutex.Unlock()
-		domainInfo, exists := m.domainsInfo[params.UUID]
-		if !exists {
-			return nil, fmt.Errorf("in setup networking couldn't get domaininfo for domain %s", params.UUID)
-		}
-
 		inf, err = m.prepareDefaultNetwork(params.UUID, domainInfo.Sequence, map[int]int{})
 	case "bridge":
 		if nic.ID == DefaultBridgeName {
@@ -1243,8 +1242,13 @@ func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	
+	m.domainsInfoRWMutex.Lock()
+	domainInfo, exists = m.domainsInfo[params.UUID]
 	// We check for the default network upfront
+	nic.HWAddress = inf.Mac.Address
+	domainInfo.Nics = append(domainInfo.Nics, nic)
+	m.domainsInfoRWMutex.Unlock()
 	if nic.Type != "default" {
 		for _, nic := range domainstruct.Devices.Interfaces {
 			if nic.Source == inf.Source {
@@ -1277,6 +1281,24 @@ func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
 		HWAddress: params.HWAddress,
 	}
 
+
+	m.domainsInfoRWMutex.Lock()
+	domainInfo, exists := m.domainsInfo[params.UUID]
+	if !exists{
+		return nil, fmt.Errorf("couldn't find domaininfo for domain %s", params.UUID)
+	}
+	newNics := make([]Nic,len(domainInfo.Nics)) 
+	// We check for the default network upfront
+	for _, n := range domainInfo.Nics {
+		if n.HWAddress != nic.HWAddress {
+			newNics = append(newNics, n)
+		} 
+	}
+	domainInfo.NicParams.Nics = newNics
+	m.domainsInfoRWMutex.Unlock()
+
+
+	
 	switch nic.Type {
 	case "default":
 		source = InterfaceDeviceSource{
