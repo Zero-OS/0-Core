@@ -2,6 +2,8 @@
 
 * [Introduction](README.md)
 * [Getting Started](gettingstarted/README.md)
+  * [Step by step getting started with Zero-OS](gettingstarted/step_by_step/README.md)
+  * [Using the JumpScale client for Zero-OS](gettingstarted/jumpscale_client/README.md)
 * [Building your Zero-OS Kernel](building/README.md)
 * [Configuration](config/README.md)
   * [Main Configuration](config/main.md)
