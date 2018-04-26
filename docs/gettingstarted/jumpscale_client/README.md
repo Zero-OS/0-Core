@@ -48,6 +48,8 @@ zt_network_id = "17d709436c5bc232"
 local_prefab.network.zerotier.network_join(network_id=zt_network_id)
 ```
 
+> You have to authorize the join request manually. Also this can be automated from JumpScale, using the JumpScale client for ZeroTier.
+
 <a id="get-jwt"></a>
 
 ## Get a JSON Web token
