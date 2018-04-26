@@ -524,7 +524,7 @@ func (m *kvmManager) getDomainInfo(uuid string) (*DomainInfo, error) {
 	defer m.domainsInfoRWMutex.RUnlock()
 	domaininfo, exists := m.domainsInfo[uuid]
 	if !exists {
-		return domaininfo, fmt.Errorf("")
+		return domaininfo, fmt.Errorf("couldnt find domaininfo with uuid %s", uuid)
 	}
 	return domaininfo, nil
 }
