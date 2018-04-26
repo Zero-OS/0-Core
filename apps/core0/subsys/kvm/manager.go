@@ -1311,7 +1311,7 @@ func (m *kvmManager) updateNics(uuid string) error {
 	if err != nil {
 		return err
 	}
-	newNics := make([]Nic, len(interfaceMacs))
+	var newNics []Nic
 	domainstruct, err := m.getDomainStruct(uuid)
 	if err != nil {
 		return err
@@ -1375,8 +1375,10 @@ func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
 	for _, nic := range domainstruct.Devices.Interfaces {
 		if nic.Source == source {
 			inf = &nic
+			break
 		}
 	}
+
 	if inf == nil {
 		return nil, fmt.Errorf("The nic you tried is not attached to the vm")
 	}
@@ -1385,7 +1387,7 @@ func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal nic to xml")
 	}
-	if err = m.detachDevice(params.UUID, string(ifxml[:])); err != nil {
+	if err = m.detachDevice(params.UUID, string(ifxml)); err != nil {
 		return nil, err
 	}
 
