@@ -2103,9 +2103,6 @@ class KvmManager:
         'desturi': str,
     })
 
-    _get_chk = typchk.Checker({
-        'uuid': str,
-    })
     _limit_disk_io_dict = {
         'uuid': str,
         'media': _media_dict,
@@ -2468,16 +2465,6 @@ class KvmManager:
         """
         return self._client.json('kvm.list', {})
 
-    def get(self, uuid):
-        """
-        Get machine info
-         :param uuid str: domain uuid
-
-        :return: machine info
-        """
-        args = {'uuid':uuid}
-        self._get_chk.check(args)
-        return self._client.json('kvm.get', args)
 
 class Logger:
     _level_chk = typchk.Checker({
