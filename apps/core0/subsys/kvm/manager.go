@@ -1278,7 +1278,6 @@ func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 	}
 	
 	// We check for the default network upfront
-	nic.HWAddress = inf.Mac.Address
 	if nic.Type != "default" {
 		for _, nic := range domainstruct.Devices.Interfaces {
 			if nic.Source == inf.Source {
