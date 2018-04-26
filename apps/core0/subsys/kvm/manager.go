@@ -833,16 +833,15 @@ func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error)
 func (m *kvmManager) setPortForward(uuid string, seq uint16, host int, container int) error {
 	ip := m.ipAddr(seq)
 	id := m.forwardId(uuid)
+	var err error
 
-
-	err := socat.SetPortForward(id, ip, host, container)
-	if err == nil {
-		domaininfo, err := m.getDomainInfo(uuid)
-		if err != nil {
+	if err = socat.SetPortForward(id, ip, host, container); err == nil {
+		if domaininfo, err := m.getDomainInfo(uuid); err == nil {
+			domaininfo.Port[host] = container
+		} else {
 			return err 
 		}
-		domaininfo.Port[host] = container
-	}
+	} 
 	return err
 }
 
@@ -950,7 +949,49 @@ func (m *kvmManager) create(cmd *pm.Command) (uuid interface{}, err error) {
 		return nil, fmt.Errorf("failed to create machine: %s", err)
 	}
 
+	
+	// ENSURE TO UPDATE macaddress of domaininfo nics in this stage.
+	domainstruct, err := m.getDomainStruct(domain.UUID)
+	if err != nil {
+		return nil, err
+	}
+	domaininfo, err := m.getDomainInfo(domain.UUID)
+	if err != nil {
+		return nil, err
+	}
+	for i, inf := range domainstruct.Devices.Interfaces {
+		domaininfo.Nics[i].HWAddress = inf.Mac.Address
+	}
+	//
+
+
+	if err = m.updateNics(domain.UUID); err != nil {
+		return domain.UUID, err
+	}
 	return domain.UUID, nil
+}
+
+func (m *kvmManager) updateNics(uuid string) error {
+	interfaceMacs := map[string]bool{}
+	domainInfo, err := m.getDomainInfo(uuid) 
+	if err != nil {
+		return err
+	}
+	newNics := make([]Nic, len(interfaceMacs))
+	domainstruct, err := m.getDomainStruct(uuid)
+	if err != nil {
+		return err
+	}
+	for _, inf := range domainstruct.Devices.Interfaces {
+		interfaceMacs[inf.Mac.Address] = true
+	}
+	for _, nic := range domainInfo.Nics {
+		if _, exists := interfaceMacs[nic.HWAddress]; exists{
+			newNics = append(newNics, nic)
+		} 
+	}
+	domainInfo.Nics = newNics
+	return nil
 }
 
 func (m *kvmManager) prepareMigrationTarget(cmd *pm.Command) (interface{}, error) {
@@ -974,6 +1015,11 @@ func (m *kvmManager) prepareMigrationTarget(cmd *pm.Command) (interface{}, error
 	if err := m.setNetworking(&params.NicParams, seq, &domain); err != nil {
 		return nil, err
 	}
+	
+	if err := m.updateNics(params.UUID); err!=nil {
+		return nil, err
+	}
+	
 	return nil, nil
 }
 
@@ -1276,10 +1322,17 @@ func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 	}
 
 	
-	err = m.attachDevice(params.UUID, string(ifxml[:]))
-	if err == nil {
-		domainInfo.Nics = append(domainInfo.Nics, nic)
+	if err = m.attachDevice(params.UUID, string(ifxml[:])); err!=nil {
+		return nil, err
 	}
+	domainstruct, err = m.getDomainStruct(params.UUID)
+	if err != nil {
+		return nil, err
+	}
+	infs := domainstruct.Devices.Interfaces
+	nic.HWAddress = infs[len(infs)-1].Mac.Address
+	domainInfo.Nics = append(domainInfo.Nics, nic)
+
 	return nil, err
 }
 
@@ -1300,12 +1353,6 @@ func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
 		HWAddress: params.HWAddress,
 	}
 
-	domainInfo, err := m.getDomainInfo(params.UUID)
-	if err != nil {
-		return nil, err
-	}
-
-	
 	switch nic.Type {
 	case "default":
 		source = InterfaceDeviceSource{
@@ -1346,17 +1393,14 @@ func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal nic to xml")
 	}
-	err = m.detachDevice(params.UUID, string(ifxml[:]))
-	if err == nil {
-		newNics := make([]Nic,len(domainInfo.Nics)) 
-		// We check for the default network upfront
-		for _, n := range domainInfo.Nics {
-			if n.HWAddress != nic.HWAddress {
-				newNics = append(newNics, n)
-			} 
-		}
-		domainInfo.NicParams.Nics = newNics
+	if err = m.detachDevice(params.UUID, string(ifxml[:])); err != nil {
+		return nil, err
 	}
+
+	if err = m.updateNics(params.UUID); err!=nil {
+		return nil, err
+	}
+
 	return nil, err
 }
 
@@ -1526,11 +1570,9 @@ func (m *kvmManager) getMachine(domain *libvirt.Domain) (Machine, error) {
 		targets = append(targets, ifc.Target.Dev)
 
 	}
-	m.domainsInfoRWMutex.Lock()
-	defer m.domainsInfoRWMutex.Unlock()
-	domainInfo, exists := m.domainsInfo[uuid]
-	if !exists {
-		return Machine{}, fmt.Errorf("couldn't get domaininfo for domain %s", uuid)
+	domainInfo, err := m.getDomainInfo(uuid)
+	if err != nil {
+		return Machine{}, err
 	}
 	return Machine{
 		ID:         int(id),
@@ -1820,13 +1862,11 @@ func (m *kvmManager) portforwardAdd(cmd *pm.Command) (interface{}, error) {
 	if !defaultNic {
 		return nil, fmt.Errorf("KVM doesn't have a default nic")
 	}
-	m.domainsInfoRWMutex.Lock()
-	defer m.domainsInfoRWMutex.Unlock()
-	domainInfo, exists := m.domainsInfo[params.UUID]
-	if !exists {
-		return nil, fmt.Errorf("couldn't get domaininfo for domain %s", params.UUID)
-	}
 
+	domainInfo, err := m.getDomainInfo(params.UUID)
+	if err != nil {
+		return nil, err
+	}
 	return nil, m.setPortForward(params.UUID, domainInfo.Sequence, params.HostPort, params.ContainerPort)
 }
 
@@ -1844,15 +1884,14 @@ func (m *kvmManager) portforwardRemove(cmd *pm.Command) (interface{}, error) {
 		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
 	}
 	err = socat.RemovePortForward(m.forwardId(params.UUID), params.HostPort, params.ContainerPort)
-	if err == nil {
-		m.domainsInfoRWMutex.Lock()
-		defer m.domainsInfoRWMutex.Unlock()
-		domaininfo, exists := m.domainsInfo[params.UUID]
-		if !exists {
-			return nil, fmt.Errorf("couldn't find domaininfo with uuid %s", params.UUID)
-		}
-		domaininfo.Port[params.HostPort] = params.ContainerPort
+	if err != nil {
+		return nil, err
 	}
+	domainInfo, err := m.getDomainInfo(params.UUID)
+	if err != nil {
+		return nil, err 
+	}
+	domainInfo.Port[params.HostPort] = params.ContainerPort
 
 	return nil, err
 

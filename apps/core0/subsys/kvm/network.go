@@ -50,12 +50,8 @@ func (m *kvmManager) setNetworking(args *NicParams, seq uint16, domain *Domain) 
 		inf *InterfaceDevice
 		err error
 	)
-	domainInfo, err := m.getDomainInfo(domain.UUID)
-	if err != nil {
-		return err
-	}
 
-	for i, nic := range args.Nics {
+	for _, nic := range args.Nics {
 		switch nic.Type {
 		case "default":
 			inf, err = m.prepareDefaultNetwork(domain.UUID, seq, args.Port)
@@ -71,7 +67,7 @@ func (m *kvmManager) setNetworking(args *NicParams, seq uint16, domain *Domain) 
 		if err != nil {
 			return err
 		}
-		domainInfo.Nics[i].HWAddress = inf.Mac.Address
+		// domainInfo.Nics[i].HWAddress = inf.Mac.Address
 		domain.Devices.Devices = append(domain.Devices.Devices, inf)
 	}
 
