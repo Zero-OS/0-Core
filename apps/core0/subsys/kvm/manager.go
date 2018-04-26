@@ -964,10 +964,6 @@ func (m *kvmManager) create(cmd *pm.Command) (uuid interface{}, err error) {
 	}
 	//
 
-
-	if err = m.updateNics(domain.UUID); err != nil {
-		return domain.UUID, err
-	}
 	return domain.UUID, nil
 }
 
