@@ -835,13 +835,15 @@ func (m *kvmManager) setPortForward(uuid string, seq uint16, host int, container
 	id := m.forwardId(uuid)
 	var err error
 
-	if err = socat.SetPortForward(id, ip, host, container); err == nil {
-		if domaininfo, err := m.getDomainInfo(uuid); err == nil {
-			domaininfo.Port[host] = container
-		} else {
-			return err 
-		}
-	} 
+	if err = socat.SetPortForward(id, ip, host, container); err != nil {
+		return err
+	}
+
+	domaininfo, err := m.getDomainInfo(uuid)
+	if err != nil {
+		return err
+	}
+	domaininfo.Port[host] = container
 	return err
 }
 
@@ -965,29 +967,6 @@ func (m *kvmManager) create(cmd *pm.Command) (uuid interface{}, err error) {
 	//
 
 	return domain.UUID, nil
-}
-
-func (m *kvmManager) updateNics(uuid string) error {
-	interfaceMacs := map[string]bool{}
-	domainInfo, err := m.getDomainInfo(uuid) 
-	if err != nil {
-		return err
-	}
-	newNics := make([]Nic, len(interfaceMacs))
-	domainstruct, err := m.getDomainStruct(uuid)
-	if err != nil {
-		return err
-	}
-	for _, inf := range domainstruct.Devices.Interfaces {
-		interfaceMacs[inf.Mac.Address] = true
-	}
-	for _, nic := range domainInfo.Nics {
-		if _, exists := interfaceMacs[nic.HWAddress]; exists{
-			newNics = append(newNics, nic)
-		} 
-	}
-	domainInfo.Nics = newNics
-	return nil
 }
 
 func (m *kvmManager) prepareMigrationTarget(cmd *pm.Command) (interface{}, error) {
@@ -1326,6 +1305,29 @@ func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 	domainInfo.Nics = append(domainInfo.Nics, nic)
 
 	return nil, err
+}
+// used to reflect the removed nics in the domaininfo metadata from the domain struct.
+func (m *kvmManager) updateNics(uuid string) error {
+	interfaceMacs := map[string]bool{}
+	domainInfo, err := m.getDomainInfo(uuid) 
+	if err != nil {
+		return err
+	}
+	newNics := make([]Nic, len(interfaceMacs))
+	domainstruct, err := m.getDomainStruct(uuid)
+	if err != nil {
+		return err
+	}
+	for _, inf := range domainstruct.Devices.Interfaces {
+		interfaceMacs[inf.Mac.Address] = true
+	}
+	for _, nic := range domainInfo.Nics {
+		if _, exists := interfaceMacs[nic.HWAddress]; exists{
+			newNics = append(newNics, nic)
+		} 
+	}
+	domainInfo.Nics = newNics
+	return nil
 }
 
 func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
