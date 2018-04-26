@@ -1169,6 +1169,106 @@ func (m *kvmManager) detachDevice(uuid, ifxml string) error {
 	return nil
 }
 
+func mediaFromDisks(disks []DiskDevice) ([]Media){
+	medias := make([]Media, len(disks))
+	for _, disk := range disks {
+		url := url.URL{}
+		m := Media{}
+		m.Type = disk.Device
+		m.Bus = disk.Target.Bus
+		switch disk.Type {
+		case DiskTypeNetwork:
+		  url.Scheme = "nbd+tcp"
+		  url.Host = disk.Source.Host.Name + fmt.Sprintf(":%s", disk.Source.Host.Port)
+		  m.URL = url.String()
+		case DiskTypeFile:
+		  m.URL = disk.Source.File
+		}
+		medias = append(medias, m)
+	}
+	return medias
+}
+func mediaFromZDBString(zdb string) (Media, error){
+	media := Media{}
+	if !strings.HasPrefix(zdb, "driver=zdb"){
+		return media, fmt.Errorf("couldn't find driver=zdb string in %s", zdb)
+	}
+	qparams := url.Values{}
+	url := url.URL{}
+	parts := strings.Split(zdb, ",")
+	var urlprotocol, socketpath, host, port, password, namespace, blocksize, size string
+	for _, part := range parts {
+		pair := strings.Split(part, "=")
+		k, v := pair[0], pair[1]
+		switch k {
+		case "socket":
+			socketpath = v
+			urlprotocol = "zdb+unix://"
+		case "host":
+			host = v
+			urlprotocol = "zdb+tcp://"
+		case "port":
+			port = v
+		case "password":
+			password = v
+		case "namespace":
+			namespace = v
+		case "blocksize":
+			blocksize = v
+		case size:
+			size = v
+		}
+		if socketpath != ""{
+			url.Path = urlprotocol + socketpath
+		}
+		if host != "" {
+			url.Host = urlprotocol + host 
+		}
+		if port != "" {
+			url.Host = url.Host + ":"+port
+		}
+		if password != "" {
+			qparams.Add("password", password)
+		}
+		if namespace != "" {
+			qparams.Add("namespace", namespace)
+		}
+		if blocksize != "" {
+			qparams.Add("blocksize", blocksize)
+		}
+		if size != "" {
+		qparams.Add("size", size)
+		}
+		url.RawQuery = qparams.Encode()
+		media.URL = url.String()
+	}
+	return media, nil
+}
+
+func (m *kvmManager) updateMediaInfo(uuid string) error {
+	domainInfo, err := m.getDomainInfo(uuid) 
+	if err != nil {
+		return err
+	}
+	domainstruct, err := m.getDomainStruct(uuid)
+	if err != nil {
+		return err
+	}
+
+	medias := mediaFromDisks(domainstruct.Devices.Disks)
+
+	for _, arg := range domainstruct.Qemu.Args {
+		media, err := mediaFromZDBString(arg.Value)
+		if err!=nil {
+			return err
+		}
+		medias = append(medias, media)
+	}
+	domainInfo.Media = medias
+	return nil
+}
+
+
 func (m *kvmManager) attachDisk(cmd *pm.Command) (interface{}, error) {
 	var params ManDiskParams
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
@@ -1190,7 +1290,11 @@ func (m *kvmManager) attachDisk(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal disk to xml")
 	}
-	return nil, m.attachDevice(params.UUID, string(diskxml[:]))
+	if err := m.attachDevice(params.UUID, string(diskxml[:])) ; err!=nil {
+		return nil, err
+	}
+	m.updateMediaInfo(params.UUID)
+	return nil, nil
 }
 
 func (m *kvmManager) detachDisk(cmd *pm.Command) (interface{}, error) {
@@ -1220,7 +1324,11 @@ func (m *kvmManager) detachDisk(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal disk to xml")
 	}
-	return nil, m.detachDevice(params.UUID, string(diskxml[:]))
+	if err := m.detachDevice(params.UUID, string(diskxml[:])); err!=nil{
+		return nil, err
+	}
+	m.updateMediaInfo(params.UUID)
+	return nil, nil
 }
 
 func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
