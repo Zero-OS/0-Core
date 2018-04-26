@@ -519,6 +519,16 @@ func (m *kvmManager) getDomainStruct(uuid string) (*Domain, error) {
 	return &domainstruct, nil
 }
 
+func (m *kvmManager) getDomainInfo(uuid string) (*DomainInfo, error) {
+	m.domainsInfoRWMutex.RLock()
+	defer m.domainsInfoRWMutex.RUnlock()
+	domaininfo, exists := m.domainsInfo[uuid]
+	if !exists {
+		return domaininfo, fmt.Errorf("")
+	}
+	return domaininfo, nil
+}
+
 func (m *kvmManager) setupDefaultGateway() error {
 	cmd := &pm.Command{
 		ID:      uuid.New(),
@@ -827,11 +837,9 @@ func (m *kvmManager) setPortForward(uuid string, seq uint16, host int, container
 
 	err := socat.SetPortForward(id, ip, host, container)
 	if err == nil {
-		m.domainsInfoRWMutex.Lock()
-		defer m.domainsInfoRWMutex.Unlock()
-		domaininfo, exists := m.domainsInfo[uuid]
-		if !exists {
-			return fmt.Errorf("couldn't find domaininfo with uuid %s", uuid)
+		domaininfo, err := m.getDomainInfo(uuid)
+		if err != nil {
+			return err 
 		}
 		domaininfo.Port[host] = container
 	}
@@ -844,7 +852,6 @@ func (m *kvmManager) setPortForwards(uuid string, seq uint16, port map[int]int) 
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -1222,11 +1229,9 @@ func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	m.domainsInfoRWMutex.RLock()
-	domainInfo, exists := m.domainsInfo[params.UUID]
-	m.domainsInfoRWMutex.RUnlock()
-	if !exists {
-		return nil, fmt.Errorf("couldn't find domaininfo for domain %s", params.UUID)
+	domainInfo, err := m.getDomainInfo(params.UUID)
+	if err != nil {
+		return nil, err
 	}
 
 	switch nic.Type {
@@ -1255,12 +1260,8 @@ func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 		return nil, err
 	}
 	
-	m.domainsInfoRWMutex.Lock()
-	domainInfo, exists = m.domainsInfo[params.UUID]
 	// We check for the default network upfront
 	nic.HWAddress = inf.Mac.Address
-	domainInfo.Nics = append(domainInfo.Nics, nic)
-	m.domainsInfoRWMutex.Unlock()
 	if nic.Type != "default" {
 		for _, nic := range domainstruct.Devices.Interfaces {
 			if nic.Source == inf.Source {
@@ -1273,7 +1274,13 @@ func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal nic to xml")
 	}
-	return nil, m.attachDevice(params.UUID, string(ifxml[:]))
+
+	
+	err = m.attachDevice(params.UUID, string(ifxml[:]))
+	if err == nil {
+		domainInfo.Nics = append(domainInfo.Nics, nic)
+	}
+	return nil, err
 }
 
 func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
@@ -1293,22 +1300,10 @@ func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
 		HWAddress: params.HWAddress,
 	}
 
-
-	m.domainsInfoRWMutex.Lock()
-	domainInfo, exists := m.domainsInfo[params.UUID]
-	if !exists{
-		return nil, fmt.Errorf("couldn't find domaininfo for domain %s", params.UUID)
+	domainInfo, err := m.getDomainInfo(params.UUID)
+	if err != nil {
+		return nil, err
 	}
-	newNics := make([]Nic,len(domainInfo.Nics)) 
-	// We check for the default network upfront
-	for _, n := range domainInfo.Nics {
-		if n.HWAddress != nic.HWAddress {
-			newNics = append(newNics, n)
-		} 
-	}
-	domainInfo.NicParams.Nics = newNics
-	m.domainsInfoRWMutex.Unlock()
-
 
 	
 	switch nic.Type {
@@ -1351,7 +1346,18 @@ func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal nic to xml")
 	}
-	return nil, m.detachDevice(params.UUID, string(ifxml[:]))
+	err = m.detachDevice(params.UUID, string(ifxml[:]))
+	if err == nil {
+		newNics := make([]Nic,len(domainInfo.Nics)) 
+		// We check for the default network upfront
+		for _, n := range domainInfo.Nics {
+			if n.HWAddress != nic.HWAddress {
+				newNics = append(newNics, n)
+			} 
+		}
+		domainInfo.NicParams.Nics = newNics
+	}
+	return nil, err
 }
 
 func (m *kvmManager) limitDiskIO(cmd *pm.Command) (interface{}, error) {
