@@ -826,7 +826,7 @@ func (m *kvmManager) setPortForward(uuid string, seq uint16, host int, container
 
 
 	err := socat.SetPortForward(id, ip, host, container)
-	if err != nil {
+	if err == nil {
 		m.domainsInfoRWMutex.Lock()
 		defer m.domainsInfoRWMutex.Unlock()
 		domaininfo, exists := m.domainsInfo[uuid]
@@ -1838,7 +1838,7 @@ func (m *kvmManager) portforwardRemove(cmd *pm.Command) (interface{}, error) {
 		return nil, fmt.Errorf("couldn't find domain with the uuid %s", params.UUID)
 	}
 	err = socat.RemovePortForward(m.forwardId(params.UUID), params.HostPort, params.ContainerPort)
-	if err != nil {
+	if err == nil {
 		m.domainsInfoRWMutex.Lock()
 		defer m.domainsInfoRWMutex.Unlock()
 		domaininfo, exists := m.domainsInfo[params.UUID]
