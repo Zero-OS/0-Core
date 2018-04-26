@@ -300,7 +300,7 @@ Sync all files from your JumpScale code directory to the container - very handy 
 js9_node sync -i js9_sandbox
 ```
 
-<a id="executorr"></a>
+<a id="executor"></a>
 
 ## Interact with the container using an executor
 
