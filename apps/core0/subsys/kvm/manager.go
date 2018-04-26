@@ -951,7 +951,6 @@ func (m *kvmManager) create(cmd *pm.Command) (uuid interface{}, err error) {
 		return nil, fmt.Errorf("failed to create machine: %s", err)
 	}
 
-	
 	// ENSURE TO UPDATE macaddress of domaininfo nics in this stage.
 	domainstruct, err := m.getDomainStruct(domain.UUID)
 	if err != nil {
@@ -990,7 +989,7 @@ func (m *kvmManager) prepareMigrationTarget(cmd *pm.Command) (interface{}, error
 	if err := m.setNetworking(&params.NicParams, seq, &domain); err != nil {
 		return nil, err
 	}
-	
+
 	return nil, nil
 }
 
@@ -1276,7 +1275,7 @@ func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// We check for the default network upfront
 	if nic.Type != "default" {
 		for _, nic := range domainstruct.Devices.Interfaces {
@@ -1291,8 +1290,7 @@ func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 		return nil, fmt.Errorf("cannot marshal nic to xml")
 	}
 
-	
-	if err = m.attachDevice(params.UUID, string(ifxml[:])); err!=nil {
+	if err = m.attachDevice(params.UUID, string(ifxml[:])); err != nil {
 		return nil, err
 	}
 	domainstruct, err = m.getDomainStruct(params.UUID)
@@ -1305,10 +1303,11 @@ func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 
 	return nil, err
 }
+
 // used to reflect the removed nics in the domaininfo metadata from the domain struct.
 func (m *kvmManager) updateNics(uuid string) error {
 	interfaceMacs := map[string]bool{}
-	domainInfo, err := m.getDomainInfo(uuid) 
+	domainInfo, err := m.getDomainInfo(uuid)
 	if err != nil {
 		return err
 	}
@@ -1321,9 +1320,9 @@ func (m *kvmManager) updateNics(uuid string) error {
 		interfaceMacs[inf.Mac.Address] = true
 	}
 	for _, nic := range domainInfo.Nics {
-		if _, exists := interfaceMacs[nic.HWAddress]; exists{
+		if _, exists := interfaceMacs[nic.HWAddress]; exists {
 			newNics = append(newNics, nic)
-		} 
+		}
 	}
 	domainInfo.Nics = newNics
 	return nil
@@ -1390,7 +1389,7 @@ func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	if err = m.updateNics(params.UUID); err!=nil {
+	if err = m.updateNics(params.UUID); err != nil {
 		return nil, err
 	}
 
@@ -1882,7 +1881,7 @@ func (m *kvmManager) portforwardRemove(cmd *pm.Command) (interface{}, error) {
 	}
 	domainInfo, err := m.getDomainInfo(params.UUID)
 	if err != nil {
-		return nil, err 
+		return nil, err
 	}
 	domainInfo.Port[params.HostPort] = params.ContainerPort
 

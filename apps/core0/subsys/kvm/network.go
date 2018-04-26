@@ -240,7 +240,7 @@ func (m *kvmManager) prepareDefaultNetwork(uuid string, seq uint16, port map[int
 	}
 
 	//start port forwarders
-	if err :=  m.setPortForwards(uuid, seq, port); err != nil {
+	if err := m.setPortForwards(uuid, seq, port); err != nil {
 		return nil, err
 	}
 	return &inf, nil
