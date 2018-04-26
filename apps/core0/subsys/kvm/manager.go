@@ -1016,10 +1016,6 @@ func (m *kvmManager) prepareMigrationTarget(cmd *pm.Command) (interface{}, error
 		return nil, err
 	}
 	
-	if err := m.updateNics(params.UUID); err!=nil {
-		return nil, err
-	}
-	
 	return nil, nil
 }
 
