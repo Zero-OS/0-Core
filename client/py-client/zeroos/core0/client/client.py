@@ -962,7 +962,7 @@ class ContainerClient(BaseClient):
 
 class ContainerManager:
     _nic = {
-        'type': typchk.Enum('default', 'bridge', 'zerotier', 'vlan', 'vxlan'),
+        'type': typchk.Enum('default', 'bridge', 'zerotier', 'vlan', 'vxlan', 'macvlan'),
         'id': typchk.Or(str, typchk.Missing()),
         'name': typchk.Or(str, typchk.Missing()),
         'hwaddr': typchk.Or(str, typchk.Missing()),
@@ -1036,8 +1036,8 @@ class ContainerManager:
         :param nics: Configure the attached nics to the container
                      each nic object is a dict of the format
                      {
-                        'type': nic_type # default, bridge, zerotier, vlan, or vxlan (note, vlan and vxlan only supported by ovs)
-                        'id': id # depends on the type, bridge name, zerotier network id, the vlan tag or the vxlan id
+                        'type': nic_type # default, bridge, zerotier, macvlan, vlan, or vxlan (note, vlan and vxlan only supported by ovs)
+                        'id': id # depends on the type, bridge name, zerotier network id, the parent link (macvlan), the vlan tag or the vxlan id
                         'name': name of the nic inside the container (ignored in zerotier type)
                         'hwaddr': Mac address of nic.
                         'config': { # config is only honored for bridge, vlan, and vxlan types
@@ -1126,8 +1126,8 @@ class ContainerManager:
 
         :param container: container ID
         :param nic: {
-                        'type': nic_type # default, bridge, zerotier, vlan, or vxlan (note, vlan and vxlan only supported by ovs)
-                        'id': id # depends on the type, bridge name, zerotier network id, the vlan tag or the vxlan id
+                        'type': nic_type # default, bridge, zerotier, macvlan, vlan, or vxlan (note, vlan and vxlan only supported by ovs)
+                        'id': id # depends on the type, bridge name, zerotier network id, the parent link (macvlan), the vlan tag or the vxlan id
                         'name': name of the nic inside the container (ignored in zerotier type)
                         'hwaddr': Mac address of nic.
                         'config': { # config is only honored for bridge, vlan, and vxlan types
@@ -1757,7 +1757,7 @@ class DiskManager:
         result = response.get()
         if result.state != 'SUCCESS':
             raise RuntimeError("Failed to spindown disk {} to {}.".format(disk, spindown))
- 
+
 class BtrfsManager:
     _create_chk = typchk.Checker({
         'label': str,

@@ -3,6 +3,13 @@ package containers
 import (
 	"encoding/json"
 	"fmt"
+	"math"
+	"net/url"
+	"os"
+	"path"
+	"strings"
+	"sync"
+
 	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
 	"github.com/zero-os/0-core/apps/core0/helper/socat"
@@ -12,12 +19,6 @@ import (
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/settings"
 	"github.com/zero-os/0-core/base/utils"
-	"math"
-	"net/url"
-	"os"
-	"path"
-	"strings"
-	"sync"
 )
 
 const (
@@ -161,6 +162,11 @@ func (c *ContainerCreateArguments) Validate() error {
 			brcounter[nic.ID]++
 			if brcounter[nic.ID] > 1 {
 				return fmt.Errorf("connecting to bridge '%s' more than one time is not allowed", nic.ID)
+			}
+		case "macvlan":
+			brcounter[nic.ID]++
+			if brcounter[nic.ID] > 1 {
+				return fmt.Errorf("connecting to link '%s' more than one time is not allowed", nic.ID)
 			}
 		case "vlan":
 		case "vxlan":
@@ -444,6 +450,10 @@ func (m *containerManager) nicRemove(cmd *pm.Command) (interface{}, error) {
 
 		nic.State = NicStateDestroyed
 		return nil, nil
+	}
+
+	if nic.Type == "macvlan" {
+		return nil, container.unLink(args.Index, nic)
 	}
 
 	var ovs Container
