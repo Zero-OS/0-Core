@@ -91,7 +91,7 @@ def create_pkt_machine(manager, branch):
         dev = manager.get_device(device.id)
         if dev.state == 'active':
             break
-    time.sleep(5)
+    time.sleep(30)
 
     print('preparing machine for tests')
     config = configparser.ConfigParser()
