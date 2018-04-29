@@ -50,11 +50,7 @@ var (
 					Type:     nft.TypeFilter,
 					Hook:     "forward",
 					Priority: 0,
-					Policy:   "drop",
-					Rules: []nft.Rule{
-						{Body: "ct state {established, related} accept"},
-						{Body: "meta mark 1 accept"}, // all bridges we create with nat support has this mart set
-					},
+					Policy:   "accept",
 				},
 				"output": nft.Chain{
 					Type:     nft.TypeFilter,
