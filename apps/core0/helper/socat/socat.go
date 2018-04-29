@@ -10,6 +10,10 @@ import (
 	"github.com/op/go-logging"
 )
 
+const (
+	addressAll = "0.0.0.0"
+)
+
 var (
 	log  = logging.MustGetLogger("socat")
 	lock sync.Mutex
@@ -25,6 +29,32 @@ type rule struct {
 
 func (r rule) Rule(host int) string {
 	return fmt.Sprintf("tcp dport %d dnat to %s:%d", host, r.ip, r.port)
+}
+
+type source struct {
+	ip   string
+	port int
+}
+
+func getSource(src string) (source, error) {
+	parts := strings.SplitN(src, ":", 2)
+	var r = source{
+		ip: addressAll,
+	}
+
+	if _, err := fmt.Sscanf(parts[len(parts)-1], "%d", &r.port); err != nil {
+		return r, err
+	}
+
+	if r.port <= 0 || r.port >= 65536 {
+		return r, fmt.Errorf("invalid port number")
+	}
+
+	if len(parts) == 2 {
+		r.ip = parts[0]
+	}
+
+	return r, nil
 }
 
 //SetPortForward create a single port forward from host, to dest in this namespace
