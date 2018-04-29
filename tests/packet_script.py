@@ -56,14 +56,6 @@ def delete_device(manager):
                 else:
                     print("%s hasn't been deleted" % hostname)
 
-def mount_disks(config):
-    target_ip = config['main']['target_ip']
-    time.sleep(10)
-    cl = client.Client(target_ip, timeout=300)
-    cl.timeout = 100
-    cl.btrfs.create('storage', ['/dev/sda'])
-    cl.disk.mount('/dev/sda', '/var/cache', options=[""])
-
 
 def check_status(found, branch):
     session = requests.Session()
@@ -108,7 +100,6 @@ def create_pkt_machine(manager, branch):
     config['main']['machine_hostname'] = hostname
     with open('config.ini', 'w') as configfile:
         config.write(configfile)
-    mount_disks(config)
 
 
 if __name__ == '__main__':
