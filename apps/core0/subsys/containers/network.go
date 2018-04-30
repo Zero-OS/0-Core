@@ -411,7 +411,7 @@ func (c *container) forwardId() string {
 	return fmt.Sprintf("container-%d", c.id)
 }
 
-func (c *container) setPortForward(host int, dest int) error {
+func (c *container) setPortForward(host string, dest int) error {
 	ip := c.getDefaultIP().String()
 	return socat.SetPortForward(c.forwardId(), ip, host, dest)
 }

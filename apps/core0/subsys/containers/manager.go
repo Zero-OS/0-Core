@@ -88,7 +88,7 @@ type ContainerCreateArguments struct {
 	HostNetwork bool              `json:"host_network"` //share host networking stack
 	Identity    string            `json:"identity"`     //zerotier identity
 	Nics        []*Nic            `json:"nics"`         //network setup (only respected if HostNetwork is false)
-	Port        map[int]int       `json:"port"`         //port forwards (only if default networking is enabled)
+	Port        map[string]int    `json:"port"`         //port forwards (only if default networking is enabled)
 	Privileged  bool              `json:"privileged"`   //Apply cgroups and capabilities limitations on the container
 	Hostname    string            `json:"hostname"`     //hostname
 	Storage     string            `json:"storage"`      //ardb storage needed for g8ufs mounts.
@@ -105,7 +105,7 @@ type ContainerDispatchArguments struct {
 type containerPortForward struct {
 	Container     uint16 `json:"container"`
 	ContainerPort int    `json:"container_port"`
-	HostPort      int    `json:"host_port"`
+	HostPort      string `json:"host_port"`
 }
 
 func (c *ContainerCreateArguments) Validate() error {
@@ -135,8 +135,8 @@ func (c *ContainerCreateArguments) Validate() error {
 	}
 
 	for host, guest := range c.Port {
-		if host < 0 || host > 65535 {
-			return fmt.Errorf("invalid host port '%d'", host)
+		if !socat.ValidHost(host) {
+			return fmt.Errorf("invalid host port '%s'", host)
 		}
 		if guest < 0 || guest > 65535 {
 			return fmt.Errorf("invalid guest port '%d'", guest)

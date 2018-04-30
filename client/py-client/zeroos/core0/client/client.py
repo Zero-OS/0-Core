@@ -988,6 +988,7 @@ class ContainerManager:
         'nics': [_nic],
         'port': typchk.Or(
             typchk.Map(int, int),
+            typchk.Map(str, int),
             typchk.IsNone()
         ),
         'privileged': bool,
@@ -1016,8 +1017,6 @@ class ContainerManager:
     })
 
     DefaultNetworking = object()
-
-
 
     def __init__(self, client):
         self._client = client
@@ -2053,6 +2052,7 @@ class KvmManager:
         }],
         'port': typchk.Or(
             typchk.Map(int, int),
+            typchk.Map(str, int),
             typchk.IsNone()
         ),
         'mount': typchk.Or(
@@ -2077,6 +2077,7 @@ class KvmManager:
         }],
         'port': typchk.Or(
             typchk.Map(int, int),
+            typchk.Map(str, int),
             typchk.IsNone()
         ),
         'uuid': str

@@ -184,8 +184,8 @@ type Nic struct {
 	HWAddress string `json:"hwaddr"`
 }
 type NicParams struct {
-	Nics []Nic       `json:"nics"`
-	Port map[int]int `json:"port"`
+	Nics []Nic          `json:"nics"`
+	Port map[string]int `json:"port"`
 }
 
 type Mount struct {
@@ -217,7 +217,7 @@ type FListBootConfig struct {
 type kvmPortForward struct {
 	UUID          string `json:"uuid"`
 	ContainerPort int    `json:"container_port"`
-	HostPort      int    `json:"host_port"`
+	HostPort      string `json:"host_port"`
 }
 
 func (c *CreateParams) Valid() error {
@@ -820,13 +820,13 @@ func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error)
 	return &domain, nil
 }
 
-func (m *kvmManager) setPortForward(uuid string, seq uint16, host int, container int) error {
+func (m *kvmManager) setPortForward(uuid string, seq uint16, host string, container int) error {
 	ip := m.ipAddr(seq)
 	id := m.forwardId(uuid)
 	return socat.SetPortForward(id, ip, host, container)
 }
 
-func (m *kvmManager) setPortForwards(uuid string, seq uint16, port map[int]int) error {
+func (m *kvmManager) setPortForwards(uuid string, seq uint16, port map[string]int) error {
 	for host, container := range port {
 		if err := m.setPortForward(uuid, seq, host, container); err != nil {
 			return err
@@ -1226,7 +1226,7 @@ func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 			return nil, fmt.Errorf("in setup networking couldn't get domaininfo for domain %s", params.UUID)
 		}
 
-		inf, err = m.prepareDefaultNetwork(params.UUID, domainInfo.Sequence, map[int]int{})
+		inf, err = m.prepareDefaultNetwork(params.UUID, domainInfo.Sequence, map[string]int{})
 	case "bridge":
 		if nic.ID == DefaultBridgeName {
 			err = fmt.Errorf("the default bridge for the vm should not be added manually")

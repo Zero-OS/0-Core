@@ -2,6 +2,7 @@ package socat
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"sync"
 
@@ -21,19 +22,24 @@ var (
 	rules = map[int]rule{}
 )
 
-type rule struct {
-	ns   string
-	port int
-	ip   string
-}
-
-func (r rule) Rule(host int) string {
-	return fmt.Sprintf("tcp dport %d dnat to %s:%d", host, r.ip, r.port)
-}
-
 type source struct {
 	ip   string
 	port int
+}
+
+func (s source) String() string {
+	if addr := net.ParseIP(s.ip); addr != nil {
+		if s.ip == "0.0.0.0" {
+			return fmt.Sprintf("tcp dport %d", s.port)
+		}
+		return fmt.Sprintf("ip saddr %s tcp dport %d", s.ip, s.port)
+	} else if _, _, err := net.ParseCIDR(s.ip); err == nil {
+		//NETWORK
+		return fmt.Sprintf("ip saddr %s tcp dport %d", s.ip, s.port)
+
+	}
+	//assume interface name
+	return fmt.Sprintf("iifname \"%s\" tcp dport %d", s.ip, s.port)
 }
 
 func getSource(src string) (source, error) {
@@ -57,23 +63,47 @@ func getSource(src string) (source, error) {
 	return r, nil
 }
 
+//ValidHost checks if the host string is valid
+//Valid hosts is (port, ip:port, or device:port)
+func ValidHost(host string) bool {
+	_, err := getSource(host)
+	return err == nil
+}
+
+type rule struct {
+	ns     string
+	source source
+	port   int
+	ip     string
+}
+
+func (r rule) Rule() string {
+	return fmt.Sprintf("%s dnat to %s:%d", r.source, r.ip, r.port)
+}
+
 //SetPortForward create a single port forward from host, to dest in this namespace
 //The namespace is used to group port forward rules so they all can get terminated
 //with one call later.
-func SetPortForward(namespace string, ip string, host int, dest int) error {
+func SetPortForward(namespace string, ip string, host string, dest int) error {
 	lock.Lock()
 	defer lock.Unlock()
 
+	src, err := getSource(host)
+	if err != nil {
+		return err
+	}
+
 	//NOTE: this will only check if the port is used for port forwarding
 	//if a port on the host is using this port it will get masked out
-	if _, exists := rules[host]; exists {
+	if _, exists := rules[src.port]; exists {
 		return fmt.Errorf("port already in use")
 	}
 
 	r := rule{
-		ns:   forwardId(namespace, host, dest),
-		port: dest,
-		ip:   ip,
+		ns:     forwardID(namespace, src.port, dest),
+		source: src,
+		port:   dest,
+		ip:     ip,
 	}
 
 	set := nft.Nft{
@@ -82,7 +112,7 @@ func SetPortForward(namespace string, ip string, host int, dest int) error {
 			Chains: nft.Chains{
 				"pre": nft.Chain{
 					Rules: []nft.Rule{
-						{Body: r.Rule(host)},
+						{Body: r.Rule()},
 					},
 				},
 			},
@@ -93,24 +123,29 @@ func SetPortForward(namespace string, ip string, host int, dest int) error {
 		return err
 	}
 
-	rules[host] = r
+	rules[src.port] = r
 	return nil
 }
 
-func forwardId(namespace string, host int, dest int) string {
+func forwardID(namespace string, host int, dest int) string {
 	return fmt.Sprintf("socat-%v-%v-%v", namespace, host, dest)
 }
 
 //RemovePortForward removes a single port forward
-func RemovePortForward(namespace string, host int, dest int) error {
+func RemovePortForward(namespace string, host string, dest int) error {
 	lock.Lock()
 	defer lock.Unlock()
-	rule, ok := rules[host]
-	if !ok {
-		return fmt.Errorf("no port forwrard from host port: %d", host)
+	src, err := getSource(host)
+	if err != nil {
+		return err
 	}
 
-	if rule.ns != forwardId(namespace, host, dest) {
+	rule, ok := rules[src.port]
+	if !ok {
+		return fmt.Errorf("no port forwrard from host port: %d", src.port)
+	}
+
+	if rule.ns != forwardID(namespace, src.port, dest) {
 		return fmt.Errorf("permission denied")
 	}
 
@@ -120,14 +155,19 @@ func RemovePortForward(namespace string, host int, dest int) error {
 			Chains: nft.Chains{
 				"pre": nft.Chain{
 					Rules: []nft.Rule{
-						{Body: rule.Rule(host)},
+						{Body: rule.Rule()},
 					},
 				},
 			},
 		},
 	}
 
-	return nft.Apply(set)
+	if err := nft.DropRules(set); err != nil {
+		return err
+	}
+
+	delete(rules, src.port)
+	return nil
 }
 
 //RemoveAll remove all port forwrards that were created in this namespace.
@@ -144,7 +184,7 @@ func RemoveAll(namespace string) error {
 		}
 
 		todelete = append(todelete, nft.Rule{
-			Body: r.Rule(host),
+			Body: r.Rule(),
 		})
 
 		hostPorts = append(hostPorts, host)
