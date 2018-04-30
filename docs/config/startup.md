@@ -52,6 +52,16 @@ Bash for example requires only `script` argument also accepts `stdin`
 > Startup `args` section also supports the `{variable}` name substitution. But it substitute the keys
 with values passed to the kernel cmdline.
 
+## Startup `args` conditions
+Sometimes you want to apply different arguments based on a condition. Similar to the condition parameter above which control the entire service startup, an argument
+can prefixed with a condition string. If the condition is not evaluated to true, the argument is dropped from the args block.
+
+```
+condition|argname = value
+```
+
+A real life example use of this option can be found [here](../../apps/core0/conf/redis.toml) where redis port opens on zt0 interface only if `zerotier` is set
+
 ## Condition Syntax
 ```
 expression := and(expression, expression, ...)
