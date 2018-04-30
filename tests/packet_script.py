@@ -78,6 +78,21 @@ def check_status(found, branch):
     time.sleep(1)
 
 
+def check_disks_mounted(config):
+    target_ip = config['main']['target_ip']
+    time.sleep(10)
+    cl = client.Client(target_ip, timeout=300)
+    cl.timeout = 100
+    cl.system('sh /usr/bin/ensurecache.sh').get()
+    cl.bash('''
+            ROOT=/var/cache
+            btrfs subvol create ${ROOT}/zrobot || true
+            for dir in ssh data config jsconfig; do
+                mkdir -p ${ROOT}/zrobot/${dir}
+            done''').get()
+    cl.container.terminate(1)
+
+
 def create_pkt_machine(manager, branch):
     hostname = '0core{}-travis'.format(randint(100, 300))
     try:
@@ -102,6 +117,7 @@ def create_pkt_machine(manager, branch):
     config['main']['machine_hostname'] = hostname
     with open('config.ini', 'w') as configfile:
         config.write(configfile)
+    check_disks_mounted(config)
 
 
 if __name__ == '__main__':
