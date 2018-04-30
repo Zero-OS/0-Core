@@ -93,7 +93,7 @@ def create_pkt_machine(manager, branch):
         if dev.state == 'active':
             break
     print('Giving the machine time till it finish booting')
-    time.sleep(100)
+    time.sleep(150)
 
     print('preparing machine for tests')
     config = configparser.ConfigParser()
