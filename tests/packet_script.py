@@ -89,9 +89,11 @@ def create_pkt_machine(manager, branch):
     print('provisioning the new machine ..')
     while True:
         dev = manager.get_device(device.id)
+        time.sleep(5)
         if dev.state == 'active':
             break
-    time.sleep(50)
+    print('Giving the machine time till it finish booting')
+    time.sleep(100)
 
     print('preparing machine for tests')
     config = configparser.ConfigParser()
