@@ -23,19 +23,12 @@ args = [
     "--listen", "0.0.0.0:6379"
 ]
 
-[startup."redis-proxy-pub"]
+[startup.redis-port]
 name = "nft.open_port"
-#open on all interfaces if development is set and zerotier is not set
-condition = "and(development, not(zerotier))"
+#open port only if `development`
+condition = "development"
 
-[startup."redis-proxy-pub".args]
+[startup.redis-port.args]
 port=6379
-
-[startup."redis-proxy-zt"]
-name = "nft.open_port"
-# only open on the zt interface if both development and zerotier are set
-condition = "and(development, zerotier)"
-
-[startup."redis-proxy-zt".args]
-port=6379
-interface="zt0"
+#only set interface to zt0 if zerotier is set
+"zerotier: interface" = "zt0"

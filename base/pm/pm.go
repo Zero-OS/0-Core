@@ -198,18 +198,49 @@ func Start() {
 
 func processArgs(args map[string]interface{}, values map[string]interface{}) {
 	for key, value := range args {
+		parts := strings.SplitN(key, ":", 2)
+		if len(parts) == 2 {
+			//this key is in form of "cond:key" = value
+			exp, err := settings.GetExpression(strings.TrimSpace(parts[0]))
+			if err != nil {
+				log.Errorf("failed to process startup argument '%s': %s", key, err)
+				continue
+			}
+
+			delete(args, key)
+
+			if !exp.Examine(values) {
+				//the rule did not match, hide the argument
+				continue
+			}
+
+			key = strings.TrimSpace(parts[1])
+		}
+
 		switch value := value.(type) {
 		case string:
 			args[key] = utils.Format(value, values)
 		case []string:
-			newstrlist := make([]string, len(value))
+			var newstrlist []string
 			for _, strvalue := range value {
 				newstrlist = append(newstrlist, utils.Format(strvalue, values))
 			}
 			args[key] = newstrlist
+		case []interface{}:
+			var newstrlist []interface{}
+			for _, subvalue := range value {
+				if subvalue, ok := subvalue.(string); ok {
+					newstrlist = append(newstrlist, utils.Format(subvalue, values))
+				} else {
+					newstrlist = append(newstrlist, subvalue)
+				}
+			}
+
+			args[key] = newstrlist
+		case map[string]interface{}:
+			processArgs(value, values)
 		}
 	}
-
 }
 
 /*
