@@ -495,12 +495,14 @@ func (m *containerManager) createContainer(args ContainerCreateArguments) (*cont
 func (m *containerManager) createSync(cmd *pm.Command) (interface{}, error) {
 	var args ContainerCreateArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		log.Errorf("invalid container params: %s", err)
 		return nil, err
 	}
 
 	args.Tags = cmd.Tags
 	container, err := m.createContainer(args)
 	if err != nil {
+		log.Errorf("failed to start container: %s", err)
 		return nil, err
 	}
 

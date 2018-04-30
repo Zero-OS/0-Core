@@ -197,8 +197,9 @@ func Start() {
 }
 
 func processArgs(args map[string]interface{}, values map[string]interface{}) {
-	for key, value := range args {
-		parts := strings.SplitN(key, ":", 2)
+	for _, key := range utils.GetKeys(args) {
+		value := args[key]
+		parts := strings.SplitN(key, "|", 2)
 		if len(parts) == 2 {
 			//this key is in form of "cond:key" = value
 			exp, err := settings.GetExpression(strings.TrimSpace(parts[0]))
@@ -231,14 +232,15 @@ func processArgs(args map[string]interface{}, values map[string]interface{}) {
 			for _, subvalue := range value {
 				if subvalue, ok := subvalue.(string); ok {
 					newstrlist = append(newstrlist, utils.Format(subvalue, values))
-				} else {
-					newstrlist = append(newstrlist, subvalue)
+					continue
 				}
+				newstrlist = append(newstrlist, subvalue)
 			}
 
 			args[key] = newstrlist
 		case map[string]interface{}:
 			processArgs(value, values)
+			args[key] = value
 		}
 	}
 }

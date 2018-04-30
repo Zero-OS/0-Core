@@ -84,8 +84,8 @@ func TestProcessArgumentsCondition(t *testing.T) {
 	}
 
 	args := map[string]interface{}{
-		"name: value": "{name}",
-		"age: value":  "{age}",
+		"name| value": "{name}",
+		"age| value":  "{age}",
 	}
 
 	processArgs(args, values)
@@ -99,13 +99,58 @@ func TestProcessArgumentsCondition(t *testing.T) {
 	}
 
 	args = map[string]interface{}{
-		"name: value": "{name}",
-		"age : value": "{age}",
+		"name| value": "{name}",
+		"age | value": "{age}",
 	}
 
 	processArgs(args, values)
 
 	if ok := assert.Equal(t, "36", args["value"]); !ok {
+		t.Error()
+	}
+}
+
+func TestProcessArgumentsFromToml2(t *testing.T) {
+
+	source := `
+root = "https://hub.gig.tech/gig-autobuilder/zero-os-0-robot-autostart-0.5.1.flist"
+name = "zrobot"
+privileged = false
+host_network = false
+
+[args]
+[args."not(zerotier)|port"]
+"6600"=6600
+
+[args."zerotier|port"]
+"zt0:6600"=6600
+
+[[args.nics]]
+	type = "default"
+`
+
+	var args map[string]interface{}
+
+	if err := toml.Unmarshal([]byte(source), &args); err != nil {
+		t.Fatal(err)
+	}
+
+	values := map[string]interface{}{
+		"zerotier": "12345",
+	}
+
+	processArgs(args, values)
+
+	expected := map[string]interface{}{
+		"nics": []interface{}{
+			map[string]interface{}{"type": "default"},
+		},
+		"port": map[string]interface{}{
+			"zt0:6600": int64(6600),
+		},
+	}
+
+	if ok := assert.Equal(t, expected, args["args"]); !ok {
 		t.Error()
 	}
 }
