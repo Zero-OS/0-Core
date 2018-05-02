@@ -43,6 +43,7 @@ function preparedisk {
     parted -s ${DISK} mkpart primary btrfs 1 100%
     mkfs.btrfs ${DISK}1 -f -L ${LABEL}
     sync
+    partprobe
     udevadm settle
 
     return 0
