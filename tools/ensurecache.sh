@@ -42,6 +42,8 @@ function preparedisk {
     parted -s ${DISK} mktable gpt
     parted -s ${DISK} mkpart primary btrfs 1 100%
     mkfs.btrfs ${DISK}1 -f -L ${LABEL}
+    sync
+    udevadm settle
 
     return 0
 }
