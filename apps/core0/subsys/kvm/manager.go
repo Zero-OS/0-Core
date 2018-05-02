@@ -46,7 +46,6 @@ type DomainInfo struct {
 
 type LibvirtConnection struct {
 	handler libvirt.DomainEventLifecycleCallback
-
 	m    sync.Mutex
 	conn *libvirt.Connect
 }
@@ -121,7 +120,6 @@ func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) erro
 	}
 
 	mgr.libvirt.handler = mgr.handle
-
 	cell.Text = "Virtual Machines: 0"
 	if err := mgr.setupDefaultGateway(); err != nil {
 		return err
@@ -498,6 +496,7 @@ func (c *LibvirtConnection) getConnection() (*libvirt.Connect, error) {
 }
 
 func (m *kvmManager) getDomainStruct(uuid string) (*Domain, error) {
+	// m.libvirt.conn = nil // force new connection
 	conn, err := m.libvirt.getConnection()
 	if err != nil {
 		return nil, err
@@ -510,8 +509,20 @@ func (m *kvmManager) getDomainStruct(uuid string) (*Domain, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot get domain xml: %v", err)
 	}
+
+	// result, err := pm.System("virsh", "dumpxml", uuid)
+	// log.Info(" <<<<<<<<<<<<< FROM VIRSH >>>>>>>>>>>")
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// domainxml := result.Streams.Stdout()
+	// log.Info(domainxml)
+	// log.Info(">>>>>>>>>>>> DONE VIRSH OUTPUT <<<<<<<<<<")
+
 	domainstruct := Domain{}
+	// log.Info("\n\n\n JUST READ \n\n", domainxml)
 	err = xml.Unmarshal([]byte(domainxml), &domainstruct)
+
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse the domain xml: %v", err)
 	}
@@ -951,6 +962,7 @@ func (m *kvmManager) create(cmd *pm.Command) (uuid interface{}, err error) {
 		return nil, fmt.Errorf("failed to create machine: %s", err)
 	}
 
+
 	// ENSURE TO UPDATE macaddress of domaininfo nics in this stage.
 	domainstruct, err := m.getDomainStruct(domain.UUID)
 	if err != nil {
@@ -1147,14 +1159,14 @@ func (m *kvmManager) attachDevice(uuid, xml string) error {
 	if err != nil {
 		return fmt.Errorf("couldn't find domain with the uuid %s", uuid)
 	}
-	if err := domain.AttachDeviceFlags(xml, libvirt.DOMAIN_DEVICE_MODIFY_LIVE); err != nil {
+	if err = domain.AttachDeviceFlags(xml, libvirt.DOMAIN_DEVICE_MODIFY_LIVE); err != nil {
 		return fmt.Errorf("failed to attach device: %s", err)
 	}
 
 	return nil
 }
 
-func (m *kvmManager) detachDevice(uuid, xml string) error {
+func (m *kvmManager) detachDevice(uuid, ifxml string) error {
 	conn, err := m.libvirt.getConnection()
 	if err != nil {
 		return err
@@ -1164,9 +1176,29 @@ func (m *kvmManager) detachDevice(uuid, xml string) error {
 		return fmt.Errorf("couldn't find domain with the uuid %s", uuid)
 	}
 
-	if err := domain.DetachDeviceFlags(xml, libvirt.DOMAIN_DEVICE_MODIFY_CURRENT); err != nil {
-		return fmt.Errorf("failed to attach device: %s", err)
+	if err := domain.DetachDeviceFlags(ifxml, libvirt.DOMAIN_DEVICE_MODIFY_LIVE); err != nil {
+		return fmt.Errorf("failed to detach device: %s", err)
 	}
+
+	log.Info("INTERFACES NOW XML IS: \n\n")
+
+	domainstruct, err := m.getDomainStruct(uuid)
+	infsxml, err := xml.MarshalIndent(&domainstruct.Devices.Interfaces, "", " ")
+	if err != nil {
+		log.Error(err)
+	}
+	log.Info(string(infsxml), "\n\n")
+	log.Info("%v ", domainstruct.Devices.Interfaces)
+
+
+	result, err := pm.System("virsh", "dumpxml", uuid)
+	log.Info(" <<<<<<<<<<<<< FROM VIRSH >>>>>>>>>>>")
+	if err != nil {
+		return err
+	}
+	domainxml := result.Streams.Stdout()
+	log.Info(domainxml)
+	log.Info(">>>>>>>>>>>> DONE VIRSH OUTPUT <<<<<<<<<<")
 
 	return nil
 }
@@ -1289,10 +1321,10 @@ func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal nic to xml")
 	}
-
-	if err = m.attachDevice(params.UUID, string(ifxml[:])); err != nil {
+	if err = m.attachDevice(params.UUID, string(ifxml)); err != nil {
 		return nil, err
 	}
+	log.Info("SUCCESSFULLY ATTACHED NIC ", inf.Source.Bridge)
 	domainstruct, err = m.getDomainStruct(params.UUID)
 	if err != nil {
 		return nil, err
@@ -1316,14 +1348,22 @@ func (m *kvmManager) updateNics(uuid string) error {
 	if err != nil {
 		return err
 	}
+	log.Info("CURRENT DEVICE INTERFACES ARE :\n============\n %v", domainstruct.Devices.Interfaces)
 	for _, inf := range domainstruct.Devices.Interfaces {
+		log.Info("DEV: ", inf.Mac.Address)
 		interfaceMacs[inf.Mac.Address] = true
 	}
+	log.Info("=============\n\nActual interfaces now are: \n %v", interfaceMacs)
 	for _, nic := range domainInfo.Nics {
-		if _, exists := interfaceMacs[nic.HWAddress]; exists {
+		log.Info("Checking NIC: ", nic.ID, nic.HWAddress)
+
+		if v, exists := interfaceMacs[nic.HWAddress]; exists {
+			log.Info("V: ", v)
+			log.Info("Will keep nic: %v", nic)
 			newNics = append(newNics, nic)
 		}
 	}
+	log.Info("\n\nNEW NICS NOW ARE : \n %v", newNics)
 	domainInfo.Nics = newNics
 	return nil
 }
@@ -1339,6 +1379,7 @@ func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
 		return nil, err
 	}
+
 	nic := Nic{
 		Type:      params.Type,
 		ID:        params.ID,
@@ -1350,6 +1391,7 @@ func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
 		source = InterfaceDeviceSource{
 			Bridge: DefaultBridgeName,
 		}
+	
 	case "bridge":
 		source = InterfaceDeviceSource{
 			Bridge: nic.ID,
@@ -1367,6 +1409,7 @@ func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
 		return nil, err
 	}
 
+
 	domainstruct, err := m.getDomainStruct(params.UUID)
 	if err != nil {
 		return nil, err
@@ -1382,18 +1425,22 @@ func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
 	if inf == nil {
 		return nil, fmt.Errorf("The nic you tried is not attached to the vm")
 	}
+	log.Info("MYINF %v", inf)
+
 
 	ifxml, err := xml.MarshalIndent(inf, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal nic to xml")
 	}
-	if err = m.detachDevice(params.UUID, string(ifxml)); err != nil {
-		return nil, err
-	}
 
-	if err = m.updateNics(params.UUID); err != nil {
+	log.Info("\n\n**REMOVING NIC --->\n\n", string(ifxml))
+	if err = m.detachDevice(params.UUID, string(ifxml)); err != nil {
+		log.Info("WAITTT!! ERROR HAPPENED ", err)
 		return nil, err
 	}
+	log.Info("\n\n***SUCCESSFULLY DETACHED device: \n\n", inf.Source.Bridge, string(ifxml))
+
+	m.updateNics(params.UUID)
 
 	return nil, err
 }
