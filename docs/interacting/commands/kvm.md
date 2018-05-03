@@ -27,6 +27,12 @@ Arguments:
   'mount': [{'source': {source}, 'target': {target}, 'readonly': true|false}] //optional
 }
 ```
+**port**: Dict of `{host_port}: {container_port}` pairs
+
+  - Example: `port={'8080': 80, '7000':7000}`
+  - Example: `port={'192.168.1.1:8080': 80}` only accept connection from this ip
+  - Example: `port={'192.168.1.0/24:8080': 80}` only accept connection from this network
+  - Example: `port={'eth0:8080': 80}` only accept connection from this device
 
 <a id="destroy"></a>
 ## kvm.destroy
