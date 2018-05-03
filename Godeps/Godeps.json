@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/zero-os/0-core",
-	"GoVersion": "go1.9",
+	"GoVersion": "go1.8",
 	"GodepVersion": "v79",
 	"Packages": [
 		"./..."
@@ -51,8 +51,8 @@
 		},
 		{
 			"ImportPath": "github.com/libvirt/libvirt-go",
-			"Comment": "v3.2.0-13-gd1dd72b",
-			"Rev": "d1dd72b576736b3726d7f754bedcdd287c377e15"
+			"Comment": "v4.2.0-1-ge64ca89",
+			"Rev": "e64ca892afa892bbdbc72997c7851711600802ea"
 		},
 		{
 			"ImportPath": "github.com/mattn/go-runewidth",

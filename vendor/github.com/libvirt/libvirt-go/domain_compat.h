@@ -940,4 +940,92 @@ int virDomainSetBlockThresholdCompat(virDomainPtr domain,
 #define VIR_DOMAIN_JOB_OPERATION_DUMP 8
 #endif
 
+
+/* 3.4.0 */
+
+#ifndef VIR_DOMAIN_EVENT_SHUTDOWN_GUEST
+#define VIR_DOMAIN_EVENT_SHUTDOWN_GUEST 1
+#endif
+
+#ifndef VIR_DOMAIN_EVENT_SHUTDOWN_HOST
+#define VIR_DOMAIN_EVENT_SHUTDOWN_HOST 2
+#endif
+
+
+/* 3.5.0 */
+
+#ifndef VIR_DOMAIN_BLOCK_COPY_TRANSIENT_JOB
+#define VIR_DOMAIN_BLOCK_COPY_TRANSIENT_JOB 1 << 2
+#endif
+
+
+/* 3.7.0 */
+
+int virDomainMigrateGetMaxDowntimeCompat(virDomainPtr domain,
+					 unsigned long long *downtime,
+					 unsigned int flags);
+
+char *virDomainManagedSaveGetXMLDescCompat(virDomainPtr domain,
+					   unsigned int flags);
+int virDomainManagedSaveDefineXMLCompat(virDomainPtr domain,
+					const char *dxml,
+					unsigned int flags);
+
+/* 3.9.0 */
+
+#ifndef VIR_DOMAIN_JOB_MEMORY_PAGE_SIZE
+#define VIR_DOMAIN_JOB_MEMORY_PAGE_SIZE "memory_page_size"
+#endif
+
+#ifndef VIR_DOMAIN_LIFECYCLE_POWEROFF
+#define VIR_DOMAIN_LIFECYCLE_POWEROFF 0
+#endif
+
+#ifndef VIR_DOMAIN_LIFECYCLE_REBOOT
+#define VIR_DOMAIN_LIFECYCLE_REBOOT 1
+#endif
+
+#ifndef VIR_DOMAIN_LIFECYCLE_CRASH
+#define VIR_DOMAIN_LIFECYCLE_CRASH 2
+#endif
+
+#ifndef VIR_DOMAIN_LIFECYCLE_ACTION_DESTROY
+#define VIR_DOMAIN_LIFECYCLE_ACTION_DESTROY 0
+#endif
+
+#ifndef VIR_DOMAIN_LIFECYCLE_ACTION_RESTART
+#define VIR_DOMAIN_LIFECYCLE_ACTION_RESTART 1
+#endif
+
+#ifndef VIR_DOMAIN_LIFECYCLE_ACTION_RESTART_RENAME
+#define VIR_DOMAIN_LIFECYCLE_ACTION_RESTART_RENAME 2
+#endif
+
+#ifndef VIR_DOMAIN_LIFECYCLE_ACTION_PRESERVE
+#define VIR_DOMAIN_LIFECYCLE_ACTION_PRESERVE 3
+#endif
+
+#ifndef VIR_DOMAIN_LIFECYCLE_ACTION_COREDUMP_DESTROY
+#define VIR_DOMAIN_LIFECYCLE_ACTION_COREDUMP_DESTROY 4
+#endif
+
+#ifndef VIR_DOMAIN_LIFECYCLE_ACTION_COREDUMP_RESTART
+#define VIR_DOMAIN_LIFECYCLE_ACTION_COREDUMP_RESTART 5
+#endif
+
+int virDomainSetLifecycleActionCompat(virDomainPtr domain,
+                                      unsigned int type,
+                                      unsigned int action,
+                                      unsigned int flags);
+
+/* 4.2.0 */
+
+#ifndef VIR_KEYCODE_SET_QNUM
+#define VIR_KEYCODE_SET_QNUM 9
+#endif
+
+#ifndef VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_ARP
+#define VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_ARP 1
+#endif
+
 #endif /* LIBVIRT_GO_DOMAIN_COMPAT_H__ */

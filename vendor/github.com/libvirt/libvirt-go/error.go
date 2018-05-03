@@ -353,6 +353,9 @@ const (
 
 	// error in libssh transport driver
 	ERR_LIBSSH = ErrorNumber(C.VIR_ERR_LIBSSH)
+
+	// libvirt fail to find the desired device
+	ERR_DEVICE_MISSING = ErrorNumber(C.VIR_ERR_DEVICE_MISSING)
 )
 
 type ErrorDomain int
@@ -557,6 +560,9 @@ const (
 
 	// Error from libssh
 	FROM_LIBSSH = ErrorDomain(C.VIR_FROM_LIBSSH)
+
+	// Error from resoruce control
+	FROM_RESCTRL = ErrorDomain(C.VIR_FROM_RESCTRL)
 )
 
 type Error struct {

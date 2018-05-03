@@ -141,4 +141,16 @@
 #define VIR_FROM_LIBSSH 66
 #endif
 
+/* 3.7.0 */
+
+#ifndef VIR_FROM_RESCTRL
+#define VIR_FROM_RESCTRL 67
+#endif
+
+/* 4.1.0 */
+
+#ifndef VIR_ERR_DEVICE_MISSING
+#define VIR_ERR_DEVICE_MISSING 99
+#endif
+
 #endif /* LIBVIRT_GO_ERROR_COMPAT_H__ */

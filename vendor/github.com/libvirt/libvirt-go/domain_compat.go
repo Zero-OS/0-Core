@@ -40,7 +40,7 @@ int virDomainCoreDumpWithFormatCompat(virDomainPtr domain,
 #if LIBVIR_VERSION_NUMBER < 1002003
     assert(0); // Caller should have checked version
 #else
-    return virDomainCoreDumpWithFormatCompat(domain, to, dumpformat, flags);
+    return virDomainCoreDumpWithFormat(domain, to, dumpformat, flags);
 #endif
 }
 
@@ -232,7 +232,7 @@ int virDomainGetPerfEventsCompat(virDomainPtr dom,
 #if LIBVIR_VERSION_NUMBER < 1003003
     assert(0); // Caller should have checked version
 #else
-    return virDomainGetPerfEventsCompat(dom, params, nparams, flags);
+    return virDomainGetPerfEvents(dom, params, nparams, flags);
 #endif
 }
 
@@ -245,7 +245,7 @@ int virDomainSetPerfEventsCompat(virDomainPtr dom,
 #if LIBVIR_VERSION_NUMBER < 1003003
     assert(0); // Caller should have checked version
 #else
-    return virDomainSetPerfEventsCompat(dom, params, nparams, flags);
+    return virDomainSetPerfEvents(dom, params, nparams, flags);
 #endif
 }
 
@@ -308,6 +308,52 @@ int virDomainSetBlockThresholdCompat(virDomainPtr domain,
     assert(0); // Caller should have checked version
 #else
     return virDomainSetBlockThreshold(domain, dev, threshold, flags);
+#endif
+}
+
+int virDomainMigrateGetMaxDowntimeCompat(virDomainPtr domain,
+					 unsigned long long *downtime,
+					 unsigned int flags)
+{
+#if LIBVIR_VERSION_NUMBER < 3007000
+    assert(0); // Caller should have checked version
+#else
+    return virDomainMigrateGetMaxDowntime(domain, downtime, flags);
+#endif
+}
+
+
+char *virDomainManagedSaveGetXMLDescCompat(virDomainPtr domain,
+					   unsigned int flags)
+{
+#if LIBVIR_VERSION_NUMBER < 3007000
+    assert(0); // Caller should have checked version
+#else
+    return virDomainManagedSaveGetXMLDesc(domain, flags);
+#endif
+}
+
+
+int virDomainManagedSaveDefineXMLCompat(virDomainPtr domain,
+					const char *dxml,
+					unsigned int flags)
+{
+#if LIBVIR_VERSION_NUMBER < 3007000
+    assert(0); // Caller should have checked version
+#else
+    return virDomainManagedSaveDefineXML(domain, dxml, flags);
+#endif
+}
+
+int virDomainSetLifecycleActionCompat(virDomainPtr domain,
+                                      unsigned int type,
+                                      unsigned int action,
+                                      unsigned int flags)
+{
+#if LIBVIR_VERSION_NUMBER < 3009000
+    assert(0); // Caller should have checked version
+#else
+    return virDomainSetLifecycleAction(domain, type, action, flags);
 #endif
 }
 
