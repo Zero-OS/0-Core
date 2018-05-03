@@ -37,6 +37,8 @@ args = ["-c", "echo 20::: && zerotier-cli -D/tmp/zt info -j && echo :::"]
 
 [startup.zerotierkernel]
 name = "zerotier.join"
+# run only if zerotier id is set
+condition = "zerotier"
 after = ["zerotier"]
 
 [startup.zerotierkernel.args]

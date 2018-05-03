@@ -6,9 +6,8 @@ import (
 	"io/ioutil"
 	"regexp"
 	"strconv"
-
 	"strings"
-
+	"github.com/zero-os/0-core/base/utils"
 	"github.com/zero-os/0-core/base/pm"
 )
 
@@ -32,6 +31,9 @@ func init() {
 	pm.RegisterBuiltIn("disk.list", d.list)
 	pm.RegisterBuiltIn("disk.protect", d.protect)
 	pm.RegisterBuiltIn("disk.mounts", d.mounts)
+	pm.RegisterBuiltIn("disk.smartctl-info", d.smartctlInfo)
+	pm.RegisterBuiltIn("disk.smartctl-health", d.smartctlHealth)
+	pm.RegisterBuiltIn("disk.spindown", d.spindown)
 }
 
 type diskInfo struct {
@@ -263,6 +265,114 @@ func (d *diskMgr) info(cmd *pm.Command) (interface{}, error) {
 	return d.partInfo(args.Disk, args.Part)
 }
 
+type smartctlInfo struct {
+	Model                 string `json:"model"`
+	SerialNumber          string `json:"serial_number"`
+	DeviceID              string `json:"device_id"`
+	FirmwareVersion       string `json:"firmware_version"`
+	UserCapacity          int    `json:"user_capacity"`
+	SectorSize            int    `json:"sector_size"`
+	RotationRate          string `json:"rotation_rate"`
+	Device                string `json:"device"`
+	ATAVersion            string `json:"ata_version"`
+	SATAVersion           string `json:"sata_version"`
+	SmartSupportAvailable bool   `json:"smart_support_available"`
+	SmartSupportEnabled   bool   `json:"smart_support_enabled"`
+}
+
+func (d *diskMgr) smartctlInfo(cmd *pm.Command) (interface{}, error) {
+	var args struct {
+		Device string `json:"device"`
+	}
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, err
+	}
+
+	result, err := pm.System("smartctl", "-i", args.Device)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseSmartctlInfo(result.Streams.Stdout())
+}
+
+func parseSmartctlInfo(input string) (smartctlInfo, error) {
+	var info smartctlInfo
+	var err error
+
+	lines := strings.Split(input, "\n")
+
+	for _, line := range lines {
+		if !strings.Contains(line, ":") {
+			continue
+		}
+		parts := strings.Split(line, ":")
+		value := strings.TrimSpace(parts[1])
+		switch parts[0] {
+		case "Device Model":
+			info.Model = value
+		case "Serial Number":
+			info.SerialNumber = value
+		case "LU WWN Device Id":
+			info.DeviceID = value
+		case "Firmware Version":
+			info.FirmwareVersion = value
+		case "User Capacity":
+			sizeBytes := strings.Split(value, "bytes")[0]
+			info.UserCapacity, err = strconv.Atoi(strings.Replace(strings.TrimSpace(sizeBytes), ",", "", -1))
+			if err != nil {
+				return info, err
+			}
+		case "Sector Size":
+			sizeBytes := strings.Split(value, "bytes")[0]
+			info.SectorSize, err = strconv.Atoi(strings.Replace(strings.TrimSpace(sizeBytes), ",", "", -1))
+			if err != nil {
+				return info, err
+			}
+		case "Rotation Rate":
+			info.RotationRate = value
+		case "Device is":
+			info.Device = value
+		case "ATA Version is":
+			info.ATAVersion = value
+		case "SATA Version is":
+			info.SATAVersion = value
+		case "SMART support is":
+			if strings.Contains(value, "Available") {
+				info.SmartSupportAvailable = true
+			}
+			if strings.Contains(value, "Enabled") {
+				info.SmartSupportEnabled = true
+			}
+		}
+	}
+	return info, nil
+}
+
+func (d *diskMgr) smartctlHealth(cmd *pm.Command) (interface{}, error) {
+	var args struct {
+		Device string `json:"device"`
+	}
+
+	var health struct {
+		Passed bool `json:"passed"`
+	}
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, err
+	}
+
+	result, err := pm.System("smartctl", "-H", args.Device)
+	if err != nil {
+		return nil, err
+	}
+	if strings.Contains(result.Streams.Stdout(), "PASSED") {
+		health.Passed = true
+	}
+	return health, nil
+}
+
 func (d *diskMgr) list(cmd *pm.Command) (interface{}, error) {
 	result, err := pm.System("lsblk", "--json", "--output-all", "--bytes", "--exclude", "1,2")
 	if err != nil {
@@ -413,6 +523,34 @@ func (d *diskMgr) protect(cmd *pm.Command) (interface{}, error) {
 				return nil, err
 			}
 		}
+	}
+
+	return nil, nil
+}
+
+
+
+func (d *diskMgr) spindown(cmd *pm.Command) (interface{}, error) {
+	var args struct {
+		Disk string `json:"disk"`
+		Spindown uint	`json:"spindown"`
+	}
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, err
+	}
+	// assert disk exists
+	if !utils.Exists(args.Disk){
+		return nil, pm.BadRequestError(fmt.Errorf("disk doesn't exist: %s", args.Disk))
+
+	}
+	if !(args.Spindown<241){
+		return nil, pm.BadRequestError(fmt.Errorf("spindown %d out of range 1 - 240", args.Spindown))
+	
+	} 
+	_, err := pm.System("hdparm", "-S", fmt.Sprintf("%d", args.Spindown), args.Disk)
+
+	if err != nil {
+		return nil, err
 	}
 
 	return nil, nil

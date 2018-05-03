@@ -39,6 +39,11 @@ var (
 	log = logging.MustGetLogger("kvm")
 )
 
+type DomainInfo struct {
+	CreateParams
+	Sequence uint16 `json:"seq"`
+}
+
 type LibvirtConnection struct {
 	handler libvirt.DomainEventLifecycleCallback
 
@@ -47,12 +52,15 @@ type LibvirtConnection struct {
 }
 
 type kvmManager struct {
-	conmgr   containers.ContainerManager
-	sequence uint16
-	m        sync.Mutex
-	libvirt  LibvirtConnection
-	cell     *screen.RowCell
-	evch     chan map[string]interface{}
+	conmgr        containers.ContainerManager
+	sequence      uint16
+	sequenceMutex sync.Mutex
+	libvirt       LibvirtConnection
+	cell          *screen.RowCell
+	evch          chan map[string]interface{}
+
+	domainsInfo        map[string]*DomainInfo
+	domainsInfoRWMutex sync.RWMutex
 }
 
 var (
@@ -91,8 +99,7 @@ const (
 	kvmGetCommand               = "kvm.get"
 	kvmPortForwardAddCommand    = "kvm.portforward-add"
 	kvmPortForwardRemoveCommand = "kvm.portforward-remove"
-
-	DefaultBridgeName = "kvm0"
+	DefaultBridgeName           = "kvm0"
 )
 
 func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) error {
@@ -107,9 +114,10 @@ func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) erro
 	}()
 
 	mgr := &kvmManager{
-		conmgr: conmgr,
-		cell:   cell,
-		evch:   make(chan map[string]interface{}, 100), //buffer 100 event
+		conmgr:      conmgr,
+		cell:        cell,
+		evch:        make(chan map[string]interface{}, 100), //buffer 100 event
+		domainsInfo: make(map[string]*DomainInfo),
 	}
 
 	mgr.libvirt.handler = mgr.handle
@@ -654,7 +662,7 @@ func (m *kvmManager) mkZDBDisk(media Media) (arg QemuArg, err error) {
 		args = append(args, fmt.Sprintf("socket=%s", u.Path))
 	}
 
-	arg.Value = fmt.Sprintf("driver=zdb,%s", strings.Join(args, ","))
+	arg.Value = fmt.Sprintf("driver=zdb,%s,if=virtio", strings.Join(args, ","))
 	return
 }
 
@@ -692,11 +700,11 @@ func (m *kvmManager) mkDisk(idx int, media Media) DiskDevice {
 }
 
 func (m *kvmManager) getNextSequence() uint16 {
-	m.m.Lock()
-	defer m.m.Unlock()
+	m.sequenceMutex.Lock()
+	defer m.sequenceMutex.Unlock()
 loop:
 	for {
-		m.sequence += 1
+		m.sequence++
 		for _, r := range ReservedSequences {
 			if m.sequence == r {
 				continue loop
@@ -842,7 +850,7 @@ func (m *kvmManager) updateView() {
 	screen.Refresh()
 }
 
-func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
+func (m *kvmManager) create(cmd *pm.Command) (uuid interface{}, err error) {
 	defer m.updateView()
 	var params CreateParams
 	if err := json.Unmarshal(*cmd.Arguments, &params); err != nil {
@@ -856,13 +864,15 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 
 	seq := m.getNextSequence()
 
-	domain, err := m.mkDomain(seq, &params)
+	var domain *Domain
+	domain, err = m.mkDomain(seq, &params)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(params.FList) != 0 {
-		config, err := m.flistMount(domain.UUID, params.FList, params.Config)
+		var config FListBootConfig
+		config, err = m.flistMount(domain.UUID, params.FList, params.Config)
 		if err != nil {
 			return nil, err
 		}
@@ -890,18 +900,28 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 		domain.Devices.Filesystems = append(domain.Devices.Filesystems, fs)
 	}
 
-	//TODO: after this point, if an error occured, we need to rollback filesystem mount
+	m.domainsInfoRWMutex.Lock()
+	m.domainsInfo[domain.UUID] = &DomainInfo{CreateParams: params, Sequence: seq}
+	m.domainsInfoRWMutex.Unlock()
 
-	if err := m.setNetworking(&params.NicParams, seq, domain); err != nil {
+	defer func() {
+		if err != nil {
+			m.handleStopped(domain.UUID, domain.Name, nil)
+		}
+	}()
+
+	if err = m.setNetworking(&params.NicParams, seq, domain); err != nil {
 		return nil, err
 	}
 
-	data, err := xml.MarshalIndent(domain, "", "  ")
+	var data []byte
+	data, err = xml.MarshalIndent(domain, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate domain xml: %s", err)
 	}
 
-	conn, err := m.libvirt.getConnection()
+	var conn *libvirt.Connect
+	conn, err = m.libvirt.getConnection()
 	if err != nil {
 		return nil, err
 	}
@@ -909,38 +929,6 @@ func (m *kvmManager) create(cmd *pm.Command) (interface{}, error) {
 	_, err = conn.DomainCreateXML(string(data), libvirt.DOMAIN_NONE)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create machine: %s", err)
-	}
-
-	dom, err := conn.LookupDomainByUUIDString(domain.UUID)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't find domain with the uuid %s", domain.UUID)
-	}
-
-	tags, err := json.Marshal(&params.Tags)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't marshal tags for domain with the uuid %s", domain.UUID)
-	}
-
-	tagsMetaData := TagsMetaData{Value: string(tags)}
-	metaXML, err := xml.Marshal(&tagsMetaData)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't marshal metadata for domain with the uuid %s", domain.UUID)
-	}
-
-	err = dom.SetMetadata(libvirt.DOMAIN_METADATA_ELEMENT, string(metaXML), metadataKey, metadataUri, libvirt.DOMAIN_AFFECT_LIVE)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't set tags metadata for domain with the uuid %s", domain.UUID)
-	}
-
-	seqMetaData := SequenceMetaData{Value: fmt.Sprintf("%d", seq)}
-	metaXML, err = xml.Marshal(&seqMetaData)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't marshal sequence metadata for domain with the uuid %s", domain.UUID)
-	}
-
-	err = dom.SetMetadata(libvirt.DOMAIN_METADATA_ELEMENT, string(metaXML), metadataKey, metadataUri, libvirt.DOMAIN_AFFECT_LIVE)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't set sequence metadata for domain with the uuid %s", domain.UUID)
 	}
 
 	return domain.UUID, nil
@@ -988,13 +976,7 @@ func (m *kvmManager) getDomain(cmd *pm.Command) (*libvirt.Domain, string, error)
 }
 
 func (m *kvmManager) destroyDomain(uuid string, domain *libvirt.Domain) error {
-	if err := domain.Destroy(); err != nil {
-		return fmt.Errorf("failed to destroy machine: %s", err)
-	}
-
-	socat.RemoveAll(m.forwardId(uuid))
-
-	return m.flistUnmount(uuid)
+	return domain.Destroy()
 }
 
 func (m *kvmManager) destroy(cmd *pm.Command) (interface{}, error) {
@@ -1008,15 +990,13 @@ func (m *kvmManager) destroy(cmd *pm.Command) (interface{}, error) {
 }
 
 func (m *kvmManager) shutdown(cmd *pm.Command) (interface{}, error) {
-	domain, uuid, err := m.getDomain(cmd)
+	domain, _, err := m.getDomain(cmd)
 	if err != nil {
 		return nil, err
 	}
 	if err := domain.Shutdown(); err != nil {
 		return nil, fmt.Errorf("failed to shutdown machine: %s", err)
 	}
-
-	socat.RemoveAll(m.forwardId(uuid))
 
 	return nil, nil
 }
@@ -1238,7 +1218,15 @@ func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 			}
 		}
 		// TODO: use the ports that the domain was created with initially
-		inf, err = m.prepareDefaultNetwork(params.UUID, domainstruct.MetaData.Sequence, map[int]int{})
+
+		m.domainsInfoRWMutex.Lock()
+		defer m.domainsInfoRWMutex.Unlock()
+		domainInfo, exists := m.domainsInfo[params.UUID]
+		if !exists {
+			return nil, fmt.Errorf("in setup networking couldn't get domaininfo for domain %s", params.UUID)
+		}
+
+		inf, err = m.prepareDefaultNetwork(params.UUID, domainInfo.Sequence, map[int]int{})
 	case "bridge":
 		if nic.ID == DefaultBridgeName {
 			err = fmt.Errorf("the default bridge for the vm should not be added manually")
@@ -1454,13 +1442,14 @@ func (m *kvmManager) migrate(cmd *pm.Command) (interface{}, error) {
 }
 
 type Machine struct {
-	ID         int      `json:"id"`
-	UUID       string   `json:"uuid"`
-	Name       string   `json:"name"`
-	State      string   `json:"state"`
-	Vnc        int      `json:"vnc"`
-	Tags       pm.Tags  `json:"tags"`
-	IfcTargets []string `json:"ifctargets"`
+	ID         int          `json:"id"`
+	UUID       string       `json:"uuid"`
+	Name       string       `json:"name"`
+	State      string       `json:"state"`
+	Vnc        int          `json:"vnc"`
+	Tags       pm.Tags      `json:"tags"`
+	IfcTargets []string     `json:"ifctargets"`
+	Params     CreateParams `json:"params"`
 }
 
 func (m *kvmManager) getMachine(domain *libvirt.Domain) (Machine, error) {
@@ -1497,15 +1486,21 @@ func (m *kvmManager) getMachine(domain *libvirt.Domain) (Machine, error) {
 		targets = append(targets, ifc.Target.Dev)
 
 	}
-
+	m.domainsInfoRWMutex.Lock()
+	defer m.domainsInfoRWMutex.Unlock()
+	domainInfo, exists := m.domainsInfo[uuid]
+	if !exists {
+		return Machine{}, fmt.Errorf("couldn't get domaininfo for domain %s", uuid)
+	}
 	return Machine{
 		ID:         int(id),
 		UUID:       uuid,
 		Name:       name,
 		State:      StateToString(state),
 		Vnc:        port,
-		Tags:       domainstruct.MetaData.Tags,
+		Tags:       domainInfo.CreateParams.Tags, //we keep this here also for backward compatibility
 		IfcTargets: targets,
+		Params:     domainInfo.CreateParams,
 	}, nil
 }
 
@@ -1568,7 +1563,6 @@ func (m *kvmManager) get(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return machine, nil
 }
 
@@ -1786,7 +1780,14 @@ func (m *kvmManager) portforwardAdd(cmd *pm.Command) (interface{}, error) {
 	if !defaultNic {
 		return nil, fmt.Errorf("KVM doesn't have a default nic")
 	}
-	return nil, m.setPortForward(params.UUID, domainStruct.MetaData.Sequence, params.HostPort, params.ContainerPort)
+	m.domainsInfoRWMutex.Lock()
+	defer m.domainsInfoRWMutex.Unlock()
+	domainInfo, exists := m.domainsInfo[params.UUID]
+	if !exists {
+		return nil, fmt.Errorf("couldn't get domaininfo for domain %s", params.UUID)
+	}
+
+	return nil, m.setPortForward(params.UUID, domainInfo.Sequence, params.HostPort, params.ContainerPort)
 }
 
 func (m *kvmManager) portforwardRemove(cmd *pm.Command) (interface{}, error) {

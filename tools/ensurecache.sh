@@ -1,5 +1,7 @@
 set -e
 
+udevadm settle
+
 LABEL="sp_zos-cache"
 CACHE="/var/cache"
 STORAGEPOOL="/mnt/storagepools"
@@ -17,7 +19,7 @@ function labelmount {
 
 function preparedisk {
     DISK=""
-    for disk in `lsblk -pdn -o NAME,ROTA,TYPE,TRAN|grep -v rom|grep -v usb|sort -nk 2|cut -d " " -f 1`; do
+    for disk in `lsblk -e 2 -e 11 -pdn -o NAME,ROTA,TYPE,TRAN|grep -v usb|sort -nk 2|cut -d " " -f 1`; do
         if ! lsblk -n -o TYPE ${disk} | grep part > /dev/null; then
             # disk does not have any parition
             DISK=$disk
@@ -44,6 +46,10 @@ function hook {
     btrfs subvol create $1/cache || true
     mount $1/cache /var/cache/
 
+    # clean up old container, and vms working directories
+    rm -rf /var/cache/containers
+    rm -rf /var/cache/vms
+
     logs=$1/logs
     btrfs subvol create ${logs} || true
     current="log-$(date +%Y%m%d-%H%M)"
@@ -64,7 +70,7 @@ function main {
     if ! labelmount ${LABEL} ${MNT}; then
         # no parition found with that label
         # prepare the first availabel disk
-	echo "${LABEL} not mounted, search for available disk"
+	    echo "${LABEL} not mounted, search for available disk"
         preparedisk
         labelmount ${LABEL} ${MNT}
     fi

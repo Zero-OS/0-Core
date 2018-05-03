@@ -25,7 +25,7 @@ func Expand(s string) ([]int, error) {
 	levels := make(map[int]bool)
 
 	for _, part := range strings.Split(s, ",") {
-		part := strings.Trim(part, " ")
+		part := strings.TrimSpace(part)
 
 		boundries := strings.Split(part, "-")
 		lower := strings.Trim(boundries[0], " ")
@@ -35,7 +35,7 @@ func Expand(s string) ([]int, error) {
 
 		if len(boundries) > 1 {
 
-			upperValue64, err := strconv.ParseInt(strings.Trim(boundries[1], " "), 10, 32)
+			upperValue64, err := strconv.ParseInt(strings.TrimSpace(boundries[1]), 10, 32)
 			if err != nil {
 				return nil, err
 			}
@@ -158,6 +158,7 @@ func LoadTomlFile(filename string, v interface{}) error {
 	return nil
 }
 
+//Exists check if file exists on the filesystem
 func Exists(name string) bool {
 	_, err := os.Stat(name)
 	if err == nil {

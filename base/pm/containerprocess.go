@@ -12,6 +12,7 @@ import (
 	"github.com/zero-os/0-core/base/pm/stream"
 )
 
+//ContainerCommandArguments arguments for container command
 type ContainerCommandArguments struct {
 	Name        string            `json:"name"`
 	Dir         string            `json:"dir"`
@@ -26,6 +27,8 @@ func (c *ContainerCommandArguments) String() string {
 	return fmt.Sprintf("%s %v %s", c.Name, c.Args, c.Chroot)
 }
 
+//Channel is a 2 way communication channel that is mainly used
+//to talk to the main containerd process `coreX`
 type Channel interface {
 	io.ReadWriteCloser
 }
@@ -53,6 +56,7 @@ func (c *channel) Write(p []byte) (n int, err error) {
 	return c.w.Write(p)
 }
 
+//ContainerProcess interface
 type ContainerProcess interface {
 	Process
 	Channel() Channel
@@ -68,6 +72,10 @@ type containerProcessImpl struct {
 	table PIDTable
 }
 
+//NewContainerProcess creates a new contained process, used soley from
+//the container subsystem. Clients can't create container process directly they
+//instead has to go throught he container subsystem which does most of the heavy
+//lifting.
 func NewContainerProcess(table PIDTable, cmd *Command) Process {
 	process := &containerProcessImpl{
 		cmd:   cmd,
@@ -199,11 +207,10 @@ func (p *containerProcessImpl) Run() (ch <-chan *stream.Message, err error) {
 		},
 	}
 
-	log.Debugf("system: %s", p.args)
 	var ps *os.Process
 	args := []string{name}
 	args = append(args, p.args.Args...)
-	err = p.table.RegisterPID(func() (int, error) {
+	_, err = p.table.RegisterPID(func() (int, error) {
 		ps, err = os.StartProcess(name, args, &attrs)
 		if err != nil {
 			return 0, err

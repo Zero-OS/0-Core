@@ -4,10 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/pborman/uuid"
-	"github.com/vishvananda/netlink"
-	"github.com/zero-os/0-core/apps/core0/helper/socat"
-	"github.com/zero-os/0-core/base/pm"
 	"io/ioutil"
 	"net"
 	"os"
@@ -16,6 +12,11 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/pborman/uuid"
+	"github.com/vishvananda/netlink"
+	"github.com/zero-os/0-core/apps/core0/helper/socat"
+	"github.com/zero-os/0-core/base/pm"
 )
 
 const (
@@ -170,21 +171,14 @@ func (c *container) leaveZerotierNetwork(idx int, netID string) error {
 	return err
 }
 
-func (c *container) postBridge(dev string, index int, n *Nic) error {
-	var name string
-	if n.Monitor {
-		name = fmt.Sprintf(containerMonitoredLinkNameFmt, c.id, index)
-	} else {
-		name = fmt.Sprintf(containerLinkNameFmt, c.id, index)
-	}
-	peerName := fmt.Sprintf(containerPeerNameFmt, name)
+func (c *container) setupLink(src, target string, index int, n *Nic) error {
 
-	peer, err := netlink.LinkByName(peerName)
+	link, err := netlink.LinkByName(src)
 	if err != nil {
-		return fmt.Errorf("get peer: %s", err)
+		return fmt.Errorf("get link: %s", err)
 	}
 
-	if err := netlink.LinkSetNsPid(peer, c.PID); err != nil {
+	if err := netlink.LinkSetNsPid(link, c.PID); err != nil {
 		return fmt.Errorf("set ns pid: %s", err)
 	}
 
@@ -195,7 +189,7 @@ func (c *container) postBridge(dev string, index int, n *Nic) error {
 	//	return fmt.Errorf("set link name: %s", err)
 	//}
 
-	_, err = pm.System("ip", "netns", "exec", fmt.Sprintf("%v", c.id), "ip", "link", "set", peerName, "name", dev)
+	_, err = pm.System("ip", "netns", "exec", fmt.Sprintf("%v", c.id), "ip", "link", "set", src, "name", target)
 	if err != nil {
 		return fmt.Errorf("failed to rename device: %s", err)
 	}
@@ -212,7 +206,7 @@ func (c *container) postBridge(dev string, index int, n *Nic) error {
 						"netns",
 						"exec",
 						fmt.Sprintf("%v", c.id),
-						"udhcpc", "-q", "-i", dev, "-s", "/usr/share/udhcp/simple.script",
+						"udhcpc", "-q", "-i", target, "-s", "/usr/share/udhcp/simple.script",
 					},
 					Env: map[string]string{
 						"ROOT": c.root(),
@@ -230,21 +224,21 @@ func (c *container) postBridge(dev string, index int, n *Nic) error {
 		_, err := pm.System("ip", "netns",
 			"exec",
 			fmt.Sprintf("%v", c.id),
-			"ip", "link", "set", "dev", dev, "up")
+			"ip", "link", "set", "dev", target, "up")
 
 		if err != nil {
 			return fmt.Errorf("error bringing interface up: %v", err)
 		}
 
 		//setting the ip address
-		_, err = pm.System("ip", "netns", "exec", fmt.Sprintf("%v", c.id), "ip", "address", "add", n.Config.CIDR, "dev", dev)
+		_, err = pm.System("ip", "netns", "exec", fmt.Sprintf("%v", c.id), "ip", "address", "add", n.Config.CIDR, "dev", target)
 		if err != nil {
 			return fmt.Errorf("error settings interface ip: %v", err)
 		}
 	}
 
 	if n.Config.Gateway != "" {
-		if err := c.setGateway(dev, n.Config.Gateway); err != nil {
+		if err := c.setGateway(target, n.Config.Gateway); err != nil {
 			return err
 		}
 	}
@@ -256,6 +250,29 @@ func (c *container) postBridge(dev string, index int, n *Nic) error {
 	}
 
 	return nil
+}
+
+func (c *container) postBridge(dev string, index int, n *Nic) error {
+	var name string
+	if n.Monitor {
+		name = fmt.Sprintf(containerMonitoredLinkNameFmt, c.id, index)
+	} else {
+		name = fmt.Sprintf(containerLinkNameFmt, c.id, index)
+	}
+	peerName := fmt.Sprintf(containerPeerNameFmt, name)
+
+	return c.setupLink(peerName, dev, index, n)
+}
+
+func (c *container) postLink(dev string, index int, n *Nic) error {
+	var name string
+	if n.Monitor {
+		name = fmt.Sprintf(containerMonitoredLinkNameFmt, c.id, index)
+	} else {
+		name = fmt.Sprintf(containerLinkNameFmt, c.id, index)
+	}
+
+	return c.setupLink(name, dev, index, n)
 }
 
 func (c *container) preBridge(index int, bridge string, n *Nic, ovs Container) error {
@@ -323,13 +340,49 @@ func (c *container) preBridge(index int, bridge string, n *Nic, ovs Container) e
 	}
 
 	if n.HWAddress != "" {
-		mac, err := net.ParseMAC(n.HWAddress)
-		if err == nil {
-			if err := netlink.LinkSetHardwareAddr(peer, mac); err != nil {
-				return fmt.Errorf("failed to setup hw address: %s", err)
-			}
-		} else {
+		if mac, err := net.ParseMAC(n.HWAddress); err != nil {
 			log.Errorf("parse hwaddr error: %s", err)
+		} else if err := netlink.LinkSetHardwareAddr(peer, mac); err != nil {
+			return fmt.Errorf("failed to setup hw address: %s", err)
+		}
+	}
+
+	return nil
+}
+
+func (c *container) preMacVlanNetwork(index int, n *Nic) error {
+	link, err := netlink.LinkByName(n.ID)
+	if err != nil {
+		return pm.NotFoundError(fmt.Errorf("link '%s' not found: %s", n.ID, err))
+	}
+
+	var name string
+	if n.Monitor {
+		name = fmt.Sprintf(containerMonitoredLinkNameFmt, c.id, index)
+	} else {
+		name = fmt.Sprintf(containerLinkNameFmt, c.id, index)
+	}
+
+	macVlan := &netlink.Macvlan{
+		LinkAttrs: netlink.LinkAttrs{
+			Name:        name,
+			ParentIndex: link.Attrs().Index,
+			Flags:       net.FlagUp,
+			MTU:         1500,
+			TxQLen:      1000,
+		},
+		Mode: netlink.MACVLAN_MODE_BRIDGE,
+	}
+
+	if err := netlink.LinkAdd(macVlan); err != nil {
+		return fmt.Errorf("create macvlan link fail: %s", err)
+	}
+
+	if n.HWAddress != "" {
+		if mac, err := net.ParseMAC(n.HWAddress); err != nil {
+			log.Errorf("parse hwaddr error: %s", err)
+		} else if err := netlink.LinkSetHardwareAddr(macVlan, mac); err != nil {
+			return fmt.Errorf("failed to setup hw address: %s", err)
 		}
 	}
 
@@ -531,6 +584,8 @@ func (c *container) postStartNetwork(idx int, network *Nic) (err error) {
 		err = c.postDefaultNetwork(name, idx, network)
 	case "bridge":
 		err = c.postBridge(name, idx, network)
+	case "macvlan":
+		err = c.postLink(name, idx, network)
 	}
 
 	if err != nil {
@@ -566,6 +621,8 @@ func (c *container) preStartNetwork(idx int, network *Nic) (err error) {
 		err = c.preDefaultNetwork(idx, network)
 	case "bridge":
 		err = c.preBridge(idx, network.ID, network, nil)
+	case "macvlan":
+		err = c.preMacVlanNetwork(idx, network)
 	case "zerotier":
 	default:
 		err = pm.BadRequestError(fmt.Errorf("unkown network type '%s'", network.Type))
@@ -585,6 +642,20 @@ func (c *container) preStartIsolatedNetworking() error {
 		}
 	}
 
+	return nil
+}
+
+func (c *container) unLink(idx int, n *Nic) error {
+	if n.Type != "macvlan" {
+		return fmt.Errorf("unlink is only for macvlan nic type")
+	}
+
+	name := fmt.Sprintf("eth%d", idx)
+	if _, err := pm.System("ip", "netns", "exec", fmt.Sprint(c.id), "ip", "link", "del", name); err != nil {
+		return err
+	}
+
+	n.State = NicStateDestroyed
 	return nil
 }
 

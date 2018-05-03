@@ -3,10 +3,11 @@ package pm
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/zero-os/0-core/base/pm/stream"
 	"net/http"
 	"runtime/debug"
 	"syscall"
+
+	"github.com/zero-os/0-core/base/pm/stream"
 )
 
 /*
@@ -50,9 +51,9 @@ type internalProcess struct {
 }
 
 /*
-internalProcessFactory factory to build Runnable processes
+NewInternalProcess factory to build Runnable processes
 */
-func internalProcessFactory(runnable Runnable) ProcessFactory {
+func NewInternalProcess(runnable Runnable) ProcessFactory {
 	factory := func(_ PIDTable, cmd *Command) Process {
 		return &internalProcess{
 			runnable: runnable,
@@ -65,7 +66,7 @@ func internalProcessFactory(runnable Runnable) ProcessFactory {
 	return factory
 }
 
-func internalProcessFactoryWithCtx(runnable RunnableWithCtx) ProcessFactory {
+func NewInternalProcessWithCtx(runnable RunnableWithCtx) ProcessFactory {
 	factory := func(_ PIDTable, cmd *Command) Process {
 		return &internalProcess{
 			runnable: runnable,

@@ -1,32 +1,14 @@
 package pm
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/zero-os/0-core/base/pm/stream"
-	"syscall"
-	"testing"
 )
 
-type table struct {
-}
-
-func (t *table) RegisterPID(g GetPID) error {
-	_, err := g()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (t *table) WaitPID(pid int) syscall.WaitStatus {
-	var status syscall.WaitStatus
-	syscall.Wait4(pid, &status, 0, nil)
-	return status
-}
-
 func TestSystemProcess_Run(t *testing.T) {
-	ps := NewSystemProcess(&table{}, &Command{
+	ps := NewSystemProcess(&TestingPIDTable{}, &Command{
 		Arguments: MustArguments(
 			SystemCommandArguments{
 				Name: "echo",
@@ -59,7 +41,7 @@ func TestSystemProcess_Run(t *testing.T) {
 }
 
 func TestSystemProcess_RunStderr(t *testing.T) {
-	ps := NewSystemProcess(&table{}, &Command{
+	ps := NewSystemProcess(&TestingPIDTable{}, &Command{
 		Arguments: MustArguments(
 			SystemCommandArguments{
 				Name: "sh",
@@ -96,7 +78,7 @@ func TestSystemProcess_RunStderr(t *testing.T) {
 }
 
 func TestSystemProcess_RunStdin(t *testing.T) {
-	ps := NewSystemProcess(&table{}, &Command{
+	ps := NewSystemProcess(&TestingPIDTable{}, &Command{
 		Arguments: MustArguments(
 			SystemCommandArguments{
 				Name:  "cat",

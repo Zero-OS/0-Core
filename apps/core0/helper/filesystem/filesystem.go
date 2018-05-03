@@ -115,7 +115,7 @@ func getMetaDBTar(src string) (io.ReadCloser, error) {
 	return nil, fmt.Errorf("unknown flist format %s", ext)
 }
 
-func getMetaDB(namespace, src string) (string, error) {
+func getMetaDB(location, src string) (string, error) {
 	reader, err := getMetaDBTar(src)
 	if err != nil {
 		return "", err
@@ -124,7 +124,7 @@ func getMetaDB(namespace, src string) (string, error) {
 	defer reader.Close()
 
 	archive := tar.NewReader(reader)
-	db := fmt.Sprintf("%s.db", namespace)
+	db := fmt.Sprintf("%s.db", location)
 	if err := os.MkdirAll(db, 0755); err != nil {
 		return "", err
 	}
@@ -190,7 +190,7 @@ func MountFList(namespace, storage, src string, target string, hooks ...pm.Runne
 		}
 	} else {
 		//assume an flist, an flist requires the meat and storage url
-		db, err := getMetaDB(namespace, src)
+		db, err := getMetaDB(backend, src)
 		if err != nil {
 			return err
 		}
@@ -225,7 +225,7 @@ func MountFList(namespace, storage, src string, target string, hooks ...pm.Runne
 		Action: func(s bool) {
 			o.Do(func() {
 				if !s {
-					err = fmt.Errorf("upnormal exit of filesystem mount at '%s'", target)
+					err = fmt.Errorf("abnormal exit of filesystem mount at '%s'", target)
 				}
 				wg.Done()
 			})

@@ -79,7 +79,7 @@ func (process *extensionProcess) Signal(sig syscall.Signal) error {
 func (process *extensionProcess) Stats() *ProcessStats {
 	if sys, ok := process.system.(Stater); ok {
 		return sys.Stats()
-	} else {
-		return nil
 	}
+
+	return nil
 }

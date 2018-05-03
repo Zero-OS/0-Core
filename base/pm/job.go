@@ -5,11 +5,13 @@ package pm
 import "C"
 import (
 	"fmt"
-	"github.com/zero-os/0-core/base/pm/stream"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
+
+	"github.com/zero-os/0-core/base/pm/stream"
 )
 
 const (
@@ -42,6 +44,11 @@ type jobImb struct {
 	o      sync.Once
 	result *JobResult
 	wg     sync.WaitGroup
+
+	registerPID func(GetPID) (int, error)
+	waitPID     func(int) syscall.WaitStatus
+
+	running int32
 }
 
 /*
@@ -65,12 +72,24 @@ func newJob(command *Command, factory ProcessFactory, hooks ...RunnerHook) Job {
 	job := &jobImb{
 		command: command,
 		factory: factory,
-		signal:  make(chan syscall.Signal),
+		signal:  make(chan syscall.Signal, 5), //enough buffer for 5 signals
 		hooks:   hooks,
 		backlog: stream.NewBuffer(GenericStreamBufferSize),
+
+		registerPID: registerPID,
+		waitPID:     waitPID,
 	}
 
 	job.wg.Add(1)
+	return job
+}
+
+func newTestJob(command *Command, factory ProcessFactory, hooks ...RunnerHook) Job {
+	job := newJob(command, factory, hooks...).(*jobImb)
+	var testTable TestingPIDTable
+	job.registerPID = testTable.RegisterPID
+	job.waitPID = testTable.WaitPID
+
 	return job
 }
 
@@ -278,9 +297,14 @@ loop:
 }
 
 func (r *jobImb) start(unprivileged bool) {
+	atomic.StoreInt32(&r.running, 1)
+
 	runs := 0
 	var result *JobResult
 	defer func() {
+		atomic.StoreInt32(&r.running, 0)
+		close(r.signal)
+
 		if result != nil {
 			r.result = result
 			callback(r.command, result)
@@ -308,7 +332,7 @@ loop:
 		}
 
 		if result.State == StateKilled {
-			//we never restart a killed r.
+			//we never restart a killed job.
 			break
 		}
 
@@ -318,7 +342,7 @@ loop:
 		if result.State != StateSuccess && r.command.MaxRestart > 0 {
 			runs++
 			if runs < r.command.MaxRestart {
-				log.Debugf("Restarting '%s' due to upnormal exit status, trials: %d/%d", r.command, runs+1, r.command.MaxRestart)
+				log.Debugf("Restarting '%s' due to abnormal exit status, trials: %d/%d", r.command, runs+1, r.command.MaxRestart)
 				restarting = true
 				restartIn = 1 * time.Second
 			}
@@ -345,13 +369,14 @@ loop:
 }
 
 func (r *jobImb) Signal(sig syscall.Signal) error {
+	if atomic.LoadInt32(&r.running) != 1 {
+		return fmt.Errorf("job is not running")
+	}
+
 	select {
 	case r.signal <- sig:
-		if sig == syscall.SIGKILL {
-			close(r.signal)
-		}
 		return nil
-	case <-time.After(1 * time.Second):
+	default:
 		return fmt.Errorf("job not receiving singnals")
 	}
 }
@@ -367,23 +392,21 @@ func (r *jobImb) Wait() *JobResult {
 
 //implement PIDTable
 //intercept pid registration to fire the correct hooks.
-func (r *jobImb) RegisterPID(g GetPID) error {
-	return registerPID(func() (int, error) {
-		pid, err := g()
-		if err != nil {
-			return 0, err
-		}
+func (r *jobImb) RegisterPID(g GetPID) (int, error) {
+	pid, err := r.registerPID(g)
+	if err != nil {
+		return 0, err
+	}
 
-		for _, hook := range r.hooks {
-			go hook.PID(pid)
-		}
+	for _, hook := range r.hooks {
+		go hook.PID(pid)
+	}
 
-		return pid, err
-	})
+	return 0, nil
 }
 
 func (r *jobImb) WaitPID(pid int) syscall.WaitStatus {
-	return waitPID(pid)
+	return r.waitPID(pid)
 }
 
 func (r *jobImb) StartTime() int64 {

@@ -84,14 +84,17 @@ func (m Meta) Assert(level ...uint16) bool {
 	return false
 }
 
+//Is checks if a flag is set on the meta object
 func (m Meta) Is(flag Flag) bool {
 	return (uint16(m) & uint16(flag)) != 0
 }
 
+//Set sets a flag on meta object
 func (m Meta) Set(flag Flag) Meta {
 	return Meta(uint64(m) | uint64(flag))
 }
 
+//Code exit code
 func (m Meta) Code() uint32 {
 	return uint32(m >> 32)
 }

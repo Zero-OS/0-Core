@@ -7,15 +7,19 @@ import (
 )
 
 const (
+	//CommandSystem is the first and built in `core.system` command
 	CommandSystem = "core.system"
 )
 
+//GetPID returns a PID of a process
 type GetPID func() (int, error)
 
+//PIDTable a table that keeps track of running process ids
 type PIDTable interface {
 	//PIDTable atomic registration of PID. MUST grantee that that no wait4 will happen
 	//on any of the child process until the register operation is done.
-	RegisterPID(g GetPID) error
+	RegisterPID(g GetPID) (int, error)
+	//WaitPID waits for a certain ID until it exits
 	WaitPID(pid int) syscall.WaitStatus
 }
 
@@ -34,14 +38,17 @@ type Process interface {
 	Run() (<-chan *stream.Message, error)
 }
 
+//Signaler a process that supports signals
 type Signaler interface {
 	Process
 	Signal(sig syscall.Signal) error
 }
 
+//Stater a process that supports stats query
 type Stater interface {
 	Process
 	Stats() *ProcessStats
 }
 
+//ProcessFactory interface
 type ProcessFactory func(PIDTable, *Command) Process

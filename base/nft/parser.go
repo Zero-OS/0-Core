@@ -10,7 +10,9 @@ import (
 	"github.com/zero-os/0-core/base/pm"
 )
 
+//Get gets current nft ruleset
 func Get() (Nft, error) {
+	//NOTE: YES --numeric MUST BE THERE 2 TIMES, PLEASE DO NOT REMOVE
 	job, err := pm.System("nft", "--handle", "list", "ruleset", "--numeric", "--numeric")
 	if err != nil {
 		return nil, err
@@ -73,9 +75,9 @@ func Parse(config string) (Nft, error) {
 					return nil, fmt.Errorf("cannot parse chain")
 				}
 			}
-			level += 1
+			level++
 		} else if bytes.Contains(line, []byte("}")) {
-			level -= 1
+			level--
 			switch level {
 			case NFT:
 				nft[string(tablename)] = *table
