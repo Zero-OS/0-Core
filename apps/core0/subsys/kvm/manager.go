@@ -46,8 +46,8 @@ type DomainInfo struct {
 
 type LibvirtConnection struct {
 	handler libvirt.DomainEventLifecycleCallback
-	m    sync.Mutex
-	conn *libvirt.Connect
+	m       sync.Mutex
+	conn    *libvirt.Connect
 }
 
 type kvmManager struct {
@@ -510,7 +510,6 @@ func (m *kvmManager) getDomainStruct(uuid string) (*Domain, error) {
 		return nil, fmt.Errorf("cannot get domain xml: %v", err)
 	}
 
-
 	domainstruct := Domain{}
 	err = xml.Unmarshal([]byte(domainxml), &domainstruct)
 
@@ -953,7 +952,6 @@ func (m *kvmManager) create(cmd *pm.Command) (uuid interface{}, err error) {
 		return nil, fmt.Errorf("failed to create machine: %s", err)
 	}
 
-
 	// ENSURE TO UPDATE macaddress of domaininfo nics in this stage.
 	domainstruct, err := m.getDomainStruct(domain.UUID)
 	if err != nil {
@@ -1023,7 +1021,6 @@ func (m *kvmManager) destroy(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	delete(m.domainsInfo, uuid)
 	return nil, m.destroyDomain(uuid, domain)
 }
 
@@ -1150,10 +1147,9 @@ func (m *kvmManager) attachDevice(uuid, xml string) error {
 	if err != nil {
 		return fmt.Errorf("couldn't find domain with the uuid %s", uuid)
 	}
-	if err = domain.AttachDeviceFlags(xml, libvirt.DOMAIN_DEVICE_MODIFY_LIVE); err != nil {
+	if err = domain.AttachDeviceFlags(xml, libvirt.DOMAIN_DEVICE_MODIFY_CURRENT); err != nil {
 		return fmt.Errorf("failed to attach device: %s", err)
 	}
-	// log.Info("Successfully attached a device to uuid: %s with xml \n %s", uuid, xml)
 	return nil
 }
 
@@ -1166,10 +1162,9 @@ func (m *kvmManager) detachDevice(uuid, ifxml string) error {
 	if err != nil {
 		return fmt.Errorf("couldn't find domain with the uuid %s", uuid)
 	}
-	if err := domain.DetachDeviceFlags(ifxml, libvirt.DOMAIN_DEVICE_MODIFY_LIVE); err != nil {
+	if err := domain.DetachDeviceFlags(ifxml, libvirt.DOMAIN_DEVICE_MODIFY_CURRENT); err != nil {
 		return fmt.Errorf("failed to detach device: %s", err)
 	}
-	// log.Info("Successfully detached a device to uuid: %s with xml \n %s", uuid, ifxml)
 
 	return nil
 }
@@ -1354,7 +1349,7 @@ func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
 		source = InterfaceDeviceSource{
 			Bridge: DefaultBridgeName,
 		}
-		
+
 	case "bridge":
 		source = InterfaceDeviceSource{
 			Bridge: nic.ID,
@@ -1371,7 +1366,6 @@ func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-
 
 	domainstruct, err := m.getDomainStruct(params.UUID)
 	if err != nil {
@@ -1538,7 +1532,7 @@ func (m *kvmManager) getMachine(domain *libvirt.Domain) (Machine, error) {
 	if err != nil {
 		return Machine{}, err
 	}
-	
+
 	domainstruct, err := m.getDomainStruct(uuid)
 	if err != nil {
 		return Machine{}, err
@@ -1890,7 +1884,7 @@ func (m *kvmManager) portforwardRemove(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	domainInfo.Port[params.HostPort] = params.ContainerPort
+	delete(domainInfo.Port, params.HostPort)
 
 	return nil, err
 

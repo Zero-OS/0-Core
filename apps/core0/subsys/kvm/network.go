@@ -67,7 +67,6 @@ func (m *kvmManager) setNetworking(args *NicParams, seq uint16, domain *Domain) 
 		if err != nil {
 			return err
 		}
-		// domainInfo.Nics[i].HWAddress = inf.Mac.Address
 		domain.Devices.Devices = append(domain.Devices.Devices, inf)
 	}
 
