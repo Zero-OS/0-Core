@@ -177,12 +177,6 @@ class BaseTest(unittest.TestCase):
         container = self.client.container.create(root_url=root_url, storage=storage, host_network=host_network, nics=nics, tags=tags, privileged=privileged)
         return container.get(30)
 
-    def get_vm_uuid(self, vm_name):
-        vm_list = self.client.kvm.list()
-        for vm in vm_list:
-            if vm['name'] == vm_name:
-                return vm['uuid']
-
     def create_vm(self, name, image='Ubuntu.1604.uefi.x64.qcow2', source=None):
         img_loc = '/var/cache/images'
         if source:
@@ -200,8 +194,8 @@ class BaseTest(unittest.TestCase):
             self.assertEqual(rs.get().state, 'SUCCESS')
             rs = self.client.bash('wget {} -P {}'.format(img_dn_path, img_loc))
             self.assertEqual(rs.get(100).state, 'SUCCESS')
-        result = self.client.kvm.create(name=name, media=[{'url': '{}/{}'.format(img_loc, image)}])
-        self.assertEqual(result.state, 'SUCCESS')
+        vm_uuid = self.client.kvm.create(name=name, media=[{'url': '{}/{}'.format(img_loc, image)}])
+        return vm_uuid
 
     def check_nic_exist(self, name):
         nic_lst = [True for nic in self.client.info.nic() if nic['name'] == name]

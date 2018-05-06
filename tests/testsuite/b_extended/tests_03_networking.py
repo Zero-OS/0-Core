@@ -64,6 +64,7 @@ class ExtendedNetworking(BaseTest):
             r = c1_client.bash('ping -w5 {}'.format(g8_ip)).get()
             self.assertEqual(r.state, 'SUCCESS', r.stdout)
 
+            time.sleep(10)
             self.lg('Container c1 ping Container c2 (ip : {}), should succeed'.format(c2_ip))
             r = c1_client.bash('ping -w5 {}'.format(c2_ip)).get()
             self.assertEqual(r.state, 'SUCCESS', r.stdout)
