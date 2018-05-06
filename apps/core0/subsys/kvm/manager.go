@@ -1147,7 +1147,7 @@ func (m *kvmManager) attachDevice(uuid, xml string) error {
 	if err != nil {
 		return fmt.Errorf("couldn't find domain with the uuid %s", uuid)
 	}
-	if err = domain.AttachDeviceFlags(xml, libvirt.DOMAIN_DEVICE_MODIFY_CURRENT); err != nil {
+	if err = domain.AttachDeviceFlags(xml, libvirt.DOMAIN_DEVICE_MODIFY_LIVE); err != nil {
 		return fmt.Errorf("failed to attach device: %s", err)
 	}
 	return nil
@@ -1162,15 +1162,15 @@ func (m *kvmManager) detachDevice(uuid, ifxml string) error {
 	if err != nil {
 		return fmt.Errorf("couldn't find domain with the uuid %s", uuid)
 	}
-	if err := domain.DetachDeviceFlags(ifxml, libvirt.DOMAIN_DEVICE_MODIFY_CURRENT); err != nil {
+	if err := domain.DetachDeviceFlags(ifxml, libvirt.DOMAIN_DEVICE_MODIFY_LIVE); err != nil {
 		return fmt.Errorf("failed to detach device: %s", err)
 	}
-
+	m.updateMediaInfo(uuid)
 	return nil
 }
 
-func mediaFromDisks(disks []DiskDevice) ([]Media){
-	medias := make([]Media, len(disks))
+func mediaFromDisks(disks []DiskDevice) []Media {
+	medias := make([]Media, 0, len(disks))
 	for _, disk := range disks {
 		url := url.URL{}
 		m := Media{}
@@ -1178,19 +1178,19 @@ func mediaFromDisks(disks []DiskDevice) ([]Media){
 		m.Bus = disk.Target.Bus
 		switch disk.Type {
 		case DiskTypeNetwork:
-		  url.Scheme = "nbd+tcp"
-		  url.Host = disk.Source.Host.Name + fmt.Sprintf(":%s", disk.Source.Host.Port)
-		  m.URL = url.String()
+			url.Scheme = "nbd+tcp"
+			url.Host = disk.Source.Host.Name + fmt.Sprintf(":%s", disk.Source.Host.Port)
+			m.URL = url.String()
 		case DiskTypeFile:
-		  m.URL = disk.Source.File
+			m.URL = disk.Source.File
 		}
 		medias = append(medias, m)
 	}
 	return medias
 }
-func mediaFromZDBString(zdb string) (Media, error){
+func mediaFromZDBString(zdb string) (Media, error) {
 	media := Media{}
-	if !strings.HasPrefix(zdb, "driver=zdb"){
+	if !strings.HasPrefix(zdb, "driver=zdb") {
 		return media, fmt.Errorf("couldn't find driver=zdb string in %s", zdb)
 	}
 	qparams := url.Values{}
@@ -1218,14 +1218,14 @@ func mediaFromZDBString(zdb string) (Media, error){
 		case size:
 			size = v
 		}
-		if socketpath != ""{
+		if socketpath != "" {
 			url.Path = urlprotocol + socketpath
 		}
 		if host != "" {
-			url.Host = urlprotocol + host 
+			url.Host = urlprotocol + host
 		}
 		if port != "" {
-			url.Host = url.Host + ":"+port
+			url.Host = url.Host + ":" + port
 		}
 		if password != "" {
 			qparams.Add("password", password)
@@ -1237,7 +1237,7 @@ func mediaFromZDBString(zdb string) (Media, error){
 			qparams.Add("blocksize", blocksize)
 		}
 		if size != "" {
-		qparams.Add("size", size)
+			qparams.Add("size", size)
 		}
 		url.RawQuery = qparams.Encode()
 		media.URL = url.String()
@@ -1246,7 +1246,8 @@ func mediaFromZDBString(zdb string) (Media, error){
 }
 
 func (m *kvmManager) updateMediaInfo(uuid string) error {
-	domainInfo, err := m.getDomainInfo(uuid) 
+	log.Info("CALL TO UPDATE MEDIA..")
+	domainInfo, err := m.getDomainInfo(uuid)
 	if err != nil {
 		return err
 	}
@@ -1259,7 +1260,7 @@ func (m *kvmManager) updateMediaInfo(uuid string) error {
 
 	for _, arg := range domainstruct.Qemu.Args {
 		media, err := mediaFromZDBString(arg.Value)
-		if err!=nil {
+		if err != nil {
 			return err
 		}
 		medias = append(medias, media)
@@ -1267,7 +1268,6 @@ func (m *kvmManager) updateMediaInfo(uuid string) error {
 	domainInfo.Media = medias
 	return nil
 }
-
 
 func (m *kvmManager) attachDisk(cmd *pm.Command) (interface{}, error) {
 	var params ManDiskParams
@@ -1290,7 +1290,7 @@ func (m *kvmManager) attachDisk(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal disk to xml")
 	}
-	if err := m.attachDevice(params.UUID, string(diskxml[:])) ; err!=nil {
+	if err := m.attachDevice(params.UUID, string(diskxml[:])); err != nil {
 		return nil, err
 	}
 	m.updateMediaInfo(params.UUID)
@@ -1324,7 +1324,7 @@ func (m *kvmManager) detachDisk(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal disk to xml")
 	}
-	if err := m.detachDevice(params.UUID, string(diskxml[:])); err!=nil{
+	if err := m.detachDevice(params.UUID, string(diskxml[:])); err != nil {
 		return nil, err
 	}
 	m.updateMediaInfo(params.UUID)
@@ -1411,6 +1411,7 @@ func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 
 // used to reflect the removed nics in the domaininfo metadata from the domain struct.
 func (m *kvmManager) updateNics(uuid string) error {
+	log.Info("CALL TO UPDATENICS...")
 	interfaceMacs := map[string]bool{}
 	domainInfo, err := m.getDomainInfo(uuid)
 	if err != nil {
@@ -1675,6 +1676,7 @@ func (m *kvmManager) getMachine(domain *libvirt.Domain) (Machine, error) {
 		return Machine{}, err
 	}
 	m.updateNics(uuid)
+	m.updateMediaInfo(uuid)
 	return Machine{
 		ID:         int(id),
 		UUID:       uuid,
