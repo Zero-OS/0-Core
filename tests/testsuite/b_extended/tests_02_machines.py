@@ -45,7 +45,7 @@ class ExtendedMachines(BaseTest):
 
         self.lg('Create Virtual machine (vm1)')
         vm_name = self.rand_str()
-        self.create_vm(name=vm_name)
+        vm_uuid = self.create_vm(name=vm_name)
 
         self.lg('Create vlan (v1) and specific name')
         t1 = randint(1, 4094)
@@ -62,7 +62,6 @@ class ExtendedMachines(BaseTest):
         self.client.bridge.create(bn2)
 
         self.lg('Connect the vm to all these nics types, should succeed')
-        vm_uuid = self.get_vm_uuid(vm_name)
         self.client.kvm.add_nic(vm_uuid, 'vlan', id=str(t1))
         self.assertEqual(len(self.client.kvm.info(vm_uuid)['Net']), 1)
         self.client.kvm.add_nic(vm_uuid, 'vxlan', id=str(vx1_id))
@@ -111,13 +110,12 @@ class ExtendedMachines(BaseTest):
 
         self.lg('Create Virtual machine (vm1)')
         vm_name = self.rand_str()
-        self.create_vm(name=vm_name)
+        vm_uuid = self.create_vm(name=vm_name)
 
         self.lg('Create loop device (L1)')
         loop_dev = self.setup_loop_devices(['bd0'], '500M', deattach=True)[0]
 
         self.lg('Attach L1 to vm1, should succeed')
-        vm_uuid = self.get_vm_uuid(vm_name)
         l = len(self.client.kvm.info(vm_uuid)['Block'])
         self.client.kvm.attach_disk(vm_uuid, {'url': loop_dev})
         self.assertEqual(len(self.client.kvm.info(vm_uuid)['Block']), l + 1)
