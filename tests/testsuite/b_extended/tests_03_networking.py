@@ -44,18 +44,17 @@ class ExtendedNetworking(BaseTest):
             self.lg('Get containers zerotier ip addresses')
             c1_ip = self.get_contanier_zt_ip(c1_client, networkId)
             c2_ip = self.get_contanier_zt_ip(c2_client, networkId)
+
+            self.assertTrue(all([c1_ip, c2_ip]))
             
             time.sleep(30)
 
-            self.lg('set client time to 100 sec')
-            self.client.timeout = 100
-
             self.lg('Container c1 ping Container c2 (ip : {}), should succeed'.format(c2_ip))
-            r = c1_client.bash('ping -w5 {}'.format(c2_ip)).get()
+            r = c1_client.bash('ping -w10 {}'.format(c2_ip)).get()
             self.assertEqual(r.state, 'SUCCESS', r.stdout)
 
             self.lg('Container c2 ping Container c1 (ip : {}), should succeed'.format(c1_ip))
-            r = c2_client.bash('ping -w5 {}'.format(c1_ip)).get()
+            r = c2_client.bash('ping -w10 {}'.format(c1_ip)).get()
             self.assertEqual(r.state, 'SUCCESS', r.stdout)
 
         finally:
