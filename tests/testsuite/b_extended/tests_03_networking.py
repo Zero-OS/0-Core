@@ -50,12 +50,16 @@ class ExtendedNetworking(BaseTest):
             c1_client = self.client.container.client(cid_1)
             c2_client = self.client.container.client(cid_2)
 
-            time.sleep(40)
+            time.sleep(30)
 
             self.lg('Get g8os and containers zerotier ip addresses')
             g8_ip = self.get_g8os_zt_ip(networkId)
-            c1_ip = self.get_contanier_zt_ip(c1_client)
-            c2_ip = self.get_contanier_zt_ip(c2_client)
+            c1_ip = self.get_contanier_zt_ip(c1_client, networkId)
+            c2_ip = self.get_contanier_zt_ip(c2_client, networkId)
+
+            self.assertTrue(all([g8_ip, c1_ip, c2_ip]))
+
+            time.sleep(20)
 
             self.lg('set client time to 100 sec')
             self.client.timeout = 100
@@ -64,7 +68,6 @@ class ExtendedNetworking(BaseTest):
             r = c1_client.bash('ping -w5 {}'.format(g8_ip)).get()
             self.assertEqual(r.state, 'SUCCESS', r.stdout)
 
-            time.sleep(10)
             self.lg('Container c1 ping Container c2 (ip : {}), should succeed'.format(c2_ip))
             r = c1_client.bash('ping -w5 {}'.format(c2_ip)).get()
             self.assertEqual(r.state, 'SUCCESS', r.stdout)
@@ -87,6 +90,7 @@ class ExtendedNetworking(BaseTest):
 
             self.lg('G8os client leave zerotier network (N1), should succeed')
             self.client.zerotier.leave(networkId)
+
             time.sleep(5)
 
             self.lg('G8os client ping Container c1 (ip : {}), should fail'.format(c1_ip))
@@ -97,11 +101,11 @@ class ExtendedNetworking(BaseTest):
             r = self.client.bash('ping -w10 {}'.format(c2_ip)).get()
             self.assertEqual(r.state, 'ERROR', r.stdout)
 
-            self.lg('Terminate c1, c2')
+        finally:
             self.client.container.terminate(cid_1)
             self.client.container.terminate(cid_2)
-        finally:
             self.delete_zerotier_network(networkId)
+
         self.lg('{} ENDED'.format(self._testID))
 
     def test002_create_bridges_with_specs_hwaddr(self):

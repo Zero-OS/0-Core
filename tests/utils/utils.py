@@ -80,7 +80,7 @@ class BaseTest(unittest.TestCase):
 
     def stdout(self, resource):
         return resource.get().stdout.replace('\n', '').lower()
-
+        
     def create_zerotier_network(self, private=False):
         url = 'https://my.zerotier.com/api/network'
         data = {'config': {'ipAssignmentPools': [{'ipRangeEnd': '10.147.19.254',
@@ -133,20 +133,19 @@ class BaseTest(unittest.TestCase):
         else:
             self.lg('can\'t find network in zerotier.list()')
 
-    def get_contanier_zt_ip(self, client):
+    def get_contanier_zt_ip(self, client, networkId):
         """
         method to get zerotier ip address of the g8os container
         Note: to use this method, make sure that zt is defined first in the nic
         list during creating your container, so it could be attached to etho interface
         """
-        nics = client.info.nic()
-        for nic in nics:
-            if 'zt' in nic['name']:
-                address = nic['addrs'][0]['addr']
-                address = address[:address.find('/')]
-                return address
+        nws = client.zerotier.list()
+        for nw in nws:
+            if nw['nwid'] == networkId:
+                address = nw['assignedAddresses'][0]
+                return address[:address.find('/')]
         else:
-            self.lg('can\'t find zerotier netowrk interface')
+            self.lg('can\'t find network in zerotier.list()')
 
     def deattach_all_loop_devices(self):
         self.client.bash('modprobe loop')  # to make /dev/loop* available
