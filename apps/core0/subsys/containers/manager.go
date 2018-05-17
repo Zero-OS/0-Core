@@ -78,8 +78,9 @@ type Nic struct {
 	Name      string        `json:"name,omitempty"`
 	Config    NetworkConfig `json:"config"`
 	Monitor   bool          `json:"monitor"`
+	State     NicState      `json:"state"`
 
-	State NicState `json:"state"`
+	Index int `json:"-"`
 }
 
 type ContainerCreateArguments struct {
@@ -163,6 +164,8 @@ func (c *ContainerCreateArguments) Validate() error {
 			if brcounter[nic.ID] > 1 {
 				return fmt.Errorf("connecting to bridge '%s' more than one time is not allowed", nic.ID)
 			}
+		case "passthrough":
+			fallthrough
 		case "macvlan":
 			brcounter[nic.ID]++
 			if brcounter[nic.ID] > 1 {
