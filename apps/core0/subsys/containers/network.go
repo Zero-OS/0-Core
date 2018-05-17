@@ -781,7 +781,6 @@ func (c *container) destroyNetwork() {
 		}
 		os.RemoveAll(targetNs)
 	}
-	<-time.After(2 * time.Second)
 	for _, network := range c.Args.Nics {
 		switch network.Type {
 		case "passthrough":
