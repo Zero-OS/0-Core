@@ -172,12 +172,10 @@ func (c *container) leaveZerotierNetwork(idx int, netID string) error {
 }
 
 func (c *container) setupLink(src, target string, index int, n *Nic) error {
-
 	link, err := netlink.LinkByName(src)
 	if err != nil {
 		return fmt.Errorf("get link: %s", err)
 	}
-	n.Index = link.Attrs().Index
 
 	if err := netlink.LinkSetNsPid(link, c.PID); err != nil {
 		return fmt.Errorf("set ns pid: %s", err)
@@ -395,6 +393,9 @@ func (c *container) prePassthroughNetwork(index int, n *Nic) error {
 	if err != nil {
 		return pm.NotFoundError(fmt.Errorf("link '%s' not found: %s", n.ID, err))
 	}
+
+	n.Index = link.Attrs().Index
+	n.OriginalHWAddress = link.Attrs().HardwareAddr
 
 	if err := netlink.LinkSetDown(link); err != nil {
 		return err
@@ -747,6 +748,12 @@ func (c *container) destroyPassthroughNetwork(n *Nic) error {
 		total += sleep
 	}
 
+	//restore the original HW address
+	if err := netlink.LinkSetHardwareAddr(link, n.OriginalHWAddress); err != nil {
+		return err
+	}
+
+	//Restore the original
 	return netlink.LinkSetName(link, n.ID)
 }
 

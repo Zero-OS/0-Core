@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net"
 	"net/url"
 	"os"
 	"path"
@@ -80,7 +81,8 @@ type Nic struct {
 	Monitor   bool          `json:"monitor"`
 	State     NicState      `json:"state"`
 
-	Index int `json:"-"`
+	Index             int              `json:"-"`
+	OriginalHWAddress net.HardwareAddr `json:"-"`
 }
 
 type ContainerCreateArguments struct {
