@@ -45,9 +45,11 @@ type DomainInfo struct {
 }
 
 type LibvirtConnection struct {
-	handler libvirt.DomainEventLifecycleCallback
-	m       sync.Mutex
-	conn    *libvirt.Connect
+	lifeCycleHandler     libvirt.DomainEventLifecycleCallback
+	deviceRemovedHandler libvirt.DomainEventDeviceRemovedCallback
+
+	m    sync.Mutex
+	conn *libvirt.Connect
 }
 
 type kvmManager struct {
@@ -119,7 +121,9 @@ func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) erro
 		domainsInfo: make(map[string]*DomainInfo),
 	}
 
-	mgr.libvirt.handler = mgr.handle
+	mgr.libvirt.lifeCycleHandler = mgr.domaineLifeCycleHandler
+	mgr.libvirt.deviceRemovedHandler = mgr.deviceRemovedHandler
+
 	cell.Text = "Virtual Machines: 0"
 	if err := mgr.setupDefaultGateway(); err != nil {
 		return err
@@ -468,7 +472,7 @@ func IOTuneParamsToIOTune(inp IOTuneParams) IOTune {
 }
 
 func (c *LibvirtConnection) register(conn *libvirt.Connect) {
-	_, err := conn.DomainEventLifecycleRegister(nil, c.handler)
+	_, err := conn.DomainEventLifecycleRegister(nil, c.lifeCycleHandler)
 	if err != nil {
 		log.Errorf("failed to regist event handler: %s", err)
 	}
@@ -1255,7 +1259,7 @@ func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
 			}
 		}
 		// TODO: use the ports that the domain was created with initially
-		inf, err = m.prepareDefaultNetwork(params.UUID, domainInfo.Sequence, map[int]int{})
+		inf, err = m.prepareDefaultNetwork(params.UUID, domainInfo.Sequence, map[string]int{})
 	case "bridge":
 		if nic.ID == DefaultBridgeName {
 			err = fmt.Errorf("the default bridge for the vm should not be added manually")
