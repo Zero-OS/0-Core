@@ -1459,8 +1459,17 @@ class BridgeManager:
         }
     })
 
-    _bridge_delete_chk = typchk.Checker({
+    _bridge_chk = typchk.Checker({
         'name': str,
+    })
+
+    _nic_add_chk = typchk.Checker({
+        'name': str,
+        'nic': str,
+    })
+
+    _nic_remove_chk = typchk.Checker({
+        'nic': str,
     })
 
     def __init__(self, client):
@@ -1500,26 +1509,14 @@ class BridgeManager:
 
         self._bridge_create_chk.check(args)
 
-        response = self._client.raw('bridge.create', args)
-
-        result = response.get()
-        if result.state != 'SUCCESS':
-            raise RuntimeError('failed to create bridge %s' % result.data)
-
-        return json.loads(result.data)
+        return self._client.json('bridge.create', args)
 
     def list(self):
         """
         List all available bridges
         :return: list of bridge names
         """
-        response = self._client.raw('bridge.list', {})
-
-        result = response.get()
-        if result.state != 'SUCCESS':
-            raise RuntimeError('failed to list bridges: %s' % result.data)
-
-        return json.loads(result.data)
+        return self._client.json('bridge.list', {})
 
     def delete(self, bridge):
         """
@@ -1532,14 +1529,56 @@ class BridgeManager:
             'name': bridge,
         }
 
-        self._bridge_delete_chk.check(args)
+        self._bridge_chk.check(args)
 
-        response = self._client.raw('bridge.delete', args)
+        return self._client.json('bridge.delete', args)
 
-        result = response.get()
-        if result.state != 'SUCCESS':
-            raise RuntimeError('failed to list delete: %s' % result.data)
+    def nic_add(self, bridge, nic):
+        """
+        Attach a nic to a bridge
 
+        :param bridge: bridge name
+        :param nic: nic name
+        """
+
+        args = {
+            'name': bridge,
+            'nic': nic,
+        }
+
+        self._nic_add_chk.check(args)
+
+        return self._client.json('bridge.nic-add', args)
+
+    def nic_remove(self, nic):
+        """
+        Detach a nic from a bridge
+
+        :param nic: nic name to detach
+        """
+
+        args = {
+            'nic': nic,
+        }
+
+        self._nic_remove_chk.check(args)
+
+        return self._client.json('bridge.nic-remove', args)
+
+    def nic_list(self, bridge):
+        """
+        List nics attached to bridge
+
+        :param bridge: bridge name
+        """
+
+        args = {
+            'name': bridge,
+        }
+
+        self._bridge_chk.check(args)
+
+        return self._client.json('bridge.nic-list', args)
 
 class DiskManager:
     _mktable_chk = typchk.Checker({
