@@ -1,0 +1,10 @@
+# Set machine hostname, using zerotier id as variable
+
+[startup.hostname]
+name = "core.system"
+running_delay = -1
+after = ["zerotier-init"]
+
+[startup.hostname.args]
+name = "sh"
+args = ["-c", "hostname zero-os-$(cut -d: -f1 /tmp/zt/identity.public)"]

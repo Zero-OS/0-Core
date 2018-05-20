@@ -28,6 +28,12 @@ var (
 		"filter": nft.Table{
 			Family: nft.FamilyINET,
 			Chains: nft.Chains{
+				"pre": nft.Chain{
+					Type:     nft.TypeFilter,
+					Hook:     "prerouting",
+					Priority: 0,
+					Policy:   "accept",
+				},
 				"input": nft.Chain{
 					Type:     nft.TypeFilter,
 					Hook:     "input",

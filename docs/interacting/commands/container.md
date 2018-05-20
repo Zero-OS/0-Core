@@ -68,7 +68,7 @@ Values:
 
   - **{hwaddr}**: (optional) MAC address
 
-  - **{config}**: Only relevant for bridge, VLAN and VXLAN types:  
+  - **{config}**: Only relevant for bridge, VLAN and VXLAN types:
     - `{dhcp}`: True/False. Runs the `Udhcpc` DHCP client on the container link, of course this will only work if the bridge is created with `dnsmasq` networking
     - `{CIDR}`: Assigns a static IP address to the link
     - `{gateway}`: gateway
@@ -76,7 +76,10 @@ Values:
 
 - **port**: Dict of `{host_port}: {container_port}` pairs
 
-  Example: `port=[8080: 80, 7000:7000]`
+  - Example: `port={'8080': 80, '7000':7000}`
+  - Example: `port={'192.168.1.1:8080': 80}` only accept connection from this ip
+  - Example: `port={'192.168.1.0/24:8080': 80}` only accept connection from this network
+  - Example: `port={'eth0:8080': 80}` only accept connection from this device
 
 - **{hostname}**: Specific hostname you want to give to the container
   - If none it will automatically be set to `core-x`, x being the ID of the container

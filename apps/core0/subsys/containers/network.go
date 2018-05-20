@@ -172,7 +172,6 @@ func (c *container) leaveZerotierNetwork(idx int, netID string) error {
 }
 
 func (c *container) setupLink(src, target string, index int, n *Nic) error {
-
 	link, err := netlink.LinkByName(src)
 	if err != nil {
 		return fmt.Errorf("get link: %s", err)
@@ -389,6 +388,41 @@ func (c *container) preMacVlanNetwork(index int, n *Nic) error {
 	return nil
 }
 
+func (c *container) prePassthroughNetwork(index int, n *Nic) error {
+	link, err := netlink.LinkByName(n.ID)
+	if err != nil {
+		return pm.NotFoundError(fmt.Errorf("link '%s' not found: %s", n.ID, err))
+	}
+
+	n.Index = link.Attrs().Index
+	n.OriginalHWAddress = link.Attrs().HardwareAddr
+
+	if err := netlink.LinkSetDown(link); err != nil {
+		return err
+	}
+
+	var name string
+	if n.Monitor {
+		name = fmt.Sprintf(containerMonitoredLinkNameFmt, c.id, index)
+	} else {
+		name = fmt.Sprintf(containerLinkNameFmt, c.id, index)
+	}
+
+	if err := netlink.LinkSetName(link, name); err != nil {
+		return err
+	}
+
+	if n.HWAddress != "" {
+		if mac, err := net.ParseMAC(n.HWAddress); err != nil {
+			log.Errorf("parse hwaddr error: %s", err)
+		} else if err := netlink.LinkSetHardwareAddr(link, mac); err != nil {
+			return fmt.Errorf("failed to setup hw address: %s", err)
+		}
+	}
+
+	return nil
+}
+
 func (c *container) getDefaultIP() net.IP {
 	base := c.id + 1
 	//we increment the ID to avoid getting the ip of the bridge itself.
@@ -411,7 +445,7 @@ func (c *container) forwardId() string {
 	return fmt.Sprintf("container-%d", c.id)
 }
 
-func (c *container) setPortForward(host int, dest int) error {
+func (c *container) setPortForward(host string, dest int) error {
 	ip := c.getDefaultIP().String()
 	return socat.SetPortForward(c.forwardId(), ip, host, dest)
 }
@@ -586,6 +620,8 @@ func (c *container) postStartNetwork(idx int, network *Nic) (err error) {
 		err = c.postBridge(name, idx, network)
 	case "macvlan":
 		err = c.postLink(name, idx, network)
+	case "passthrough":
+		err = c.postLink(name, idx, network)
 	}
 
 	if err != nil {
@@ -623,6 +659,8 @@ func (c *container) preStartNetwork(idx int, network *Nic) (err error) {
 		err = c.preBridge(idx, network.ID, network, nil)
 	case "macvlan":
 		err = c.preMacVlanNetwork(idx, network)
+	case "passthrough":
+		err = c.prePassthroughNetwork(idx, network)
 	case "zerotier":
 	default:
 		err = pm.BadRequestError(fmt.Errorf("unkown network type '%s'", network.Type))
@@ -688,6 +726,37 @@ func (c *container) unBridge(idx int, n *Nic, ovs Container) error {
 	return netlink.LinkDel(link)
 }
 
+func (c *container) destroyPassthroughNetwork(n *Nic) error {
+	//sometimes, after destorying the network namespace, the passthrough
+	//nic does not pop up immediately in the host namespace. We need to find
+	//the nic in a loop with small sleep time, max of 3 seconds
+	var link netlink.Link
+	var total time.Duration
+	sleep := 100 * time.Millisecond
+	for {
+		var err error
+		link, err = netlink.LinkByIndex(n.Index)
+		if err == nil {
+			break
+		}
+
+		if total >= 3*time.Second {
+			return fmt.Errorf("failed to find device with index: %d", n.Index)
+		}
+
+		<-time.After(sleep)
+		total += sleep
+	}
+
+	//restore the original HW address
+	if err := netlink.LinkSetHardwareAddr(link, n.OriginalHWAddress); err != nil {
+		return err
+	}
+
+	//Restore the original
+	return netlink.LinkSetName(link, n.ID)
+}
+
 func (c *container) destroyNetwork() {
 	log.Debugf("destroying networking for container: %s", c.id)
 	if c.Args.HostNetwork {
@@ -718,5 +787,13 @@ func (c *container) destroyNetwork() {
 			log.Errorf("Failed to unmount %s: %s", targetNs, err)
 		}
 		os.RemoveAll(targetNs)
+	}
+	for _, network := range c.Args.Nics {
+		switch network.Type {
+		case "passthrough":
+			if err := c.destroyPassthroughNetwork(network); err != nil {
+				log.Errorf("failed to restor passthrough device: %v", err)
+			}
+		}
 	}
 }

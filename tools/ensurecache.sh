@@ -1,4 +1,4 @@
-set -e
+set -ex
 
 udevadm settle
 
@@ -9,12 +9,19 @@ STORAGEPOOL="/mnt/storagepools"
 MNT="${STORAGEPOOL}/${LABEL}"
 
 function error {
-    echo $@ >&2
+    echo "[-]" $@ >&2
+}
+
+function log {
+    echo "[+]" $@ >&2
 }
 
 function labelmount {
-    mount /dev/disk/by-label/$1 $2 > /dev/null 2>&1
-    return $?
+    disk=/dev/disk/by-label/$1
+    target=$2
+
+    btrfs check --repair $disk
+    mount $disk $target
 }
 
 function preparedisk {
@@ -33,22 +40,42 @@ function preparedisk {
     fi
 
     parted -s ${DISK} mktable gpt
-    parted -s ${DISK} mkpart primary btrfs 1 100%
+    parted -s ${DISK} mkpart primary btrfs 1 100% | true
+    sync
+    partprobe
+
     mkfs.btrfs ${DISK}1 -f -L ${LABEL}
 
+    sync
+    partprobe
+    udevadm settle
+
+    return 0
+}
+
+function cleanup {
+    path=$1
+    if [ ! -d $path ]; then
+        return 0
+    fi
+
+    for vol in `ls $path`; do
+        full="$path/$vol"
+        btrfs subvol del $full | rm -rf $full | true
+    done
     return 0
 }
 
 function hook {
     # create required subvols and mount them if not exits
-    echo "create and mount subvolume for ${LABEL}"
+    log "create and mount subvolume for ${LABEL}"
     # 1 - cache subvol
     btrfs subvol create $1/cache || true
     mount $1/cache /var/cache/
 
     # clean up old container, and vms working directories
-    rm -rf /var/cache/containers
-    rm -rf /var/cache/vms
+    cleanup /var/cache/containers
+    cleanup /var/cache/vms
 
     logs=$1/logs
     btrfs subvol create ${logs} || true
@@ -70,7 +97,7 @@ function main {
     if ! labelmount ${LABEL} ${MNT}; then
         # no parition found with that label
         # prepare the first availabel disk
-	    echo "${LABEL} not mounted, search for available disk"
+	    log "${LABEL} not mounted, search for available disk"
         preparedisk
         labelmount ${LABEL} ${MNT}
     fi

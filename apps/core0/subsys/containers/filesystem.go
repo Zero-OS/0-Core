@@ -16,6 +16,7 @@ import (
 	"github.com/zero-os/0-core/apps/core0/helper/filesystem"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/settings"
+	"github.com/zero-os/0-core/base/utils"
 )
 
 const (
@@ -110,7 +111,9 @@ func (c *container) sandbox() error {
 
 	if fstype == "btrfs" {
 		//make sure we delete it if sub volume exists
-		pm.System("btrfs", "subvolume", "delete", path.Join(BackendBaseDir, c.name()))
+		if utils.Exists(path.Join(BackendBaseDir, c.name())) {
+			pm.System("btrfs", "subvolume", "delete", path.Join(BackendBaseDir, c.name()))
+		}
 		pm.System("btrfs", "subvolume", "create", path.Join(BackendBaseDir, c.name()))
 	}
 

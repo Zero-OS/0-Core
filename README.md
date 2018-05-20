@@ -1,5 +1,5 @@
 
-[![Build Status](https://api.travis-ci.org/zero-os/0-core.svg?branch=master)](https://travis-ci.org/zero-os/0-core/)
+[![Build Status](https://api.travis-ci.org/zero-os/0-core.svg?branch=development)](https://travis-ci.org/zero-os/0-core/)
 [![codecov](https://codecov.io/gh/zero-os/0-core/branch/master/graph/badge.svg)](https://codecov.io/gh/zero-os/0-core)
 
 # 0-core

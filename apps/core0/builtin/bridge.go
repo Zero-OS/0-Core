@@ -27,6 +27,10 @@ func init() {
 	pm.RegisterBuiltIn("bridge.list", b.list)
 	pm.RegisterBuiltIn("bridge.delete", b.delete)
 	pm.RegisterBuiltIn("bridge.add_host", b.addHost)
+	pm.RegisterBuiltIn("bridge.host-add", b.addHost) //fix conviension without breaking backward compatibility
+	pm.RegisterBuiltIn("bridge.nic-add", b.addNic)
+	pm.RegisterBuiltIn("bridge.nic-remove", b.removeNic)
+	pm.RegisterBuiltIn("bridge.nic-list", b.listNic)
 }
 
 var (
@@ -326,6 +330,84 @@ func (b *bridgeMgr) addHost(cmd *pm.Command) (interface{}, error) {
 	return nil, job.Signal(syscall.SIGHUP)
 }
 
+func (b *bridgeMgr) addNic(cmd *pm.Command) (interface{}, error) {
+	var args struct {
+		Name string `json:"name"`
+		Nic  string `json:"nic"`
+	}
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, pm.BadRequestError(err)
+	}
+
+	link, err := netlink.LinkByName(args.Name)
+	if err != nil {
+		return nil, pm.NotFoundError(err)
+	}
+
+	if link.Type() != "bridge" {
+		return nil, pm.BadRequestError(fmt.Errorf("not a bridge"))
+	}
+
+	nic, err := netlink.LinkByName(args.Nic)
+	if err != nil {
+		return nil, pm.NotFoundError(err)
+	}
+
+	return nil, netlink.LinkSetMaster(nic, link.(*netlink.Bridge))
+}
+
+func (b *bridgeMgr) removeNic(cmd *pm.Command) (interface{}, error) {
+	var args struct {
+		Nic string `json:"nic"`
+	}
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, pm.BadRequestError(err)
+	}
+
+	nic, err := netlink.LinkByName(args.Nic)
+	if err != nil {
+		return nil, pm.NotFoundError(err)
+	}
+
+	return nil, netlink.LinkSetNoMaster(nic)
+}
+
+func (b *bridgeMgr) listNic(cmd *pm.Command) (interface{}, error) {
+	var args struct {
+		Name string `json:"name"`
+	}
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, pm.BadRequestError(err)
+	}
+
+	link, err := netlink.LinkByName(args.Name)
+	if err != nil {
+		return nil, pm.NotFoundError(err)
+	}
+
+	if link.Type() != "bridge" {
+		return nil, pm.BadRequestError(fmt.Errorf("not a bridge"))
+	}
+
+	index := link.Attrs().Index
+	list := make([]string, 0)
+	links, err := netlink.LinkList()
+	if err != nil {
+		return nil, pm.InternalError(err)
+	}
+
+	for _, link := range links {
+		if link.Attrs().MasterIndex == index {
+			list = append(list, link.Attrs().Name)
+		}
+	}
+
+	return list, nil
+}
+
 func (b *bridgeMgr) bridgeNetworking(bridge *netlink.Bridge, network *BridgeNetwork) error {
 	var addr *netlink.Addr
 	var err error
@@ -509,7 +591,7 @@ func (b *bridgeMgr) unNFT(idx int) error {
 		for cname, chain := range table.Chains {
 			for _, rule := range chain.Rules {
 				if ok := pat.MatchString(rule.Body); ok {
-					if err := nft.Drop(tname, cname, rule.Handle); err != nil {
+					if err := nft.Drop(table.Family, tname, cname, rule.Handle); err != nil {
 						log.Errorf("nft delete rule: %s", err)
 						errored = true
 					}

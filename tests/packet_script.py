@@ -11,7 +11,7 @@ import requests
 
 def create_new_device(manager, hostname, branch='master'):
     project = manager.list_projects()[0]
-    ipxe_script_url = 'https://bootstrap.gig.tech/ipxe/{}/abcdef/console=ttyS1,115200n8%20debug'.format(branch)
+    ipxe_script_url = 'http://unsecure.bootstrap.gig.tech/ipxe/{}/0/development'.format(branch)
     available_facility = None
     facilities = [x.code for x in manager.list_facilities()]
     for facility in facilities:
@@ -56,14 +56,6 @@ def delete_device(manager):
                 else:
                     print("%s hasn't been deleted" % hostname)
 
-def mount_disks(config):
-    target_ip = config['main']['target_ip']
-    time.sleep(10)
-    cl = client.Client(target_ip, timeout=300)
-    cl.timeout = 100
-    cl.btrfs.create('storage', ['/dev/sda'])
-    cl.disk.mount('/dev/sda', '/var/cache', options=[""])
-
 
 def check_status(found, branch):
     session = requests.Session()
@@ -85,7 +77,6 @@ def check_status(found, branch):
             break
     time.sleep(1)
 
-
 def create_pkt_machine(manager, branch):
     hostname = '0core{}-travis'.format(randint(100, 300))
     try:
@@ -97,9 +88,11 @@ def create_pkt_machine(manager, branch):
     print('provisioning the new machine ..')
     while True:
         dev = manager.get_device(device.id)
+        time.sleep(5)
         if dev.state == 'active':
             break
-    time.sleep(5)
+    print('Giving the machine time till it finish booting')
+    time.sleep(150)
 
     print('preparing machine for tests')
     config = configparser.ConfigParser()
@@ -108,8 +101,6 @@ def create_pkt_machine(manager, branch):
     config['main']['machine_hostname'] = hostname
     with open('config.ini', 'w') as configfile:
         config.write(configfile)
-    mount_disks(config)
-
 
 if __name__ == '__main__':
     action = sys.argv[1]

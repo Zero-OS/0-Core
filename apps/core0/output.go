@@ -34,7 +34,6 @@ in sync mode
 */
 
 func redirect(name string) (err error) {
-	syscall.Close(2)
 	f, err := os.OpenFile(
 		name,
 		os.O_CREATE|os.O_WRONLY|os.O_APPEND|os.O_SYNC,
@@ -45,6 +44,7 @@ func redirect(name string) (err error) {
 		return err
 	}
 
+	defer f.Close()
 	return syscall.Dup2(int(f.Fd()), 2)
 }
 

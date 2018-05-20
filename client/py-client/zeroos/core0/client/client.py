@@ -962,7 +962,7 @@ class ContainerClient(BaseClient):
 
 class ContainerManager:
     _nic = {
-        'type': typchk.Enum('default', 'bridge', 'zerotier', 'vlan', 'vxlan', 'macvlan'),
+        'type': typchk.Enum('default', 'bridge', 'zerotier', 'vlan', 'vxlan', 'macvlan', 'passthrough'),
         'id': typchk.Or(str, typchk.Missing()),
         'name': typchk.Or(str, typchk.Missing()),
         'hwaddr': typchk.Or(str, typchk.Missing()),
@@ -988,6 +988,7 @@ class ContainerManager:
         'nics': [_nic],
         'port': typchk.Or(
             typchk.Map(int, int),
+            typchk.Map(str, int),
             typchk.IsNone()
         ),
         'privileged': bool,
@@ -1017,8 +1018,6 @@ class ContainerManager:
 
     DefaultNetworking = object()
 
-
-
     def __init__(self, client):
         self._client = client
 
@@ -1036,8 +1035,14 @@ class ContainerManager:
         :param nics: Configure the attached nics to the container
                      each nic object is a dict of the format
                      {
-                        'type': nic_type # default, bridge, zerotier, macvlan, vlan, or vxlan (note, vlan and vxlan only supported by ovs)
-                        'id': id # depends on the type, bridge name, zerotier network id, the parent link (macvlan), the vlan tag or the vxlan id
+                        'type': nic_type # one of default, bridge, zerotier, macvlan, passthrough, vlan, or vxlan (note, vlan and vxlan only supported by ovs)
+                        'id': id # depends on the type
+                            bridge: bridge name,
+                            zerotier: network id,
+                            macvlan: the parent link name,
+                            passthrough: the link name,
+                            vlan: the vlan tag,
+                            vxlan: the vxlan id
                         'name': name of the nic inside the container (ignored in zerotier type)
                         'hwaddr': Mac address of nic.
                         'config': { # config is only honored for bridge, vlan, and vxlan types
@@ -1126,8 +1131,14 @@ class ContainerManager:
 
         :param container: container ID
         :param nic: {
-                        'type': nic_type # default, bridge, zerotier, macvlan, vlan, or vxlan (note, vlan and vxlan only supported by ovs)
-                        'id': id # depends on the type, bridge name, zerotier network id, the parent link (macvlan), the vlan tag or the vxlan id
+                        'type': nic_type # one of default, bridge, zerotier, macvlan, passthrough, vlan, or vxlan (note, vlan and vxlan only supported by ovs)
+                        'id': id # depends on the type
+                            bridge: bridge name,
+                            zerotier: network id,
+                            macvlan: the parent link name,
+                            passthrough: the link name,
+                            vlan: the vlan tag,
+                            vxlan: the vxlan id
                         'name': name of the nic inside the container (ignored in zerotier type)
                         'hwaddr': Mac address of nic.
                         'config': { # config is only honored for bridge, vlan, and vxlan types
@@ -1460,8 +1471,17 @@ class BridgeManager:
         }
     })
 
-    _bridge_delete_chk = typchk.Checker({
+    _bridge_chk = typchk.Checker({
         'name': str,
+    })
+
+    _nic_add_chk = typchk.Checker({
+        'name': str,
+        'nic': str,
+    })
+
+    _nic_remove_chk = typchk.Checker({
+        'nic': str,
     })
 
     def __init__(self, client):
@@ -1501,26 +1521,14 @@ class BridgeManager:
 
         self._bridge_create_chk.check(args)
 
-        response = self._client.raw('bridge.create', args)
-
-        result = response.get()
-        if result.state != 'SUCCESS':
-            raise RuntimeError('failed to create bridge %s' % result.data)
-
-        return json.loads(result.data)
+        return self._client.json('bridge.create', args)
 
     def list(self):
         """
         List all available bridges
         :return: list of bridge names
         """
-        response = self._client.raw('bridge.list', {})
-
-        result = response.get()
-        if result.state != 'SUCCESS':
-            raise RuntimeError('failed to list bridges: %s' % result.data)
-
-        return json.loads(result.data)
+        return self._client.json('bridge.list', {})
 
     def delete(self, bridge):
         """
@@ -1533,14 +1541,56 @@ class BridgeManager:
             'name': bridge,
         }
 
-        self._bridge_delete_chk.check(args)
+        self._bridge_chk.check(args)
 
-        response = self._client.raw('bridge.delete', args)
+        return self._client.json('bridge.delete', args)
 
-        result = response.get()
-        if result.state != 'SUCCESS':
-            raise RuntimeError('failed to list delete: %s' % result.data)
+    def nic_add(self, bridge, nic):
+        """
+        Attach a nic to a bridge
 
+        :param bridge: bridge name
+        :param nic: nic name
+        """
+
+        args = {
+            'name': bridge,
+            'nic': nic,
+        }
+
+        self._nic_add_chk.check(args)
+
+        return self._client.json('bridge.nic-add', args)
+
+    def nic_remove(self, nic):
+        """
+        Detach a nic from a bridge
+
+        :param nic: nic name to detach
+        """
+
+        args = {
+            'nic': nic,
+        }
+
+        self._nic_remove_chk.check(args)
+
+        return self._client.json('bridge.nic-remove', args)
+
+    def nic_list(self, bridge):
+        """
+        List nics attached to bridge
+
+        :param bridge: bridge name
+        """
+
+        args = {
+            'name': bridge,
+        }
+
+        self._bridge_chk.check(args)
+
+        return self._client.json('bridge.nic-list', args)
 
 class DiskManager:
     _mktable_chk = typchk.Checker({
@@ -1606,7 +1656,7 @@ class DiskManager:
     def mktable(self, disk, table_type='gpt'):
         """
         Make partition table on block device.
-        :param disk: device name (sda, sdb, etc...)
+        :param disk: device path (/dev/sda, /dev/disk/by-id/ata-Samsung..., etc...)
         :param table_type: Partition table type as accepted by parted
         """
         args = {
@@ -1627,8 +1677,8 @@ class DiskManager:
         """
         Get more info about a disk or a disk partition
 
-        :param disk: (sda, sdb, etc..)
-        :param part: (sda1, sdb2, etc...)
+        :param disk: (/dev/sda, /dev/sdb, etc..)
+        :param part: (/dev/sda1, /dev/sdb2, etc...)
         :return: a dict with {"blocksize", "start", "size", and "free" sections}
         """
         args = {
@@ -1657,7 +1707,7 @@ class DiskManager:
     def mkpart(self, disk, start, end, part_type='primary'):
         """
         Make partition on disk
-        :param disk: device name (sda, sdb, etc...)
+        :param disk: device path (/dev/sda, /dev/sdb, etc...)
         :param start: partition start as accepted by parted mkpart
         :param end: partition end as accepted by parted mkpart
         :param part_type: partition type as accepted by parted mkpart
@@ -1681,7 +1731,7 @@ class DiskManager:
     def rmpart(self, disk, number):
         """
         Remove partion from disk
-        :param disk: device name (sda, sdb, etc...)
+        :param disk: device path (/dev/sda, /dev/sdb, etc...)
         :param number: Partition number (starting from 1)
         """
         args = {
@@ -2053,6 +2103,7 @@ class KvmManager:
         }],
         'port': typchk.Or(
             typchk.Map(int, int),
+            typchk.Map(str, int),
             typchk.IsNone()
         ),
         'mount': typchk.Or(
@@ -2077,6 +2128,7 @@ class KvmManager:
         }],
         'port': typchk.Or(
             typchk.Map(int, int),
+            typchk.Map(str, int),
             typchk.IsNone()
         ),
         'uuid': str

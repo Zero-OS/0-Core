@@ -168,7 +168,7 @@ class DisksTests(BaseTest):
         self.lg('{} ENDED'.format(self._testID))
 
     def test003_snapshots_btrfs(self):
-        """ g8os-0017
+        """ g8os-017
         *Test case for creating, listing and deleting btrfs snapshots*
 
         **Test Scenario:**

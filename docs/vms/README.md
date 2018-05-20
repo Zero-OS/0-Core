@@ -18,3 +18,11 @@ Each message payload is a json serialized object that has the following data
  "uuid":"<domain uuid>"
 }
 ```
+
+# Notes on VM Images
+This applies to all kind of VM images (from a disk or from an flist). Libvirt shutdown, and reboot operations are done via ACPI signals. It means if the operating system
+running inside the virtual machine decided to `ignore` or does not handle `acpi` the vm will not shutdown or reboot.
+
+KVM api in zos also exposes a `force` variant of these operations like `destroy` and `reset`. But in case you want to gracefully and cleanly shutdown the machine it's required that your image must handle `ACPI` signals.
+
+As an example for linux virtual machines, you can deploy (and autostart) `acpid`

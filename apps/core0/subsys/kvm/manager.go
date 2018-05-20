@@ -182,8 +182,8 @@ type Nic struct {
 	HWAddress string `json:"hwaddr"`
 }
 type NicParams struct {
-	Nics []Nic       `json:"nics"`
-	Port map[int]int `json:"port"`
+	Nics []Nic          `json:"nics"`
+	Port map[string]int `json:"port"`
 }
 
 type Mount struct {
@@ -215,7 +215,7 @@ type FListBootConfig struct {
 type kvmPortForward struct {
 	UUID          string `json:"uuid"`
 	ContainerPort int    `json:"container_port"`
-	HostPort      int    `json:"host_port"`
+	HostPort      string `json:"host_port"`
 }
 
 func (c *CreateParams) Valid() error {
@@ -831,7 +831,7 @@ func (m *kvmManager) mkDomain(seq uint16, params *CreateParams) (*Domain, error)
 	return &domain, nil
 }
 
-func (m *kvmManager) setPortForward(uuid string, seq uint16, host int, container int) error {
+func (m *kvmManager) setPortForward(uuid string, seq uint16, host string, container int) error {
 	ip := m.ipAddr(seq)
 	id := m.forwardId(uuid)
 	var err error
@@ -848,7 +848,7 @@ func (m *kvmManager) setPortForward(uuid string, seq uint16, host int, container
 	return err
 }
 
-func (m *kvmManager) setPortForwards(uuid string, seq uint16, port map[int]int) error {
+func (m *kvmManager) setPortForwards(uuid string, seq uint16, port map[string]int) error {
 	for host, container := range port {
 		if err := m.setPortForward(uuid, seq, host, container); err != nil {
 			return err

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"os"
 
 	"github.com/zero-os/0-core/base/pm"
 )
@@ -19,15 +20,6 @@ func init() {
 }
 
 type dhcpProtocol struct {
-}
-
-func (d *dhcpProtocol) getZerotierId() (string, error) {
-	bytes, err := ioutil.ReadFile("/tmp/zt/identity.public")
-	if err != nil {
-		return "", err
-	}
-
-	return string(bytes)[0:10], nil
 }
 
 func (d *dhcpProtocol) isPlugged(inf string) error {
@@ -47,13 +39,9 @@ func (d *dhcpProtocol) Configure(mgr NetworkManager, inf string) error {
 	// if err := d.isPlugged(inf); err != nil {
 	// 	return err
 	// }
-
-	hostid := "hostname:zero-os"
-
-	ztid, err := d.getZerotierId()
-	if err == nil {
-		hostid = fmt.Sprintf("hostname:zero-os-%s", ztid)
-	}
+	
+	hostname, _ := os.Hostname()
+	hostid := fmt.Sprintf("hostname:zero-os-%s", hostname)
 
 	cmd := &pm.Command{
 		ID:      fmt.Sprintf("udhcpc/%s", inf),

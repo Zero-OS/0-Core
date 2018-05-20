@@ -3,9 +3,12 @@ package builtin
 import (
 	"encoding/json"
 	"fmt"
+	"golang.org/x/sys/unix"
 	"io/ioutil"
+	"os"
 	"regexp"
 	"strconv"
+	"syscall"
 	"strings"
 	"github.com/zero-os/0-core/base/utils"
 	"github.com/zero-os/0-core/base/pm"
@@ -115,6 +118,132 @@ type diskMount struct {
 	Options    map[string]string `json:"options"`
 }
 
+type BlockDevice struct {
+	Path  string // full path to reach the blockdevice
+	Name  string // internal kernel name (can be used in /sys/block/...)
+	Type  string // block type (disk, partition, ...)
+	Major uint32 // device major id
+	Minor uint32 // device minor id
+}
+
+// match only BlockDevice since we don't have this type directly
+// we need to ensure it's a device and not a character device
+func (d *diskMgr) isModeBlockDevice(mode os.FileMode) bool {
+	return (mode&os.ModeDevice != 0) && (mode&os.ModeCharDevice == 0)
+}
+
+// parse a 'uevent' file and returns a map of key/value
+// pairs found inside the file.
+// a uevent file is always a KEY=value file
+// you should always provide a valid uevent file
+func (d *diskMgr) blockUEvent(path string) (map[string]string, error) {
+	// read uevent file
+	bytes, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	str := string(bytes[:])
+
+	// extract each lines
+	lines := strings.Split(str, "\n")
+	lines = lines[:len(lines)-1]
+	m := make(map[string]string)
+
+	// for each line, extract KEY=value pair
+	for _, v := range lines {
+		s := strings.Split(v, "=")
+		if len(s) < 2 {
+			return nil, fmt.Errorf("malformed uevent file")
+		}
+
+		// map dictionnary
+		m[s[0]] = s[1]
+	}
+
+	return m, nil
+}
+
+// convert input string path to a BlockDevice object
+// any block device is accepted, and is checked
+//
+// in order to allows any kind of path (symlink, ...) we use the
+// device major,minor to determine the exact name the kernel expose
+// by looking in /sys/dev/block/{major,minor}
+//
+// since we use major and minor to determine the disk, we don't
+// need to take care about the file itself, we query the kernel
+// based on device identifier, which ensure we will have the real name
+// exposed (by reading the uevent file)
+//
+// in case of a partition, we can even find out the parent disk by
+// reading the link:
+//
+//   /sys/dev/block/[readlink /sys/dev/block/{major}:{minor}]
+//
+// the parent directory of this one, will be the source disk
+func (d *diskMgr) deviceToBlockDevice(dev string) (*BlockDevice, error) {
+	if dev[0] != '/' {
+		// fallback to previous behavior if relative
+		// path is provided
+		dev = fmt.Sprintf("/dev/%s", dev)
+	}
+
+	stat, err := os.Stat(dev)
+	if err != nil {
+		return nil, err
+	}
+
+	// only accept block device
+	if d.isModeBlockDevice(stat.Mode()) == false {
+		return nil, fmt.Errorf("%s: not a block device", dev)
+	}
+
+	// link to syscall stat struct
+	sys, ok := stat.Sys().(*syscall.Stat_t)
+	if ok != true {
+		return nil, fmt.Errorf("internal stat error")
+	}
+
+	devid := uint64(sys.Rdev)
+	bd := BlockDevice{
+		Path:  "",
+		Name:  "",
+		Type:  "",
+		Major: unix.Major(devid),
+		Minor: unix.Minor(devid),
+	}
+
+	// parsing uevent file
+	uevent := fmt.Sprintf("/sys/dev/block/%d:%d/uevent", bd.Major, bd.Minor)
+	pairs, err := d.blockUEvent(uevent)
+	if err != nil {
+		return nil, err
+	}
+
+	bd.Name = pairs["DEVNAME"]
+	bd.Type = pairs["DEVTYPE"]
+	bd.Path = fmt.Sprintf("/dev/%s", bd.Name)
+
+	return &bd, nil
+}
+
+// same as 'deviceToBlockDevice' except this one
+// only match on disk, reject partition or other type
+func (d *diskMgr) diskBlockDevice(dev string) (*BlockDevice, error) {
+	bd, err := d.deviceToBlockDevice(dev)
+	if err != nil {
+		return nil, err
+	}
+
+	// reject partition, etc.
+	if bd.Type != "disk" {
+		return nil, fmt.Errorf("%s: not a disk", dev)
+	}
+
+	return bd, nil
+}
+
 func (d *diskMgr) readUInt64(p string) (uint64, error) {
 	bytes, err := ioutil.ReadFile(p)
 	if err != nil {
@@ -128,8 +257,8 @@ func (d *diskMgr) readUInt64(p string) (uint64, error) {
 	return r, nil
 }
 
-func (d *diskMgr) lsblk(dev string) (*lsblkResult, error) {
-	result, err := pm.System("lsblk", "-O", "-J", fmt.Sprintf("/dev/%s", dev))
+func (d *diskMgr) lsblk(bd *BlockDevice) (*lsblkResult, error) {
+	result, err := pm.System("lsblk", "-O", "-J", bd.Path)
 
 	if err != nil {
 		return nil, err
@@ -147,16 +276,17 @@ func (d *diskMgr) lsblk(dev string) (*lsblkResult, error) {
 
 	}
 
-	return nil, fmt.Errorf("not device with the name /dev/%s", dev)
+	// this should not happen since BlockDevice manager
+	return nil, fmt.Errorf("no device with the name %s", bd.Path)
 
 }
-func (d *diskMgr) blockSize(dev string) (uint64, error) {
-	return d.readUInt64(fmt.Sprintf("/sys/block/%s/queue/logical_block_size", dev))
+func (d *diskMgr) blockSize(bd *BlockDevice) (uint64, error) {
+	return d.readUInt64(fmt.Sprintf("/sys/block/%s/queue/logical_block_size", bd.Name))
 }
 
-func (d *diskMgr) getTableInfo(disk string) (string, []DiskFreeBlock, error) {
+func (d *diskMgr) getTableInfo(bd *BlockDevice) (string, []DiskFreeBlock, error) {
 	blocks := make([]DiskFreeBlock, 0)
-	result, err := pm.System("parted", fmt.Sprintf("/dev/%s", disk), "unit", "B", "print", "free")
+	result, err := pm.System("parted", bd.Path, "unit", "B", "print", "free")
 
 	if err != nil {
 		return "", blocks, err
@@ -185,21 +315,25 @@ func (d *diskMgr) getTableInfo(disk string) (string, []DiskFreeBlock, error) {
 }
 
 func (d *diskMgr) diskInfo(disk string) (*DiskInfoResult, error) {
-
 	var info DiskInfoResult
 
-	lsblk, err := d.lsblk(disk)
+	bd, err := d.deviceToBlockDevice(disk)
+	if err != nil {
+		return nil, err
+	}
+
+	lsblk, err := d.lsblk(bd)
 	if err != nil {
 		return nil, err
 	}
 	info.lsblkResult = *lsblk
 
-	bs, err := d.blockSize(disk)
+	bs, err := d.blockSize(bd)
 	if err != nil {
 		return nil, err
 	}
 
-	size, err := d.readUInt64(fmt.Sprintf("/sys/block/%s/size", disk))
+	size, err := d.readUInt64(fmt.Sprintf("/sys/block/%s/size", bd.Name))
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +342,7 @@ func (d *diskMgr) diskInfo(disk string) (*DiskInfoResult, error) {
 
 	info.BlockSize = bs
 	//get free blocks.
-	table, blocks, err := d.getTableInfo(disk)
+	table, blocks, err := d.getTableInfo(bd)
 	if err != nil {
 		return nil, err
 	}
@@ -221,23 +355,33 @@ func (d *diskMgr) diskInfo(disk string) (*DiskInfoResult, error) {
 func (d *diskMgr) partInfo(disk, part string) (*DiskInfoResult, error) {
 	var info DiskInfoResult
 
-	lsblk, err := d.lsblk(part)
+	dbd, err := d.deviceToBlockDevice(disk)
+	if err != nil {
+		return nil, err
+	}
+
+	pbd, err := d.deviceToBlockDevice(part)
+	if err != nil {
+		return nil, err
+	}
+
+	lsblk, err := d.lsblk(pbd)
 	if err != nil {
 		return nil, err
 	}
 	info.lsblkResult = *lsblk
 
-	bs, err := d.blockSize(disk)
+	bs, err := d.blockSize(dbd)
 	if err != nil {
 		return nil, err
 	}
 
-	start, err := d.readUInt64(fmt.Sprintf("/sys/block/%s/%s/start", disk, part))
+	start, err := d.readUInt64(fmt.Sprintf("/sys/block/%s/%s/start", dbd.Name, pbd.Name))
 	if err != nil {
 		return nil, err
 	}
 
-	size, err := d.readUInt64(fmt.Sprintf("/sys/block/%s/%s/size", disk, part))
+	size, err := d.readUInt64(fmt.Sprintf("/sys/block/%s/%s/size", dbd.Name, pbd.Name))
 	if err != nil {
 		return nil, err
 	}
@@ -391,7 +535,12 @@ func (d *diskMgr) list(cmd *pm.Command) (interface{}, error) {
 			lsblkResult: disk,
 		}
 
-		diskInfo.BlockSize, err = d.blockSize(disk.Name)
+		bd, err := d.deviceToBlockDevice(disk.Name)
+		if err != nil {
+			return nil, err
+		}
+
+		diskInfo.BlockSize, err = d.blockSize(bd)
 		if err != nil {
 			return nil, err
 		}
@@ -399,7 +548,7 @@ func (d *diskMgr) list(cmd *pm.Command) (interface{}, error) {
 		if disk.Type == "disk" {
 			parentDiskName = disk.Name
 
-			size, err := d.readUInt64(fmt.Sprintf("/sys/block/%s/size", disk.Name))
+			size, err := d.readUInt64(fmt.Sprintf("/sys/block/%s/size", bd.Name))
 			if err != nil {
 				return nil, err
 			}
@@ -407,7 +556,7 @@ func (d *diskMgr) list(cmd *pm.Command) (interface{}, error) {
 			diskInfo.End = (size * diskInfo.BlockSize) - 1
 
 			//get free blocks.
-			table, blocks, err := d.getTableInfo(disk.Name)
+			table, blocks, err := d.getTableInfo(bd)
 			if err != nil {
 				return nil, err
 			}
@@ -416,12 +565,12 @@ func (d *diskMgr) list(cmd *pm.Command) (interface{}, error) {
 
 		} else if disk.Type == "part" {
 
-			start, err := d.readUInt64(fmt.Sprintf("/sys/block/%s/%s/start", parentDiskName, disk.Name))
+			start, err := d.readUInt64(fmt.Sprintf("/sys/block/%s/%s/start", parentDiskName, bd.Name))
 			if err != nil {
 				return nil, err
 			}
 
-			size, err := d.readUInt64(fmt.Sprintf("/sys/block/%s/%s/size", parentDiskName, disk.Name))
+			size, err := d.readUInt64(fmt.Sprintf("/sys/block/%s/%s/size", parentDiskName, bd.Name))
 			if err != nil {
 				return nil, err
 			}

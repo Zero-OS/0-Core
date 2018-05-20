@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net"
 	"net/url"
 	"os"
 	"path"
@@ -78,8 +79,10 @@ type Nic struct {
 	Name      string        `json:"name,omitempty"`
 	Config    NetworkConfig `json:"config"`
 	Monitor   bool          `json:"monitor"`
+	State     NicState      `json:"state"`
 
-	State NicState `json:"state"`
+	Index             int              `json:"-"`
+	OriginalHWAddress net.HardwareAddr `json:"-"`
 }
 
 type ContainerCreateArguments struct {
@@ -88,7 +91,7 @@ type ContainerCreateArguments struct {
 	HostNetwork bool              `json:"host_network"` //share host networking stack
 	Identity    string            `json:"identity"`     //zerotier identity
 	Nics        []*Nic            `json:"nics"`         //network setup (only respected if HostNetwork is false)
-	Port        map[int]int       `json:"port"`         //port forwards (only if default networking is enabled)
+	Port        map[string]int    `json:"port"`         //port forwards (only if default networking is enabled)
 	Privileged  bool              `json:"privileged"`   //Apply cgroups and capabilities limitations on the container
 	Hostname    string            `json:"hostname"`     //hostname
 	Storage     string            `json:"storage"`      //ardb storage needed for g8ufs mounts.
@@ -105,7 +108,7 @@ type ContainerDispatchArguments struct {
 type containerPortForward struct {
 	Container     uint16 `json:"container"`
 	ContainerPort int    `json:"container_port"`
-	HostPort      int    `json:"host_port"`
+	HostPort      string `json:"host_port"`
 }
 
 func (c *ContainerCreateArguments) Validate() error {
@@ -135,8 +138,8 @@ func (c *ContainerCreateArguments) Validate() error {
 	}
 
 	for host, guest := range c.Port {
-		if host < 0 || host > 65535 {
-			return fmt.Errorf("invalid host port '%d'", host)
+		if !socat.ValidHost(host) {
+			return fmt.Errorf("invalid host port '%s'", host)
 		}
 		if guest < 0 || guest > 65535 {
 			return fmt.Errorf("invalid guest port '%d'", guest)
@@ -163,6 +166,8 @@ func (c *ContainerCreateArguments) Validate() error {
 			if brcounter[nic.ID] > 1 {
 				return fmt.Errorf("connecting to bridge '%s' more than one time is not allowed", nic.ID)
 			}
+		case "passthrough":
+			fallthrough
 		case "macvlan":
 			brcounter[nic.ID]++
 			if brcounter[nic.ID] > 1 {
@@ -495,12 +500,14 @@ func (m *containerManager) createContainer(args ContainerCreateArguments) (*cont
 func (m *containerManager) createSync(cmd *pm.Command) (interface{}, error) {
 	var args ContainerCreateArguments
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		log.Errorf("invalid container params: %s", err)
 		return nil, err
 	}
 
 	args.Tags = cmd.Tags
 	container, err := m.createContainer(args)
 	if err != nil {
+		log.Errorf("failed to start container: %s", err)
 		return nil, err
 	}
 

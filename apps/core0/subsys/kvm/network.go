@@ -214,7 +214,7 @@ func (m *kvmManager) prepareVXLanNetwork(nic *Nic) (*InterfaceDevice, error) {
 	return &inf, nil
 }
 
-func (m *kvmManager) prepareDefaultNetwork(uuid string, seq uint16, port map[int]int) (*InterfaceDevice, error) {
+func (m *kvmManager) prepareDefaultNetwork(uuid string, seq uint16, port map[string]int) (*InterfaceDevice, error) {
 	_, err := netlink.LinkByName(DefaultBridgeName)
 	if err != nil {
 		return nil, fmt.Errorf("bridge '%s' not found", DefaultBridgeName)
