@@ -6,6 +6,10 @@ import (
 	"time"
 )
 
+var (
+	SyncTimeout = fmt.Errorf("timeout")
+)
+
 //NewSync create a new sync type
 func NewSync() *Sync {
 	return &Sync{
@@ -71,6 +75,6 @@ func (s *Sync) Wait(uuid, alias string, timeout time.Duration) error {
 	case <-ch:
 		return nil
 	case <-time.After(timeout):
-		return fmt.Errorf("timeout")
+		return SyncTimeout
 	}
 }

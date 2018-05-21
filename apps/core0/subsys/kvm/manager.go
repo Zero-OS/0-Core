@@ -46,8 +46,9 @@ type DomainInfo struct {
 }
 
 type LibvirtConnection struct {
-	lifeCycleHandler     libvirt.DomainEventLifecycleCallback
-	deviceRemovedHandler libvirt.DomainEventDeviceRemovedCallback
+	lifeCycleHandler           libvirt.DomainEventLifecycleCallback
+	deviceRemovedHandler       libvirt.DomainEventDeviceRemovedCallback
+	deviceRemovedFailedHandler libvirt.DomainEventDeviceRemovalFailedCallback
 
 	m    sync.Mutex
 	conn *libvirt.Connect
@@ -127,6 +128,7 @@ func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) erro
 
 	mgr.libvirt.lifeCycleHandler = mgr.domaineLifeCycleHandler
 	mgr.libvirt.deviceRemovedHandler = mgr.deviceRemovedHandler
+	mgr.libvirt.deviceRemovedFailedHandler = mgr.deviceRemovedFailedHandler
 
 	cell.Text = "Virtual Machines: 0"
 	if err := mgr.setupDefaultGateway(); err != nil {
@@ -484,6 +486,11 @@ func (c *LibvirtConnection) register(conn *libvirt.Connect) {
 	_, err = conn.DomainEventDeviceRemovedRegister(nil, c.deviceRemovedHandler)
 	if err != nil {
 		log.Errorf("failed to regist device removed event handler: %s", err)
+	}
+
+	_, err = conn.DomainEventDeviceRemovalFailedRegister(nil, c.deviceRemovedFailedHandler)
+	if err != nil {
+		log.Errorf("failed to regist device removed failed event handler: %s", err)
 	}
 }
 
@@ -1183,7 +1190,7 @@ func (m *kvmManager) detachDevice(uuid, alias, ifxml string) error {
 	}
 
 	if err := m.devDeleteEvent.Wait(uuid, alias, 3*time.Second); err != nil {
-		return err
+		return fmt.Errorf("failed to detach device: %v", err)
 	}
 
 	return nil
