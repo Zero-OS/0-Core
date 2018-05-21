@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"path"
 
@@ -62,6 +63,8 @@ type kvmManager struct {
 
 	domainsInfo        map[string]*DomainInfo
 	domainsInfoRWMutex sync.RWMutex
+
+	devDeleteEvent *Sync
 }
 
 var (
@@ -115,10 +118,11 @@ func KVMSubsystem(conmgr containers.ContainerManager, cell *screen.RowCell) erro
 	}()
 
 	mgr := &kvmManager{
-		conmgr:      conmgr,
-		cell:        cell,
-		evch:        make(chan map[string]interface{}, 100), //buffer 100 event
-		domainsInfo: make(map[string]*DomainInfo),
+		conmgr:         conmgr,
+		cell:           cell,
+		evch:           make(chan map[string]interface{}, 100), //buffer 100 event
+		domainsInfo:    make(map[string]*DomainInfo),
+		devDeleteEvent: NewSync(),
 	}
 
 	mgr.libvirt.lifeCycleHandler = mgr.domaineLifeCycleHandler
@@ -474,7 +478,12 @@ func IOTuneParamsToIOTune(inp IOTuneParams) IOTune {
 func (c *LibvirtConnection) register(conn *libvirt.Connect) {
 	_, err := conn.DomainEventLifecycleRegister(nil, c.lifeCycleHandler)
 	if err != nil {
-		log.Errorf("failed to regist event handler: %s", err)
+		log.Errorf("failed to regist domain lifecycle event handler: %s", err)
+	}
+
+	_, err = conn.DomainEventDeviceRemovedRegister(nil, c.deviceRemovedHandler)
+	if err != nil {
+		log.Errorf("failed to regist device removed event handler: %s", err)
 	}
 }
 
@@ -1157,7 +1166,7 @@ func (m *kvmManager) attachDevice(uuid, xml string) error {
 	return nil
 }
 
-func (m *kvmManager) detachDevice(uuid, ifxml string) error {
+func (m *kvmManager) detachDevice(uuid, alias, ifxml string) error {
 	conn, err := m.libvirt.getConnection()
 	if err != nil {
 		return err
@@ -1166,8 +1175,15 @@ func (m *kvmManager) detachDevice(uuid, ifxml string) error {
 	if err != nil {
 		return fmt.Errorf("couldn't find domain with the uuid %s", uuid)
 	}
+	m.devDeleteEvent.Expect(uuid, alias)
+	defer m.devDeleteEvent.Unexpect(uuid, alias)
+
 	if err := domain.DetachDeviceFlags(ifxml, libvirt.DOMAIN_DEVICE_MODIFY_LIVE); err != nil {
 		return fmt.Errorf("failed to detach device: %s", err)
+	}
+
+	if err := m.devDeleteEvent.Wait(uuid, alias, 3*time.Second); err != nil {
+		return err
 	}
 
 	return nil
@@ -1224,7 +1240,7 @@ func (m *kvmManager) detachDisk(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal disk to xml")
 	}
-	return nil, m.detachDevice(params.UUID, string(diskxml[:]))
+	return nil, m.detachDevice(params.UUID, disk.Alias.Name, string(diskxml))
 }
 
 func (m *kvmManager) addNic(cmd *pm.Command) (interface{}, error) {
@@ -1392,7 +1408,7 @@ func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
 		return nil, fmt.Errorf("cannot marshal nic to xml")
 	}
 
-	if err = m.detachDevice(params.UUID, string(ifxml)); err != nil {
+	if err = m.detachDevice(params.UUID, inf.Alias.Name, string(ifxml)); err != nil {
 		return nil, err
 	}
 

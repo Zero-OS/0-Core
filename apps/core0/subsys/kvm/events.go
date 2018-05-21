@@ -16,6 +16,10 @@ import (
 
 func (m *kvmManager) deviceRemovedHandler(c *libvirt.Connect, d *libvirt.Domain, event *libvirt.DomainEventDeviceRemoved) {
 	//TODO: handle device remove here
+	uuid, _ := d.GetUUIDString()
+	log.Debugf("device deleted event for domain '%s' %s", uuid, event)
+
+	m.devDeleteEvent.Release(uuid, event.DevAlias)
 }
 
 func (m *kvmManager) handleStopped(uuid, name string, domain *libvirt.Domain) error {

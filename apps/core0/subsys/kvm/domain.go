@@ -162,6 +162,7 @@ type DiskDevice struct {
 	Target  DiskTarget     `xml:"target"`
 	Driver  DiskDriver     `xml:"driver"`
 	IOTune  IOTune         `xml:"iotune,omitempty"`
+	Alias   Alias          `xml:"alias"`
 }
 
 type IOTune struct {
@@ -230,12 +231,16 @@ type InterfaceDeviceMac struct {
 	Address string `xml:"address,attr"`
 }
 
+type Alias struct {
+	Name string `xml:"name,attr"`
+}
 type InterfaceDevice struct {
 	XMLName xml.Name              `xml:"interface"`
 	Type    InterfaceDeviceType   `xml:"type,attr"`
 	Source  InterfaceDeviceSource `xml:"source"`
 	Target  InterfaceDeviceTarget `xml:"target,omitempty"`
 	Model   InterfaceDeviceModel  `xml:"model"`
+	Alias   Alias                 `xml:"alias"`
 	Mac     *InterfaceDeviceMac   `xml:"mac,omitempty"`
 }
 
