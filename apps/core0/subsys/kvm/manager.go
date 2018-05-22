@@ -1533,10 +1533,8 @@ func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
 	if err = m.detachDevice(params.UUID, inf.Alias.Name, string(ifxml)); err != nil {
 		return nil, err
 	}
-	if err = m.updateNics(params.UUID); err != nil {
-		return nil, err
-	}
-	return nil, err
+  
+	return nil, m.updateNics(params.UUID)
 }
 
 func (m *kvmManager) limitDiskIO(cmd *pm.Command) (interface{}, error) {
@@ -1710,6 +1708,7 @@ func (m *kvmManager) getMachine(domain *libvirt.Domain) (Machine, error) {
 	if err != nil {
 		return Machine{}, err
 	}
+
 	return Machine{
 		ID:         int(id),
 		UUID:       uuid,
