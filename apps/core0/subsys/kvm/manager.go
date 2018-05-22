@@ -1217,9 +1217,15 @@ func (m *kvmManager) attachDisk(cmd *pm.Command) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal disk to xml")
 	}
-	m.updateMediaInfo(params.UUID)
 
-	return nil, m.attachDevice(params.UUID, string(diskxml))
+	if err := m.attachDevice(params.UUID, string(diskxml)); err != nil {
+		return nil, err
+	}
+	if err := m.updateMediaInfo(params.UUID); err != nil {
+		return nil, err
+	}
+
+	return nil, nil
 }
 
 func (m *kvmManager) detachDisk(cmd *pm.Command) (interface{}, error) {
@@ -1252,7 +1258,9 @@ func (m *kvmManager) detachDisk(cmd *pm.Command) (interface{}, error) {
 	if err := m.detachDevice(params.UUID, disk.Alias.Name, string(diskxml)); err != nil {
 		return nil, err
 	}
-	m.updateMediaInfo(params.UUID)
+	if err := m.updateMediaInfo(params.UUID); err != nil {
+		return nil, err
+	}
 	return nil, nil
 
 }
@@ -1525,7 +1533,9 @@ func (m *kvmManager) removeNic(cmd *pm.Command) (interface{}, error) {
 	if err = m.detachDevice(params.UUID, inf.Alias.Name, string(ifxml)); err != nil {
 		return nil, err
 	}
-
+	if err = m.updateNics(params.UUID); err != nil {
+		return nil, err
+	}
 	return nil, err
 }
 
@@ -1700,7 +1710,6 @@ func (m *kvmManager) getMachine(domain *libvirt.Domain) (Machine, error) {
 	if err != nil {
 		return Machine{}, err
 	}
-	m.updateNics(uuid)
 	return Machine{
 		ID:         int(id),
 		UUID:       uuid,
