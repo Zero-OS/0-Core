@@ -35,7 +35,7 @@ class Machinetests(BaseTest):
         self.assertGreater(len(vmx), 0)
 
         self.lg('- Create virtual machine {} , should succeed'.format(vm_name))
-        self.create_vm(name=vm_name)
+        vm_uuid = self.create_vm(name=vm_name)
 
         self.lg('Create another vm with the same name, should fail')
         with self.assertRaises(RuntimeError):
@@ -50,7 +50,6 @@ class Machinetests(BaseTest):
             self.create_vm(name=vm_name)
 
         self.lg('- Destroy VM {}'.format(vm_name))
-        vm_uuid = self.get_vm_uuid(vm_name)
         self.client.kvm.destroy(vm_uuid)
 
         self.lg('- List the virtual machines , VM {} should be gone'.format(vm_name))

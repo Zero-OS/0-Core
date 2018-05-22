@@ -14,7 +14,6 @@ import (
 	"github.com/zero-os/0-core/apps/core0/screen"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/settings"
-	"github.com/zero-os/0-core/base/utils"
 )
 
 const (
@@ -164,7 +163,7 @@ func (b *Bootstrap) screen() {
 		section.Sections = []screen.Section{}
 
 		for _, link := range links {
-			if link.Attrs().Name == "lo" || !utils.InString([]string{"device", "tun", "tap"}, link.Type()) {
+			if link.Attrs().Name == "lo" || link.Type() != "device" {
 				continue
 			}
 

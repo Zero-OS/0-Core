@@ -14,6 +14,20 @@ import (
 	"github.com/zero-os/0-core/base/pm/stream"
 )
 
+func (m *kvmManager) deviceRemovedFailedHandler(c *libvirt.Connect, d *libvirt.Domain, event *libvirt.DomainEventDeviceRemovalFailed) {
+	uuid, _ := d.GetUUIDString()
+	log.Errorf("device deleted failed event for domain '%s' %s", uuid, event)
+
+	m.devDeleteEvent.Release(uuid, event.DevAlias)
+}
+
+func (m *kvmManager) deviceRemovedHandler(c *libvirt.Connect, d *libvirt.Domain, event *libvirt.DomainEventDeviceRemoved) {
+	uuid, _ := d.GetUUIDString()
+	log.Debugf("device deleted event for domain '%s' %s", uuid, event)
+
+	m.devDeleteEvent.Release(uuid, event.DevAlias)
+}
+
 func (m *kvmManager) handleStopped(uuid, name string, domain *libvirt.Domain) error {
 	/*
 		It's too late to get the xml definition, so we don't know if this machine is booted from
@@ -28,7 +42,7 @@ func (m *kvmManager) handleStopped(uuid, name string, domain *libvirt.Domain) er
 	return m.flistUnmount(uuid)
 }
 
-func (m *kvmManager) handle(conn *libvirt.Connect, domain *libvirt.Domain, event *libvirt.DomainEventLifecycle) {
+func (m *kvmManager) domaineLifeCycleHandler(conn *libvirt.Connect, domain *libvirt.Domain, event *libvirt.DomainEventLifecycle) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Errorf("error processing domain event: %v", err)

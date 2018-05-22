@@ -80,7 +80,7 @@ class BaseTest(unittest.TestCase):
 
     def stdout(self, resource):
         return resource.get().stdout.replace('\n', '').lower()
-
+        
     def create_zerotier_network(self, private=False):
         url = 'https://my.zerotier.com/api/network'
         data = {'config': {'ipAssignmentPools': [{'ipRangeEnd': '10.147.19.254',
@@ -133,20 +133,19 @@ class BaseTest(unittest.TestCase):
         else:
             self.lg('can\'t find network in zerotier.list()')
 
-    def get_contanier_zt_ip(self, client):
+    def get_contanier_zt_ip(self, client, networkId):
         """
         method to get zerotier ip address of the g8os container
         Note: to use this method, make sure that zt is defined first in the nic
         list during creating your container, so it could be attached to etho interface
         """
-        nics = client.info.nic()
-        for nic in nics:
-            if 'zt' in nic['name']:
-                address = nic['addrs'][0]['addr']
-                address = address[:address.find('/')]
-                return address
+        nws = client.zerotier.list()
+        for nw in nws:
+            if nw['nwid'] == networkId:
+                address = nw['assignedAddresses'][0]
+                return address[:address.find('/')]
         else:
-            self.lg('can\'t find zerotier netowrk interface')
+            self.lg('can\'t find network in zerotier.list()')
 
     def deattach_all_loop_devices(self):
         self.client.bash('modprobe loop')  # to make /dev/loop* available
@@ -177,12 +176,6 @@ class BaseTest(unittest.TestCase):
         container = self.client.container.create(root_url=root_url, storage=storage, host_network=host_network, nics=nics, tags=tags, privileged=privileged)
         return container.get(30)
 
-    def get_vm_uuid(self, vm_name):
-        vm_list = self.client.kvm.list()
-        for vm in vm_list:
-            if vm['name'] == vm_name:
-                return vm['uuid']
-
     def create_vm(self, name, image='Ubuntu.1604.uefi.x64.qcow2', source=None):
         img_loc = '/var/cache/images'
         if source:
@@ -200,8 +193,8 @@ class BaseTest(unittest.TestCase):
             self.assertEqual(rs.get().state, 'SUCCESS')
             rs = self.client.bash('wget {} -P {}'.format(img_dn_path, img_loc))
             self.assertEqual(rs.get(100).state, 'SUCCESS')
-        result = self.client.kvm.create(name=name, media=[{'url': '{}/{}'.format(img_loc, image)}])
-        self.assertEqual(result.state, 'SUCCESS')
+        vm_uuid = self.client.kvm.create(name=name, media=[{'url': '{}/{}'.format(img_loc, image)}])
+        return vm_uuid
 
     def check_nic_exist(self, name):
         nic_lst = [True for nic in self.client.info.nic() if nic['name'] == name]

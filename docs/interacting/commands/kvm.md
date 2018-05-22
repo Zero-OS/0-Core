@@ -44,3 +44,5 @@ Destroys a given virtual machine.
 ## kvm.list
 
 Lists all virtual machines.
+
+> Please check the reference client implementation for a full list of all [KVM commands here](https://github.com/Jumpscale/lib9/blob/development/JumpScale9Lib/clients/zero_os/KvmManager.py#L156)
