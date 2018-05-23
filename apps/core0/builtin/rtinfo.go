@@ -66,9 +66,6 @@ func (rtm *rtinfoMgr) start(cmd *pm.Command) (interface{}, error) {
 	onExit := &pm.ExitHook{
 		Action: func(state bool) {
 			delete(rtm.rtinfoMap, key)
-			if !state {
-				log.Errorf("rtinfoclient for %s exited with an error", key)
-			}
 		},
 	}
 
