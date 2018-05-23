@@ -5,18 +5,15 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/pborman/uuid"
 	"github.com/zero-os/0-core/base/pm"
 )
 
 const cmdbin = "rtinfo-client"
 
-type rtinfoData struct {
-	job   pm.Job
-	Disks []string `json:"disks"`
-}
 type rtinfoMgr struct {
-	rtinfoMap      map[string]*rtinfoParams
-	rtinfoMapMutex sync.RWMutex
+	info map[string]*rtinfoParams
+	m    sync.RWMutex
 }
 
 type rtinfoParams struct {
@@ -27,21 +24,10 @@ type rtinfoParams struct {
 }
 
 func init() {
-	rtm := &rtinfoMgr{rtinfoMap: make(map[string]*rtinfoParams)}
+	rtm := &rtinfoMgr{info: make(map[string]*rtinfoParams)}
 	pm.RegisterBuiltIn("rtinfo.start", rtm.start)
 	pm.RegisterBuiltIn("rtinfo.list", rtm.list)
 	pm.RegisterBuiltIn("rtinfo.stop", rtm.stop)
-}
-
-func (rtm *rtinfoMgr) getRtinfoParams(key string) (*rtinfoParams, bool) {
-	rtm.rtinfoMapMutex.RLock()
-	defer rtm.rtinfoMapMutex.RUnlock()
-	rtinfoParams, exists := rtm.rtinfoMap[key]
-	return rtinfoParams, exists
-}
-
-func rtinfoMkName(host string, port uint) string {
-	return fmt.Sprintf("rtinfoclient-%s-%d", host, port)
 }
 
 func (rtm *rtinfoMgr) start(cmd *pm.Command) (interface{}, error) {
@@ -50,19 +36,28 @@ func (rtm *rtinfoMgr) start(cmd *pm.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	cmdargs := []string{"--host", args.Host, "--port", fmt.Sprintf("%d", args.Port)}
+	cmdargs := []string{
+		"--host", args.Host, "--port", fmt.Sprintf("%d", args.Port),
+	}
 
 	for _, d := range args.Disks {
 		cmdargs = append(cmdargs, "--disk", d)
 	}
 
+	rtm.m.Lock()
+	defer rtm.m.Unlock()
+
 	key := fmt.Sprintf("%s:%d", args.Host, args.Port)
-	_, exists := rtm.getRtinfoParams(key)
+	_, exists := rtm.info[key]
 	if exists {
-		return nil, pm.BadRequestError(fmt.Errorf("rtinfo running already: %s", key))
+		return nil, pm.NotAcceptableError("an rtinfo agent running already for this daemon")
 	}
 
+	args.job = uuid.New()
+	rtm.info[key] = &args
+
 	rtinfocmd := &pm.Command{
+		ID:      args.job,
 		Command: pm.CommandSystem,
 		Arguments: pm.MustArguments(
 			pm.SystemCommandArguments{
@@ -74,31 +69,21 @@ func (rtm *rtinfoMgr) start(cmd *pm.Command) (interface{}, error) {
 
 	onExit := &pm.ExitHook{
 		Action: func(state bool) {
-			rtm.rtinfoMapMutex.Lock()
-			delete(rtm.rtinfoMap, key)
-			rtm.rtinfoMapMutex.Unlock()
+			rtm.m.Lock()
+			delete(rtm.info, key)
+			rtm.m.Unlock()
 		},
 	}
 	log.Debugf("rtinfo: %s started", key)
 
-	rtm.rtinfoMapMutex.Lock()
-	rtm.rtinfoMap[key] = &args
-	rtm.rtinfoMapMutex.Unlock()
+	_, err := pm.Run(rtinfocmd, onExit)
 
-	job, err := pm.Run(rtinfocmd, onExit)
-	if err != nil {
-		return nil, err
-	}
-	rtm.rtinfoMapMutex.Lock()
-	rtm.rtinfoMap[key].job = job.Command().ID
-	rtm.rtinfoMapMutex.Unlock()
-
-	return nil, nil
+	return nil, err
 }
 
 func (rtm *rtinfoMgr) list(cmd *pm.Command) (interface{}, error) {
 
-	return rtm.rtinfoMap, nil
+	return rtm.info, nil
 }
 
 func (rtm *rtinfoMgr) stop(cmd *pm.Command) (interface{}, error) {
@@ -111,14 +96,13 @@ func (rtm *rtinfoMgr) stop(cmd *pm.Command) (interface{}, error) {
 	}
 
 	key := fmt.Sprintf("%s:%d", args.Host, args.Port)
-	rtinfoParams, exists := rtm.getRtinfoParams(key)
+	rtm.m.RLock()
+	defer rtm.m.RUnlock()
+	info, exists := rtm.info[key]
 
 	if !exists {
-		return true, nil
+		return nil, nil
 	}
 
-	if err := pm.Kill(rtinfoParams.job); err != nil {
-		return nil, err
-	}
-	return true, nil
+	return nil, pm.Kill(info.job)
 }
