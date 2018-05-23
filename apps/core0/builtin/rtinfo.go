@@ -103,6 +103,5 @@ func (rtm *rtinfoMgr) stop(cmd *pm.Command) (interface{}, error) {
 	if err := pm.Kill(rtinfoParams.job); err != nil {
 		return nil, err
 	}
-	delete(rtm.rtinfoMap, key)
 	return true, nil
 }
