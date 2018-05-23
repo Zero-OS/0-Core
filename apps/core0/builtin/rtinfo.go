@@ -3,8 +3,6 @@ package builtin
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/zero-os/0-core/base/pm"
 )
@@ -14,17 +12,18 @@ type rtinfoData struct {
 	Disks []string `json:"disks"`
 }
 type rtinfoMgr struct {
-	rtinfoMap map[string]rtinfoData
+	rtinfoMap map[string]*rtinfoParams
 }
 
 type rtinfoParams struct {
 	Host  string   `json:"host"`
 	Port  uint     `json:"port"`
 	Disks []string `json:"disks"`
+	job   string
 }
 
 func init() {
-	rtm := &rtinfoMgr{rtinfoMap: make(map[string]rtinfoData)}
+	rtm := &rtinfoMgr{rtinfoMap: make(map[string]*rtinfoParams)}
 	pm.RegisterBuiltIn("rtinfo.start", rtm.start)
 	pm.RegisterBuiltIn("rtinfo.list", rtm.list)
 	pm.RegisterBuiltIn("rtinfo.stop", rtm.stop)
@@ -33,6 +32,7 @@ func init() {
 func rtinfoMkName(host string, port uint) string {
 	return fmt.Sprintf("rtinfoclient-%s-%d", host, port)
 }
+
 func (rtm *rtinfoMgr) start(cmd *pm.Command) (interface{}, error) {
 	var args rtinfoParams
 	cmdbin := "rtinfo-client"
@@ -46,13 +46,14 @@ func (rtm *rtinfoMgr) start(cmd *pm.Command) (interface{}, error) {
 	for _, d := range args.Disks {
 		cmdargs = append(cmdargs, "--disk", d)
 	}
-	procName := rtinfoMkName(args.Host, args.Port)
-	if _, exists := rtm.rtinfoMap[procName]; exists {
-		return nil, pm.BadRequestError(fmt.Errorf("rtinfo running already: %s", procName))
+
+	key := fmt.Sprintf("%s:%d", args.Host, args.Port)
+	if _, exists := rtm.rtinfoMap[key]; exists {
+		return nil, pm.BadRequestError(fmt.Errorf("rtinfo running already: %s", key))
 	}
 
+	rtm.rtinfoMap[key] = &args
 	rtinfocmd := &pm.Command{
-		ID:      procName,
 		Command: pm.CommandSystem,
 		Arguments: pm.MustArguments(
 			pm.SystemCommandArguments{
@@ -64,39 +65,26 @@ func (rtm *rtinfoMgr) start(cmd *pm.Command) (interface{}, error) {
 
 	onExit := &pm.ExitHook{
 		Action: func(state bool) {
+			delete(rtm.rtinfoMap, key)
 			if !state {
-				log.Errorf("rtinfoclient %s exited with an error", procName)
+				log.Errorf("rtinfoclient for %s exited with an error", key)
 			}
 		},
 	}
 
-	log.Debugf("rtinfo: %s started", procName)
+	log.Debugf("rtinfo: %s started", key)
 	job, err := pm.Run(rtinfocmd, onExit)
 	if err != nil {
 		return nil, err
 	}
-	rtm.rtinfoMap[procName] = rtinfoData{job: job, Disks: args.Disks}
+	rtm.rtinfoMap[key].job = job.Command().ID
 
 	return nil, nil
 }
 
 func (rtm *rtinfoMgr) list(cmd *pm.Command) (interface{}, error) {
-	clientInfos := make([]rtinfoParams, 0, len(rtm.rtinfoMap))
 
-	for k, v := range rtm.rtinfoMap {
-		ci := rtinfoParams{}
-		parts := strings.Split(k, "-")
-		host, strPort := parts[1], parts[2]
-		ci.Host = host
-		port, err := strconv.Atoi(strPort)
-		if err != nil {
-			return nil, err
-		}
-		ci.Port = uint(port)
-		ci.Disks = v.Disks
-		clientInfos = append(clientInfos, ci)
-	}
-	return clientInfos, nil
+	return rtm.rtinfoMap, nil
 }
 
 func (rtm *rtinfoMgr) stop(cmd *pm.Command) (interface{}, error) {
@@ -108,10 +96,16 @@ func (rtm *rtinfoMgr) stop(cmd *pm.Command) (interface{}, error) {
 		return nil, err
 	}
 
-	procName := rtinfoMkName(args.Host, args.Port)
-	if err := pm.Kill(procName); err != nil {
-		return nil, err
+	key := fmt.Sprintf("%s:%d", args.Host, args.Port)
+	rtinfoParams, exists := rtm.rtinfoMap[key]
+
+	if !exists {
+		return true, nil
 	}
 
+	if err := pm.Kill(rtinfoParams.job); err != nil {
+		return nil, err
+	}
+	delete(rtm.rtinfoMap, key)
 	return true, nil
 }
