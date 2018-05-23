@@ -30,5 +30,5 @@ condition = "development"
 
 [startup.redis-port.args]
 port=6379
-#only set interface to zt0 if zerotier is set
-"zerotier| interface" = "zt0"
+#only set interface to zt* if zerotier is set
+"zerotier| interface" = "zt*"
