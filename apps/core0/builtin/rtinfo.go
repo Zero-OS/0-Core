@@ -74,7 +74,6 @@ func (rtm *rtinfoMgr) start(cmd *pm.Command) (interface{}, error) {
 			rtm.m.Unlock()
 		},
 	}
-	log.Debugf("rtinfo: %s started", key)
 
 	_, err := pm.Run(rtinfocmd, onExit)
 
