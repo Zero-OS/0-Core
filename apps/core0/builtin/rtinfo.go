@@ -77,6 +77,14 @@ func (rtm *rtinfoMgr) start(cmd *pm.Command) (interface{}, error) {
 
 	_, err := pm.Run(rtinfocmd, onExit)
 
+	if err != nil {
+		//the process manager failed to start
+		//hence we need to clean it up ourselvies
+		rtm.m.Lock()
+		delete(rtm.info, key)
+		rtm.m.Unlock()
+	}
+
 	return nil, err
 }
 
