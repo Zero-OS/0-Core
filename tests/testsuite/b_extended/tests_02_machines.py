@@ -200,3 +200,108 @@ class ExtendedMachines(BaseTest):
         self.assertEqual(ccl2.filesystem.list("/bin")[0]['name'], 'nbdserver')
 
         self.lg('{} ENDED'.format(self._testID))
+
+    @unittest.skip('https://github.com/zero-os/0-core/issues/679')
+    def test_004_container_passthrough_nic(self):
+        """ g8os-043
+
+        *Test case for testing nic of type passthrough of a container*
+
+        **Test Scenario:**
+
+        #. Create a bridge (B1).
+        #. Check B1 is part of the core0 nics, should succeed.
+        #. Create container (C1) and pass B1 as a nic of type passthrough to C1, should fail.
+        #. Check that B1 hasn't been removed from core0 nics.
+        #. Check that B1 hasn't been added to C1 nics.
+        #. Create dunnmy device (D1), should succeed.
+        #. Add D1 as a nic of type passthrough to C1.
+        #. Check that D1 has been removed from core0 nics.
+        #. Check that D1 has been added to C1 nics.
+        """
+        self.lg('{} STARTED'.format(self._testID))
+
+        self.lg('Create a bridge (B1).')
+        bridge_name = self.rand_str()
+        self.client.bridge.create(bridge_name)
+
+        self.lg('Check B1 is part of the core0 nics, should succeed.')
+        flag = [True for n in self.client.info.nic() if n['name'] == bridge_name]
+        self.assertTrue(flag)
+
+        self.lg('Create container (C1) and pass B1 as a nic of type passthrough to C1, should fail')
+        nic = [{"type": "passthrough", "id": bridge_name, "name": bridge_name}]
+        c1 = self.create_container(root_url=self.root_url, storage=self.storage, nics=nic)
+        c1_client = self.client.container.client(c1)
+
+        self.lg("Check that B1 hasn't been removed from core0 nics.")
+        flag = [True for n in self.client.info.nic() if n['name'] == bridge_name]
+        self.assertTrue(flag)
+
+        self.lg("Check that B1 hasn't been added to C1 nics.")
+        flag = [True for n in c1_client.info.nic() if n['name'] == bridge_name]
+        self.assertFalse(flag)
+
+        self.lg('Create dunnmy device (D1), should succeed.')
+        nic_name = self.rand_str()
+        self.client.bash('ip l a {} type dummy'.format(nic_name)).get()
+        flag = [True for n in self.client.info.nic() if n['name'] == nic_name]
+        self.assertTrue(flag)
+
+        self.lg('Add D1 as a nic of type passthrough to C1.')
+        nic = [{"type": "passthrough", "id": nic_name, "name": nic_name}]
+        c1_client.container.nic_add(c1, nic)
+
+        self.lg('Check that D1 has been removed from core0 nics.')
+        flag = [True for n in self.client.info.nic() if n['name'] == nic_name]
+        self.assertFalse(flag)
+
+        self.lg('Check that D1 has been added to C1 nics.')
+        flag = [True for n in c1_client.info.nic() if n['name'] == bridge_name]
+        self.assertTrue(flag)
+
+        self.lg('{} ENDED'.format(self._testID))
+
+    def test_005_containers_macvlan_nic(self):
+        """ g8os-044
+
+        *Test case for testing nic of type macvlan*
+
+        **Test Scenario:**
+
+        #. Create dummy device (D1), should succeed.
+        #. Create container (C1) and pass D1 as a nic of type macvlan to C1.
+        #. Get the interface name (I1) that C1 is attached to as well as its mac_address.
+        #. Create container (C2) and pass D1 as a nic of type macvlan to C2.
+        #. Get the interface name (I2) that C2 is attached to as well as its mac_address.
+        #. Assert that interfaces names are the same while the mac addresses are different.
+        """
+        self.lg('{} STARTED'.format(self._testID))
+
+        self.lg('Create dummy device (D1), should succeed.')
+        phy_interface = self.rand_str()
+        self.client.bash('ip l a {} type dummy'.format(phy_interface)).get()
+        flag = [True for n in self.client.info.nic() if n['name'] == phy_interface]
+        self.assertTrue(flag)
+
+        self.lg('Create container (C1) and pass D1 as a nic of type macvlan to C1.')
+        nic = [{"type": "macvlan", "id": phy_interface}]
+        c1 = self.create_container(root_url=self.root_url, storage=self.storage, nics=nic)
+        c1_client = self.client.container.client(c1)
+
+        self.lg('Get the interface name (I1) that C1 is attached to as well as its mac_address.')
+        interface_name_1 = c1_client.bash('ip a | grep @ | cut -d "@" -f2 | cut -d ":" -f1').get().stdout
+        mac_address_1 = c1_client.bash("ip a | grep ether | awk '{print substr($2, 1, length($2))}'").get().stdout
+
+        self.lg('Create container (C2) and pass D1 as a nic of type macvlan to C2.')
+        nic = [{"type": "macvlan", "id": phy_interface}]
+        c2 = self.create_container(root_url=self.root_url, storage=self.storage, nics=nic)
+        c2_client = self.client.container.client(c2)
+
+        self.lg('Get the interface name (I2) that C2 is attached to as well as its mac_address.')
+        interface_name_2 = c2_client.bash('ip a | grep @ | cut -d "@" -f2 | cut -d ":" -f1').get().stdout
+        mac_address_2 = c2_client.bash("ip a | grep ether | awk '{print substr($2, 1, length($2))}'").get().stdout
+
+        self.lg('Assert that interfaces names are the same while the mac addresses are different.')
+        self.assertEqual(interface_name_1, interface_name_2)
+        self.assertNotEqual(mac_address_1, mac_address_2)

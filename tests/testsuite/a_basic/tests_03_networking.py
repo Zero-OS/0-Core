@@ -92,3 +92,47 @@ class BasicNetworking(BaseTest):
             self.client.bridge.delete(bridge_name)
 
         self.lg('{} ENDED'.format(self._testID))
+
+    def test003_add_remove_list_nics_for_bridge(self):
+        """ g8os-045
+        *Test case for adding, removing and listing nics for a bridges*
+
+        **Test Scenario:**
+        #. Create bridge (B1), should succeed.
+        #. List B1 nics, should be empty.
+        #. Create an nic (N1) for core0, should succeed.
+        #. Add nic (N1) to bridge (B1), should succeed.
+        #. List B1 nics, N1 should be found.
+        #. Remove N1, should succed.
+        """
+
+        self.lg('{} STARTED'.format(self._testID))
+
+        self.lg('Create bridge (B1), should succeed')
+        bridge_name = self.rand_str()
+        self.client.bridge.create(bridge_name)
+
+        self.lg('List B1 nics, should be empty.')
+        nics = self.client.bridge.nic_list(bridge_name)
+        self.assertFalse(nics)
+
+        self.lg('Create an nic (N1) for core0, should succeed.')
+        nic_name = self.rand_str()
+        self.client.bash('ip l a {} type dummy'.format(nic_name)).get()
+        flag = [True for n in self.client.info.nic() if n['name'] == nic_name]
+        self.assertTrue(flag)
+
+        self.lg('Add nic (N1) to bridge (B1), should succeed.')
+        self.client.bridge.nic_add(bridge_name, nic_name)
+
+        self.lg('List B1 nics, N1 should be found.')
+        nics = self.client.bridge.nic_list(bridge_name)
+        self.assertEqual(len(nics), 1)
+        self.assertEqual(nics[0], nic_name)
+
+        self.lg('Remove N1, should succed.')
+        self.client.bridge.nic_remove(nic_name)
+        nics = self.client.bridge.nic_list(bridge_name)
+        self.assertFalse(nics)
+
+        self.lg('{} ENDED'.format(self._testID))
