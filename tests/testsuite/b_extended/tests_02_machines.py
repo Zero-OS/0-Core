@@ -226,39 +226,39 @@ class ExtendedMachines(BaseTest):
         self.client.bridge.create(bridge_name)
 
         self.lg('Check B1 is part of the core0 nics, should succeed.')
-        flag = [True for n in self.client.info.nic() if n['name'] == bridge_name]
-        self.assertTrue(flag)
+        nic = [n for n in self.client.info.nic() if n['name'] == bridge_name]
+        self.assertTrue(nic)
 
         self.lg('Create container (C1) and pass B1 as a nic of type passthrough to C1, should fail')
         nic = [{"type": "passthrough", "id": bridge_name, "name": bridge_name}]
         c1 = self.create_container(root_url=self.root_url, storage=self.storage, nics=nic)
-        c1_client = self.client.container.client(c1)
+        #creation should fail .. checkon that after the issue is solved
 
         self.lg("Check that B1 hasn't been removed from core0 nics.")
-        flag = [True for n in self.client.info.nic() if n['name'] == bridge_name]
-        self.assertTrue(flag)
+        nic = [n for n in self.client.info.nic() if n['name'] == bridge_name]
+        self.assertTrue(nic)
 
         self.lg("Check that B1 hasn't been added to C1 nics.")
-        flag = [True for n in c1_client.info.nic() if n['name'] == bridge_name]
-        self.assertFalse(flag)
+        nic = [n for n in c1_client.info.nic() if n['name'] == bridge_name]
+        self.assertFalse(nic)
 
         self.lg('Create dunnmy device (D1), should succeed.')
         nic_name = self.rand_str()
         self.client.bash('ip l a {} type dummy'.format(nic_name)).get()
-        flag = [True for n in self.client.info.nic() if n['name'] == nic_name]
-        self.assertTrue(flag)
+        nic = [n for n in self.client.info.nic() if n['name'] == nic_name]
+        self.assertTrue(nic)
 
         self.lg('Add D1 as a nic of type passthrough to C1.')
         nic = [{"type": "passthrough", "id": nic_name, "name": nic_name}]
         c1_client.container.nic_add(c1, nic)
 
         self.lg('Check that D1 has been removed from core0 nics.')
-        flag = [True for n in self.client.info.nic() if n['name'] == nic_name]
-        self.assertFalse(flag)
+        nic = [n for n in self.client.info.nic() if n['name'] == nic_name]
+        self.assertFalse(nic)
 
         self.lg('Check that D1 has been added to C1 nics.')
-        flag = [True for n in c1_client.info.nic() if n['name'] == bridge_name]
-        self.assertTrue(flag)
+        nic = [n for n in c1_client.info.nic() if n['name'] == bridge_name]
+        self.assertTrue(nic)
 
         self.lg('{} ENDED'.format(self._testID))
 
@@ -281,8 +281,8 @@ class ExtendedMachines(BaseTest):
         self.lg('Create dummy device (D1), should succeed.')
         phy_interface = self.rand_str()
         self.client.bash('ip l a {} type dummy'.format(phy_interface)).get()
-        flag = [True for n in self.client.info.nic() if n['name'] == phy_interface]
-        self.assertTrue(flag)
+        nic = [n for n in self.client.info.nic() if n['name'] == phy_interface]
+        self.assertTrue(nic)
 
         self.lg('Create container (C1) and pass D1 as a nic of type macvlan to C1.')
         nic = [{"type": "macvlan", "id": phy_interface}]
