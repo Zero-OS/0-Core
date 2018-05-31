@@ -147,18 +147,6 @@ func (c *ContainerCreateArguments) Validate() error {
 		}
 	}
 
-	links, err := netlink.LinkList()
-	if err != nil {
-		return err
-	}
-
-	bridges := make(map[string]bool)
-	for _, link := range links {
-		if link.Type() == "bridge" {
-			bridges[link.Attrs().Name] = true
-		}
-	}
-
 	//validating networking
 	brcounter := make(map[string]int)
 	for _, nic := range c.Nics {
@@ -180,8 +168,12 @@ func (c *ContainerCreateArguments) Validate() error {
 				return fmt.Errorf("connecting to bridge '%s' more than one time is not allowed", nic.ID)
 			}
 		case "passthrough":
-			if _, exists := bridges[nic.ID]; exists {
-				return fmt.Errorf("cannot use bridge %s with nic type 'passthrough'", nic.ID)
+			l, err := netlink.LinkByName(nic.ID)
+			if err != nil {
+				return err
+			}
+			if l.Type() != "device" {
+				return fmt.Errorf("cannot use %s %s with nic type 'passthrough', please use link with type 'device' instead", l.Type(), nic.ID)
 			}
 		case "macvlan":
 			brcounter[nic.ID]++
