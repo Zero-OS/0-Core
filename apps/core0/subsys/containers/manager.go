@@ -172,10 +172,21 @@ func (c *ContainerCreateArguments) Validate() error {
 			if err != nil {
 				return err
 			}
-			if l.Type() != "device" {
-				return fmt.Errorf("cannot use %s %s with nic type 'passthrough', please use link with type 'device' instead", l.Type(), nic.ID)
+			ltype := l.Type()
+
+			if ltype != "device" && ltype != "dummy" {
+				return fmt.Errorf("cannot use %s %s with nic type 'passthrough', please use link with type 'device' or 'dummy' instead", ltype, nic.ID)
 			}
 		case "macvlan":
+			l, err := netlink.LinkByName(nic.ID)
+			if err != nil {
+				return err
+			}
+			ltype := l.Type()
+
+			if ltype != "device" && ltype != "dummy" {
+				return fmt.Errorf("cannot use %s %s with nic type 'passthrough', please use link with type 'device' or 'dummy' instead", ltype, nic.ID)
+			}
 			brcounter[nic.ID]++
 			if brcounter[nic.ID] > 1 {
 				return fmt.Errorf("connecting to link '%s' more than one time is not allowed", nic.ID)
