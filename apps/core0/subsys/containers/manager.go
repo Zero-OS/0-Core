@@ -13,6 +13,7 @@ import (
 
 	"github.com/op/go-logging"
 	"github.com/pborman/uuid"
+	"github.com/vishvananda/netlink"
 	"github.com/zero-os/0-core/apps/core0/helper/socat"
 	"github.com/zero-os/0-core/apps/core0/screen"
 	"github.com/zero-os/0-core/apps/core0/subsys/cgroups"
@@ -146,6 +147,18 @@ func (c *ContainerCreateArguments) Validate() error {
 		}
 	}
 
+	links, err := netlink.LinkList()
+	if err != nil {
+		return err
+	}
+
+	bridges := make(map[string]bool)
+	for _, link := range links {
+		if link.Type() == "bridge" {
+			bridges[link.Attrs().Name] = true
+		}
+	}
+
 	//validating networking
 	brcounter := make(map[string]int)
 	for _, nic := range c.Nics {
@@ -167,7 +180,9 @@ func (c *ContainerCreateArguments) Validate() error {
 				return fmt.Errorf("connecting to bridge '%s' more than one time is not allowed", nic.ID)
 			}
 		case "passthrough":
-			fallthrough
+			if _, exists := bridges[nic.ID]; exists {
+				return fmt.Errorf("cannot use bridge %s with nic type 'passthrough'", nic.ID)
+			}
 		case "macvlan":
 			brcounter[nic.ID]++
 			if brcounter[nic.ID] > 1 {
