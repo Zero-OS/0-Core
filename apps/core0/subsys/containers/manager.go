@@ -185,7 +185,7 @@ func (c *ContainerCreateArguments) Validate() error {
 			ltype := l.Type()
 
 			if ltype != "device" && ltype != "dummy" {
-				return fmt.Errorf("cannot use %s %s with nic type 'passthrough', please use link with type 'device' or 'dummy' instead", ltype, nic.ID)
+				return fmt.Errorf("cannot use %s %s with nic type 'macvlan', please use link with type 'device' or 'dummy' instead", ltype, nic.ID)
 			}
 			brcounter[nic.ID]++
 			if brcounter[nic.ID] > 1 {
