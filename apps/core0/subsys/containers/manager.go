@@ -168,15 +168,7 @@ func (c *ContainerCreateArguments) Validate() error {
 				return fmt.Errorf("connecting to bridge '%s' more than one time is not allowed", nic.ID)
 			}
 		case "passthrough":
-			l, err := netlink.LinkByName(nic.ID)
-			if err != nil {
-				return err
-			}
-			ltype := l.Type()
-
-			if ltype != "device" && ltype != "dummy" {
-				return fmt.Errorf("cannot use %s %s with nic type 'passthrough', please use link with type 'device' or 'dummy' instead", ltype, nic.ID)
-			}
+			fallthrough
 		case "macvlan":
 			l, err := netlink.LinkByName(nic.ID)
 			if err != nil {
@@ -185,7 +177,7 @@ func (c *ContainerCreateArguments) Validate() error {
 			ltype := l.Type()
 
 			if ltype != "device" && ltype != "dummy" {
-				return fmt.Errorf("cannot use %s %s with nic type 'macvlan', please use link with type 'device' or 'dummy' instead", ltype, nic.ID)
+				return fmt.Errorf("cannot use %s %s with nic type '%s', please use link with type 'device' instead", ltype, nic.ID, nic.Type)
 			}
 			brcounter[nic.ID]++
 			if brcounter[nic.ID] > 1 {
