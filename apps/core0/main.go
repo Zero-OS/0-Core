@@ -11,6 +11,7 @@ import (
 	"github.com/zero-os/0-core/apps/core0/options"
 	"github.com/zero-os/0-core/apps/core0/screen"
 	"github.com/zero-os/0-core/apps/core0/stats"
+	"github.com/zero-os/0-core/apps/core0/subsys/cgroups"
 	"github.com/zero-os/0-core/apps/core0/subsys/containers"
 	"github.com/zero-os/0-core/apps/core0/subsys/kvm"
 	"github.com/zero-os/0-core/base"
@@ -159,6 +160,10 @@ func main() {
 		Cells: make([]screen.RowCell, 2),
 	}
 	screen.Push(row)
+
+	if err := cgroups.Init(); err != nil {
+		log.Fatal("failed to initialize cgroups subsystem")
+	}
 
 	contMgr, err := containers.ContainerSubsystem(sink, &row.Cells[0])
 	if err != nil {

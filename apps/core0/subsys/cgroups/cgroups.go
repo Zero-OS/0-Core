@@ -5,30 +5,43 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"syscall"
+
+	"github.com/zero-os/0-core/base/pm"
 )
 
 type mkg func(name, subsys string) Group
 
+//Group generic cgroup interface
 type Group interface {
 	Name() string
 	Subsystem() string
 	Task(pid int) error
+	Tasks() ([]int, error)
+	Root() Group
 }
 
 const (
+	//DevicesSubsystem device subsystem
 	DevicesSubsystem = "devices"
-	CGroupBase       = "/sys/fs/cgroup"
+	//CPUSetSubsystem cpu subsystem
+	CPUSetSubsystem = "cpuset"
+
+	//CGroupBase base mount point
+	CGroupBase = "/sys/fs/cgroup"
 )
 
 var (
 	once       sync.Once
 	subsystems = map[string]mkg{
 		DevicesSubsystem: mkDevicesGroup,
+		CPUSetSubsystem:  mkCPUSetGroup,
 	}
 )
 
+//Init Initialized the cgroup subsystem
 func Init() (err error) {
 	once.Do(func() {
 		os.MkdirAll(CGroupBase, 0755)
@@ -46,11 +59,14 @@ func Init() (err error) {
 				return
 			}
 		}
+
+		pm.RegisterBuiltIn("cgroup.list", list)
 	})
 
 	return
 }
 
+//GetGroup creaes a group if it does not exist
 func GetGroup(name string, subsystem string) (Group, error) {
 	mkg, ok := subsystems[subsystem]
 	if !ok {
@@ -63,6 +79,67 @@ func GetGroup(name string, subsystem string) (Group, error) {
 	}
 
 	return mkg(name, subsystem), nil
+}
+
+//GetGroups gets all the available groups names grouped by susbsytem
+func GetGroups() (map[string][]string, error) {
+	result := make(map[string][]string)
+	for sub := range subsystems {
+		info, err := ioutil.ReadDir(path.Join(CGroupBase, sub))
+		if err != nil {
+			return nil, err
+		}
+		for _, dir := range info {
+			if !dir.IsDir() {
+				continue
+			}
+
+			result[sub] = append(result[sub], dir.Name())
+		}
+	}
+
+	return result, nil
+}
+
+//Remove removes a cgroup
+func Remove(name, subsystem string) error {
+	if !Exists(name, subsystem) {
+		return nil
+	}
+
+	builder := subsystems[subsystem]
+	group := builder(name, subsystem)
+	tasks, err := group.Tasks()
+	if err != nil {
+		return err
+	}
+
+	if len(tasks) == 0 {
+		return os.Remove(path.Join(CGroupBase, subsystem, name))
+	}
+
+	root := group.Root()
+	for _, task := range tasks {
+		root.Task(task)
+	}
+
+	return os.Remove(path.Join(CGroupBase, subsystem, name))
+}
+
+//Exists Check if a cgroup exists
+func Exists(name, subsystem string) bool {
+	_, ok := subsystems[subsystem]
+	if !ok {
+		return false
+	}
+
+	p := path.Join(CGroupBase, subsystem, name)
+	info, err := os.Stat(p)
+	if err != nil {
+		return false
+	}
+
+	return info.IsDir()
 }
 
 type cgroup struct {
@@ -84,4 +161,21 @@ func (g *cgroup) base() string {
 
 func (g *cgroup) Task(pid int) error {
 	return ioutil.WriteFile(path.Join(g.base(), "cgroup.procs"), []byte(fmt.Sprint(pid)), 0644)
+}
+
+func (g *cgroup) Tasks() ([]int, error) {
+	raw, err := ioutil.ReadFile(path.Join(g.base(), "cgroup.procs"))
+	if err != nil {
+		return nil, err
+	}
+	var pids []int
+	for _, s := range strings.Split(string(raw), "\n") {
+		var pid int
+		if _, err := fmt.Sscanf(s, "%d", &pid); err != nil {
+			return nil, err
+		}
+		pids = append(pids, pid)
+	}
+
+	return pids, nil
 }

@@ -254,9 +254,6 @@ type ContainerManager interface {
 }
 
 func ContainerSubsystem(sink *transport.Sink, cell *screen.RowCell) (ContainerManager, error) {
-	if err := cgroups.Init(); err != nil {
-		return nil, err
-	}
 
 	containerMgr := &containerManager{
 		containers: make(map[uint16]*container),

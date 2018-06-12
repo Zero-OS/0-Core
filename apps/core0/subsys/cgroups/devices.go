@@ -42,3 +42,9 @@ func (g *devicesCGroup) List() ([]string, error) {
 
 	return strings.Split(string(data), "\n"), nil
 }
+
+func (g *devicesCGroup) Root() Group {
+	return &devicesCGroup{
+		cgroup: cgroup{subsys: g.subsys},
+	}
+}
