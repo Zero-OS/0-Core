@@ -9,6 +9,7 @@ import (
 	"sync"
 	"syscall"
 
+	logging "github.com/op/go-logging"
 	"github.com/zero-os/0-core/base/pm"
 )
 
@@ -34,11 +35,14 @@ const (
 )
 
 var (
+	log        = logging.MustGetLogger("cgroups")
 	once       sync.Once
 	subsystems = map[string]mkg{
 		DevicesSubsystem: mkDevicesGroup,
 		CPUSetSubsystem:  mkCPUSetGroup,
 	}
+
+	ErrDoesNotExist = fmt.Errorf("cgroup does not exist")
 )
 
 //Init Initialized the cgroup subsystem
@@ -61,6 +65,12 @@ func Init() (err error) {
 		}
 
 		pm.RegisterBuiltIn("cgroup.list", list)
+		pm.RegisterBuiltIn("cgroup.ensure", ensure)
+		pm.RegisterBuiltIn("cgroup.remove", remove)
+
+		pm.RegisterBuiltIn("cgroup.tasks", tasks)
+		pm.RegisterBuiltIn("cgroup.task-add", taskAdd)
+		pm.RegisterBuiltIn("cgroup.task-remove", taskRemove)
 	})
 
 	return
@@ -79,6 +89,15 @@ func GetGroup(name string, subsystem string) (Group, error) {
 	}
 
 	return mkg(name, subsystem), nil
+}
+
+//Get group only if it exists
+func Get(name, subsystem string) (Group, error) {
+	if !Exists(name, subsystem) {
+		return nil, ErrDoesNotExist
+	}
+
+	return GetGroup(name, subsystem)
 }
 
 //GetGroups gets all the available groups names grouped by susbsytem
@@ -168,8 +187,12 @@ func (g *cgroup) Tasks() ([]int, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	var pids []int
 	for _, s := range strings.Split(string(raw), "\n") {
+		if len(s) == 0 {
+			continue
+		}
 		var pid int
 		if _, err := fmt.Sscanf(s, "%d", &pid); err != nil {
 			return nil, err

@@ -28,5 +28,63 @@ func ensure(cmd *pm.Command) (interface{}, error) {
 }
 
 func remove(cmd *pm.Command) (interface{}, error) {
+	var args GroupArg
 
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, pm.BadRequestError(err)
+	}
+
+	return nil, Remove(args.Name, args.Subsystem)
+}
+
+func tasks(cmd *pm.Command) (interface{}, error) {
+	var args GroupArg
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, pm.BadRequestError(err)
+	}
+
+	group, err := Get(args.Name, args.Subsystem)
+	if err != nil {
+		return nil, pm.NotFoundError(err)
+	}
+
+	return group.Tasks()
+}
+
+func taskAdd(cmd *pm.Command) (interface{}, error) {
+	var args struct {
+		GroupArg
+		PID int `json:"pid"`
+	}
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, pm.BadRequestError(err)
+	}
+
+	group, err := Get(args.Name, args.Subsystem)
+	if err != nil {
+		return nil, pm.NotFoundError(err)
+	}
+
+	return nil, group.Task(args.PID)
+}
+
+func taskRemove(cmd *pm.Command) (interface{}, error) {
+	var args struct {
+		GroupArg
+		PID int `json:"pid"`
+	}
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, pm.BadRequestError(err)
+	}
+
+	group, err := Get(args.Name, args.Subsystem)
+	if err != nil {
+		return nil, pm.NotFoundError(err)
+	}
+
+	root := group.Root()
+	return nil, root.Task(args.PID)
 }
