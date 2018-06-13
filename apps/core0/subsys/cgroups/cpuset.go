@@ -12,25 +12,24 @@ type CPUSetGroup interface {
 	Mems(sepc string) error
 	GetCpus() (string, error)
 	GetMems() (string, error)
+	Reset()
 }
 
 func mkCPUSetGroup(name, subsys string) Group {
-	group := &cpusetCGroup{
+	return &cpusetCGroup{
 		cgroup{name: name, subsys: subsys},
 	}
-
-	group.init()
-	return group
 }
 
 type cpusetCGroup struct {
 	cgroup
 }
 
-//init copies the default values from the root group. It sounds like
+//reset copies the default values from the root group. It sounds like
 //this should be handled by the linux kernel, but it does not happen
 //for the cpuset subsystem
-func (c *cpusetCGroup) init() {
+//TODO: should we call this on the group creation ?
+func (c *cpusetCGroup) Reset() {
 	root := c.Root().(CPUSetGroup)
 
 	spec, _ := root.GetCpus()
@@ -41,6 +40,7 @@ func (c *cpusetCGroup) init() {
 }
 
 func (c *cpusetCGroup) Cpus(spec string) error {
+	log.Debugf("setting cpu specs to: '%s'", spec)
 	return ioutil.WriteFile(path.Join(c.base(), "cpuset.cpus"), []byte(spec), 0644)
 }
 

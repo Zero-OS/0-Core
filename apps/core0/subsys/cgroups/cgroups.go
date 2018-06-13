@@ -43,6 +43,7 @@ var (
 	}
 
 	ErrDoesNotExist = fmt.Errorf("cgroup does not exist")
+	ErrInvalidType  = fmt.Errorf("cgroup of invalid type")
 )
 
 //Init Initialized the cgroup subsystem
@@ -71,6 +72,9 @@ func Init() (err error) {
 		pm.RegisterBuiltIn("cgroup.tasks", tasks)
 		pm.RegisterBuiltIn("cgroup.task-add", taskAdd)
 		pm.RegisterBuiltIn("cgroup.task-remove", taskRemove)
+
+		pm.RegisterBuiltIn("cgroup.cpuset.reset", cpusetReset)
+		pm.RegisterBuiltIn("cgroup.cpuset.spec", cpusetSpec)
 	})
 
 	return

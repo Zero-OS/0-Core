@@ -88,3 +88,67 @@ func taskRemove(cmd *pm.Command) (interface{}, error) {
 	root := group.Root()
 	return nil, root.Task(args.PID)
 }
+
+//actions to control group params
+func cpusetReset(cmd *pm.Command) (interface{}, error) {
+	var args struct {
+		Name string `json:"name"`
+	}
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, pm.BadRequestError(err)
+	}
+
+	group, err := Get(args.Name, "cpuset")
+
+	if err != nil {
+		return nil, pm.NotFoundError(err)
+	}
+
+	if group, ok := group.(CPUSetGroup); ok {
+		group.Reset()
+		return nil, nil
+	}
+
+	return nil, pm.InternalError(ErrInvalidType)
+}
+
+func cpusetSpec(cmd *pm.Command) (interface{}, error) {
+	var args struct {
+		Name string `json:"name,omitempty"`
+		Cpus string `json:"cpus"`
+		Mems string `json:"mems"`
+	}
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, pm.BadRequestError(err)
+	}
+
+	group, err := Get(args.Name, "cpuset")
+
+	if err != nil {
+		return nil, pm.NotFoundError(err)
+	}
+
+	if group, ok := group.(CPUSetGroup); ok {
+		if len(args.Cpus) != 0 {
+			if err := group.Cpus(args.Cpus); err != nil {
+				return nil, err
+			}
+		}
+
+		if len(args.Mems) != 0 {
+			if err := group.Mems(args.Mems); err != nil {
+				return nil, err
+			}
+		}
+
+		args.Name = ""
+		args.Cpus, _ = group.GetCpus()
+		args.Mems, _ = group.GetMems()
+
+		return args, nil
+	}
+
+	return nil, pm.InternalError(ErrInvalidType)
+}
