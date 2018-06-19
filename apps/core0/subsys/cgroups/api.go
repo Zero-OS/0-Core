@@ -37,6 +37,23 @@ func remove(cmd *pm.Command) (interface{}, error) {
 	return nil, Remove(args.Name, args.Subsystem)
 }
 
+func reset(cmd *pm.Command) (interface{}, error) {
+	var args GroupArg
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, pm.BadRequestError(err)
+	}
+
+	group, err := Get(args.Name, args.Subsystem)
+	if err != nil {
+		return nil, pm.NotFoundError(err)
+	}
+
+	group.Reset()
+
+	return nil, nil
+}
+
 func tasks(cmd *pm.Command) (interface{}, error) {
 	var args GroupArg
 
@@ -89,30 +106,6 @@ func taskRemove(cmd *pm.Command) (interface{}, error) {
 	return nil, root.Task(args.PID)
 }
 
-//actions to control group params
-func cpusetReset(cmd *pm.Command) (interface{}, error) {
-	var args struct {
-		Name string `json:"name"`
-	}
-
-	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
-		return nil, pm.BadRequestError(err)
-	}
-
-	group, err := Get(args.Name, "cpuset")
-
-	if err != nil {
-		return nil, pm.NotFoundError(err)
-	}
-
-	if group, ok := group.(CPUSetGroup); ok {
-		group.Reset()
-		return nil, nil
-	}
-
-	return nil, pm.InternalError(ErrInvalidType)
-}
-
 func cpusetSpec(cmd *pm.Command) (interface{}, error) {
 	var args struct {
 		Name string `json:"name,omitempty"`
@@ -153,29 +146,6 @@ func cpusetSpec(cmd *pm.Command) (interface{}, error) {
 	return nil, pm.InternalError(ErrInvalidType)
 }
 
-func memoryReset(cmd *pm.Command) (interface{}, error) {
-	var args struct {
-		Name string `json:"name"`
-	}
-
-	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
-		return nil, pm.BadRequestError(err)
-	}
-
-	group, err := Get(args.Name, "memory")
-
-	if err != nil {
-		return nil, pm.NotFoundError(err)
-	}
-
-	if group, ok := group.(MemoryGroup); ok {
-		group.Reset()
-		return nil, nil
-	}
-
-	return nil, pm.InternalError(ErrInvalidType)
-}
-
 func memorySpec(cmd *pm.Command) (interface{}, error) {
 	var args struct {
 		Name string `json:"name,omitempty"`
@@ -201,7 +171,9 @@ func memorySpec(cmd *pm.Command) (interface{}, error) {
 		}
 
 		args.Name = ""
-		args.Mem, args.Sawp, _ = group.Limits()
+		mem, swap, _ := group.Limits()
+		args.Mem = mem
+		args.Sawp = swap - mem
 
 		return args, nil
 	}

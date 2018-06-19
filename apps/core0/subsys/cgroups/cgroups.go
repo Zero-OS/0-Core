@@ -79,10 +79,9 @@ func Init() (err error) {
 		pm.RegisterBuiltIn("cgroup.task-add", taskAdd)
 		pm.RegisterBuiltIn("cgroup.task-remove", taskRemove)
 
-		pm.RegisterBuiltIn("cgroup.cpuset.reset", cpusetReset)
-		pm.RegisterBuiltIn("cgroup.cpuset.spec", cpusetSpec)
+		pm.RegisterBuiltIn("cgroup.reset", reset)
 
-		pm.RegisterBuiltIn("cgroup.memory.reset", memoryReset)
+		pm.RegisterBuiltIn("cgroup.cpuset.spec", cpusetSpec)
 		pm.RegisterBuiltIn("cgroup.memory.spec", memorySpec)
 	})
 
@@ -201,7 +200,7 @@ func (g *cgroup) Tasks() ([]int, error) {
 		return nil, err
 	}
 
-	var pids []int
+	pids := make([]int, 0)
 	for _, s := range strings.Split(string(raw), "\n") {
 		if len(s) == 0 {
 			continue
