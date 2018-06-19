@@ -5,17 +5,23 @@ import (
 	"os"
 
 	"github.com/op/go-logging"
-	"github.com/zero-os/0-core/base"
-	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/apps/coreX/bootstrap"
 	"github.com/zero-os/0-core/apps/coreX/options"
+	"github.com/zero-os/0-core/base"
+	"github.com/zero-os/0-core/base/pm"
 
 	"os/signal"
 	"syscall"
 
 	"encoding/json"
-	_ "github.com/zero-os/0-core/base/builtin"
+
 	_ "github.com/zero-os/0-core/apps/coreX/builtin"
+	_ "github.com/zero-os/0-core/base/builtin"
+)
+
+const (
+	//UnlockMagic expected magic from core0 to unlock coreX process
+	UnlockMagic = 0x280682
 )
 
 var (
@@ -68,6 +74,19 @@ func main() {
 	pm.AddHandle(dispatcher)
 	pm.Start()
 
+	dec := json.NewDecoder(input)
+	//we need to block until we recieve the magic number
+	//from core0 this means that the setup from core0 side is complete
+	//this include adding the coreX process into the proper cgroups
+	var magic int
+	if err := dec.Decode(&magic); err != nil {
+		log.Fatal("failed to load unlock magic")
+	} else if magic != UnlockMagic {
+		log.Fatal("invalid magic number")
+	}
+
+	log.Info("magic recieved .. continue coreX bootstraping")
+
 	bs := bootstrap.NewBootstrap()
 
 	if err := bs.Bootstrap(opt.Hostname()); err != nil {
@@ -76,12 +95,10 @@ func main() {
 
 	handleSignal(bs)
 
-	dec := json.NewDecoder(input)
 	for {
 		var cmd pm.Command
 		if err := dec.Decode(&cmd); err != nil {
 			log.Errorf("failed to decode command message: %s", err)
-
 		}
 
 		_, err := pm.Run(&cmd)

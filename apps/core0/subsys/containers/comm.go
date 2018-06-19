@@ -3,11 +3,16 @@ package containers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/zero-os/0-core/base/pm"
-	"github.com/zero-os/0-core/base/pm/stream"
+	"io"
+
 	"github.com/zero-os/0-core/apps/core0/logger"
 	"github.com/zero-os/0-core/apps/core0/stats"
-	"io"
+	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/pm/stream"
+)
+
+const (
+	UnlockMagic = 0x280682
 )
 
 type Message struct {
@@ -19,6 +24,11 @@ type Message struct {
 func (c *container) forward() {
 	log.Debugf("start commands forwarder for '%s'", c.name())
 	enc := json.NewEncoder(c.channel)
+	//unlock coreX process by sending proper magic number
+	if err := enc.Encode(UnlockMagic); err != nil {
+		log.Errorf("failed to send magic number: %s", err)
+	}
+
 	for cmd := range c.forwardChan {
 		if err := enc.Encode(cmd); err != nil {
 			log.Errorf("failed to forward command (%s) to container (%d)", cmd.ID, c.id)
