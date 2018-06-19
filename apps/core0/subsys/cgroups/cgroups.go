@@ -22,6 +22,7 @@ type Group interface {
 	Task(pid int) error
 	Tasks() ([]int, error)
 	Root() Group
+	Reset()
 }
 
 const (
@@ -29,6 +30,8 @@ const (
 	DevicesSubsystem = "devices"
 	//CPUSetSubsystem cpu subsystem
 	CPUSetSubsystem = "cpuset"
+	//MemorySubsystem memory subsystem
+	MemorySubsystem = "memory"
 
 	//CGroupBase base mount point
 	CGroupBase = "/sys/fs/cgroup"
@@ -40,10 +43,13 @@ var (
 	subsystems = map[string]mkg{
 		DevicesSubsystem: mkDevicesGroup,
 		CPUSetSubsystem:  mkCPUSetGroup,
+		MemorySubsystem:  mkMemoryGroup,
 	}
 
+	//ErrDoesNotExist does not exist error
 	ErrDoesNotExist = fmt.Errorf("cgroup does not exist")
-	ErrInvalidType  = fmt.Errorf("cgroup of invalid type")
+	//ErrInvalidType invalid cgroup type
+	ErrInvalidType = fmt.Errorf("cgroup of invalid type")
 )
 
 //Init Initialized the cgroup subsystem
@@ -75,6 +81,9 @@ func Init() (err error) {
 
 		pm.RegisterBuiltIn("cgroup.cpuset.reset", cpusetReset)
 		pm.RegisterBuiltIn("cgroup.cpuset.spec", cpusetSpec)
+
+		pm.RegisterBuiltIn("cgroup.memory.reset", memoryReset)
+		pm.RegisterBuiltIn("cgroup.memory.spec", memorySpec)
 	})
 
 	return

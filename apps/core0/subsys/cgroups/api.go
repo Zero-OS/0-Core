@@ -152,3 +152,59 @@ func cpusetSpec(cmd *pm.Command) (interface{}, error) {
 
 	return nil, pm.InternalError(ErrInvalidType)
 }
+
+func memoryReset(cmd *pm.Command) (interface{}, error) {
+	var args struct {
+		Name string `json:"name"`
+	}
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, pm.BadRequestError(err)
+	}
+
+	group, err := Get(args.Name, "memory")
+
+	if err != nil {
+		return nil, pm.NotFoundError(err)
+	}
+
+	if group, ok := group.(MemoryGroup); ok {
+		group.Reset()
+		return nil, nil
+	}
+
+	return nil, pm.InternalError(ErrInvalidType)
+}
+
+func memorySpec(cmd *pm.Command) (interface{}, error) {
+	var args struct {
+		Name string `json:"name,omitempty"`
+		Mem  int    `json:"mem"`
+		Sawp int    `json:"swap"`
+	}
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, pm.BadRequestError(err)
+	}
+
+	group, err := Get(args.Name, "memory")
+
+	if err != nil {
+		return nil, pm.NotFoundError(err)
+	}
+
+	if group, ok := group.(MemoryGroup); ok {
+		if args.Mem != 0 {
+			if err := group.Limit(args.Mem, args.Sawp); err != nil {
+				return nil, err
+			}
+		}
+
+		args.Name = ""
+		args.Mem, args.Sawp, _ = group.Limits()
+
+		return args, nil
+	}
+
+	return nil, pm.InternalError(ErrInvalidType)
+}

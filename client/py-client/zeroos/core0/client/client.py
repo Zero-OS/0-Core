@@ -2786,6 +2786,38 @@ class RTInfoManager:
         return self._client.json("rtinfo.list", {})
 
 
+class CGroupManager:
+    _subsystem_chk = typchk.Enum('cpuset', 'memory')
+
+    _ensure_chk = typchk.Checker({
+        'subsystem': str,
+        'name': str,
+    })
+
+    def __init__(self, client):
+        self._client = client
+
+    def list(self):
+        """
+        List all cgroups names grouped by the cgroup subsystem
+        """
+        return self._client.json('cgroup.list', {})
+
+    def ensure(self, subsystem, name):
+        """
+        Creates a cgroup if it doesn't exist under the specified subsystem
+        and the given name
+
+        :param subsystem: the cgroup subsystem (current support 'memory', and 'cpuset')
+        """
+        args = {
+            'subsystem': subsystem,
+            'name': name,
+        }
+
+        self._ensure_chk.check(args)
+        return self._client.json('cgroup.ensure', args)
+
 
 class Client(BaseClient):
     _raw_chk = typchk.Checker({

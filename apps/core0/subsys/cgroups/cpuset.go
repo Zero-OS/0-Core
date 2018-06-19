@@ -12,7 +12,6 @@ type CPUSetGroup interface {
 	Mems(sepc string) error
 	GetCpus() (string, error)
 	GetMems() (string, error)
-	Reset()
 }
 
 func mkCPUSetGroup(name, subsys string) Group {
@@ -71,3 +70,5 @@ func (c *cpusetCGroup) Root() Group {
 		cgroup: cgroup{subsys: c.subsys},
 	}
 }
+
+var _ CPUSetGroup = &cpusetCGroup{}
