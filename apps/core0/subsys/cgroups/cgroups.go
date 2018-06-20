@@ -13,25 +13,27 @@ import (
 	"github.com/zero-os/0-core/base/pm"
 )
 
-type mkg func(name, subsys string) Group
+type mkg func(name string, subsys Subsystem) Group
 
 //Group generic cgroup interface
 type Group interface {
 	Name() string
-	Subsystem() string
+	Subsystem() Subsystem
 	Task(pid int) error
 	Tasks() ([]int, error)
 	Root() Group
 	Reset()
 }
 
+type Subsystem string
+
 const (
 	//DevicesSubsystem device subsystem
-	DevicesSubsystem = "devices"
+	DevicesSubsystem = Subsystem("devices")
 	//CPUSetSubsystem cpu subsystem
-	CPUSetSubsystem = "cpuset"
+	CPUSetSubsystem = Subsystem("cpuset")
 	//MemorySubsystem memory subsystem
-	MemorySubsystem = "memory"
+	MemorySubsystem = Subsystem("memory")
 
 	//CGroupBase base mount point
 	CGroupBase = "/sys/fs/cgroup"
@@ -40,7 +42,7 @@ const (
 var (
 	log        = logging.MustGetLogger("cgroups")
 	once       sync.Once
-	subsystems = map[string]mkg{
+	subsystems = map[Subsystem]mkg{
 		DevicesSubsystem: mkDevicesGroup,
 		CPUSetSubsystem:  mkCPUSetGroup,
 		MemorySubsystem:  mkMemoryGroup,
@@ -62,10 +64,10 @@ func Init() (err error) {
 		}
 
 		for sub := range subsystems {
-			p := path.Join(CGroupBase, sub)
+			p := path.Join(CGroupBase, string(sub))
 			os.MkdirAll(p, 0755)
 
-			err = syscall.Mount(sub, p, "cgroup", 0, sub)
+			err = syscall.Mount(string(sub), p, "cgroup", 0, string(sub))
 			if err != nil {
 				return
 			}
@@ -89,13 +91,13 @@ func Init() (err error) {
 }
 
 //GetGroup creaes a group if it does not exist
-func GetGroup(name string, subsystem string) (Group, error) {
+func GetGroup(subsystem Subsystem, name string) (Group, error) {
 	mkg, ok := subsystems[subsystem]
 	if !ok {
 		return nil, fmt.Errorf("unknown subsystem '%s'", subsystem)
 	}
 
-	p := path.Join(CGroupBase, subsystem, name)
+	p := path.Join(CGroupBase, string(subsystem), name)
 	if err := os.Mkdir(p, 0755); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
@@ -104,19 +106,19 @@ func GetGroup(name string, subsystem string) (Group, error) {
 }
 
 //Get group only if it exists
-func Get(name, subsystem string) (Group, error) {
-	if !Exists(name, subsystem) {
+func Get(subsystem Subsystem, name string) (Group, error) {
+	if !Exists(subsystem, name) {
 		return nil, ErrDoesNotExist
 	}
 
-	return GetGroup(name, subsystem)
+	return GetGroup(subsystem, name)
 }
 
 //GetGroups gets all the available groups names grouped by susbsytem
-func GetGroups() (map[string][]string, error) {
-	result := make(map[string][]string)
+func GetGroups() (map[Subsystem][]string, error) {
+	result := make(map[Subsystem][]string)
 	for sub := range subsystems {
-		info, err := ioutil.ReadDir(path.Join(CGroupBase, sub))
+		info, err := ioutil.ReadDir(path.Join(CGroupBase, string(sub)))
 		if err != nil {
 			return nil, err
 		}
@@ -133,8 +135,8 @@ func GetGroups() (map[string][]string, error) {
 }
 
 //Remove removes a cgroup
-func Remove(name, subsystem string) error {
-	if !Exists(name, subsystem) {
+func Remove(subsystem Subsystem, name string) error {
+	if !Exists(subsystem, name) {
 		return nil
 	}
 
@@ -146,7 +148,7 @@ func Remove(name, subsystem string) error {
 	}
 
 	if len(tasks) == 0 {
-		return os.Remove(path.Join(CGroupBase, subsystem, name))
+		return os.Remove(path.Join(CGroupBase, string(subsystem), name))
 	}
 
 	root := group.Root()
@@ -154,17 +156,17 @@ func Remove(name, subsystem string) error {
 		root.Task(task)
 	}
 
-	return os.Remove(path.Join(CGroupBase, subsystem, name))
+	return os.Remove(path.Join(CGroupBase, string(subsystem), name))
 }
 
 //Exists Check if a cgroup exists
-func Exists(name, subsystem string) bool {
+func Exists(subsystem Subsystem, name string) bool {
 	_, ok := subsystems[subsystem]
 	if !ok {
 		return false
 	}
 
-	p := path.Join(CGroupBase, subsystem, name)
+	p := path.Join(CGroupBase, string(subsystem), name)
 	info, err := os.Stat(p)
 	if err != nil {
 		return false
@@ -175,19 +177,19 @@ func Exists(name, subsystem string) bool {
 
 type cgroup struct {
 	name   string
-	subsys string
+	subsys Subsystem
 }
 
 func (g *cgroup) Name() string {
 	return g.name
 }
 
-func (g *cgroup) Subsystem() string {
+func (g *cgroup) Subsystem() Subsystem {
 	return g.subsys
 }
 
 func (g *cgroup) base() string {
-	return path.Join(CGroupBase, g.subsys, g.name)
+	return path.Join(CGroupBase, string(g.subsys), g.name)
 }
 
 func (g *cgroup) Task(pid int) error {

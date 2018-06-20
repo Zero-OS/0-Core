@@ -58,6 +58,7 @@ var (
 	BridgeIP          = []byte{172, 18, 0, 1}
 	DefaultBridgeIP   = fmt.Sprintf("%d.%d.%d.%d", BridgeIP[0], BridgeIP[1], BridgeIP[2], BridgeIP[3])
 	DefaultBridgeCIDR = fmt.Sprintf("%s/16", DefaultBridgeIP)
+	DevicesCGroup     = CGroup{string(cgroups.DevicesSubsystem), "corex"}
 )
 
 var (
@@ -86,6 +87,17 @@ type Nic struct {
 	OriginalHWAddress net.HardwareAddr `json:"-"`
 }
 
+//CGroup defition
+type CGroup [2]string
+
+func (c CGroup) Subsystem() cgroups.Subsystem {
+	return cgroups.Subsystem(c[0])
+}
+
+func (c CGroup) Name() string {
+	return c[1]
+}
+
 type ContainerCreateArguments struct {
 	Root        string            `json:"root"`         //Root plist
 	Mount       map[string]string `json:"mount"`        //data disk mounts.
@@ -99,6 +111,7 @@ type ContainerCreateArguments struct {
 	Name        string            `json:"name"`         //for searching containers
 	Tags        pm.Tags           `json:"tags"`         //for searching containers
 	Env         map[string]string `json:"env"`          //environment variables.
+	CGroups     []CGroup          `json:"cgroups"`      //container creation cgroups
 }
 
 type ContainerDispatchArguments struct {
@@ -216,6 +229,12 @@ func (c *ContainerCreateArguments) Validate() error {
 		}
 	}
 
+	for _, cgroup := range c.CGroups {
+		if !cgroups.Exists(cgroup.Subsystem(), cgroup.Name()) {
+			return fmt.Errorf("invalid cgroup %v", cgroup)
+		}
+	}
+
 	return nil
 }
 
@@ -226,8 +245,7 @@ type containerManager struct {
 	containers map[uint16]*container
 	conM       sync.RWMutex
 
-	cell   *screen.RowCell
-	cgroup cgroups.Group
+	cell *screen.RowCell
 
 	sink *transport.Sink
 }
@@ -291,7 +309,7 @@ func ContainerSubsystem(sink *transport.Sink, cell *screen.RowCell) (ContainerMa
 }
 
 func (m *containerManager) setUpCGroups() error {
-	devices, err := cgroups.GetGroup("corex", cgroups.DevicesSubsystem)
+	devices, err := cgroups.GetGroup(DevicesCGroup.Subsystem(), DevicesCGroup.Name())
 	if err != nil {
 		return err
 	}
@@ -317,7 +335,6 @@ func (m *containerManager) setUpCGroups() error {
 		return fmt.Errorf("failed to setup devices cgroups")
 	}
 
-	m.cgroup = devices
 	return nil
 }
 

@@ -14,7 +14,7 @@ type CPUSetGroup interface {
 	GetMems() (string, error)
 }
 
-func mkCPUSetGroup(name, subsys string) Group {
+func mkCPUSetGroup(name string, subsys Subsystem) Group {
 	return &cpusetCGroup{
 		cgroup{name: name, subsys: subsys},
 	}

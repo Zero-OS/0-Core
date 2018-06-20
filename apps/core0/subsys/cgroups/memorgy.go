@@ -13,7 +13,7 @@ type MemoryGroup interface {
 	Limit(mem, swap int) error
 }
 
-func mkMemoryGroup(name, subsys string) Group {
+func mkMemoryGroup(name string, subsys Subsystem) Group {
 	return &memoryCGroup{
 		cgroup{name: name, subsys: subsys},
 	}

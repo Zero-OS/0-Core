@@ -13,7 +13,7 @@ type DevicesGroup interface {
 	List() ([]string, error)
 }
 
-func mkDevicesGroup(name, subsys string) Group {
+func mkDevicesGroup(name string, subsys Subsystem) Group {
 	return &devicesCGroup{
 		cgroup{name: name, subsys: subsys},
 	}

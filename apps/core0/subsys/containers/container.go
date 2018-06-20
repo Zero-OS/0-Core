@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/zero-os/0-core/apps/core0/logger"
+	"github.com/zero-os/0-core/apps/core0/subsys/cgroups"
 	"github.com/zero-os/0-core/base/pm"
 	"github.com/zero-os/0-core/base/pm/stream"
 )
@@ -172,7 +173,17 @@ func (c *container) onStart(pid int) {
 
 	c.PID = pid
 	if !c.Args.Privileged {
-		c.mgr.cgroup.Task(pid)
+		c.Args.CGroups = append(c.Args.CGroups, DevicesCGroup)
+	}
+
+	for _, cgroup := range c.Args.CGroups {
+		group, err := cgroups.Get(cgroup.Subsystem(), cgroup.Name())
+		if err != nil {
+			log.Errorf("can't find cgroup %s", err)
+			continue
+		}
+
+		group.Task(pid)
 	}
 
 	if err := c.postStart(); err != nil {

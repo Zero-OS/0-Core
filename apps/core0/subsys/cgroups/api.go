@@ -7,8 +7,8 @@ import (
 )
 
 type GroupArg struct {
-	Subsystem string `json:"subsystem"`
-	Name      string `json:"name"`
+	Subsystem Subsystem `json:"subsystem"`
+	Name      string    `json:"name"`
 }
 
 func list(cmd *pm.Command) (interface{}, error) {
@@ -22,7 +22,7 @@ func ensure(cmd *pm.Command) (interface{}, error) {
 		return nil, pm.BadRequestError(err)
 	}
 
-	_, err := GetGroup(args.Name, args.Subsystem)
+	_, err := GetGroup(args.Subsystem, args.Name)
 
 	return nil, err
 }
@@ -34,7 +34,7 @@ func remove(cmd *pm.Command) (interface{}, error) {
 		return nil, pm.BadRequestError(err)
 	}
 
-	return nil, Remove(args.Name, args.Subsystem)
+	return nil, Remove(args.Subsystem, args.Name)
 }
 
 func reset(cmd *pm.Command) (interface{}, error) {
@@ -44,7 +44,7 @@ func reset(cmd *pm.Command) (interface{}, error) {
 		return nil, pm.BadRequestError(err)
 	}
 
-	group, err := Get(args.Name, args.Subsystem)
+	group, err := Get(args.Subsystem, args.Name)
 	if err != nil {
 		return nil, pm.NotFoundError(err)
 	}
@@ -61,7 +61,7 @@ func tasks(cmd *pm.Command) (interface{}, error) {
 		return nil, pm.BadRequestError(err)
 	}
 
-	group, err := Get(args.Name, args.Subsystem)
+	group, err := Get(args.Subsystem, args.Name)
 	if err != nil {
 		return nil, pm.NotFoundError(err)
 	}
@@ -79,7 +79,7 @@ func taskAdd(cmd *pm.Command) (interface{}, error) {
 		return nil, pm.BadRequestError(err)
 	}
 
-	group, err := Get(args.Name, args.Subsystem)
+	group, err := Get(args.Subsystem, args.Name)
 	if err != nil {
 		return nil, pm.NotFoundError(err)
 	}
@@ -97,7 +97,7 @@ func taskRemove(cmd *pm.Command) (interface{}, error) {
 		return nil, pm.BadRequestError(err)
 	}
 
-	group, err := Get(args.Name, args.Subsystem)
+	group, err := Get(args.Subsystem, args.Name)
 	if err != nil {
 		return nil, pm.NotFoundError(err)
 	}
@@ -117,7 +117,7 @@ func cpusetSpec(cmd *pm.Command) (interface{}, error) {
 		return nil, pm.BadRequestError(err)
 	}
 
-	group, err := Get(args.Name, "cpuset")
+	group, err := Get(CPUSetSubsystem, args.Name)
 
 	if err != nil {
 		return nil, pm.NotFoundError(err)
@@ -157,7 +157,7 @@ func memorySpec(cmd *pm.Command) (interface{}, error) {
 		return nil, pm.BadRequestError(err)
 	}
 
-	group, err := Get(args.Name, "memory")
+	group, err := Get(MemorySubsystem, args.Name)
 
 	if err != nil {
 		return nil, pm.NotFoundError(err)
