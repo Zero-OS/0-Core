@@ -38,7 +38,11 @@ Arguments:
   'hostname': {hostname},
   'privileged': {privileged},
   'storage': {storage},
-  'tags': {tags}
+  'tags': {tags},
+  'name': {name},
+  'identity': {identity},
+  'env': {env},
+  'cgroups': {cgroups},
 }
 ```
 
@@ -96,7 +100,10 @@ Values:
 - **{storage}**: URL to the ARDB storage cluster to mount, e.g. `ardb://hub.gig.tech:16379`
   - If not provided the default one from the Zero-OS main configuration will be used, see the documentation about `storage` in [Main Configuration](../../config/main.md) for more details
 - **{tags}**: List of labels (strings) that you can attach to a container, can be used to to search all containers matching a specified set of tags; see the `find()` command
-
+- **{name}**: Optional container name
+- **{identity}**: Container Zerotier identity, Only used if at least one of the nics is of type zerotier.
+- **{env}**: A dict with the environment variables needed to be set for the container
+- **{cgroups}**: Custom list of cgroups to apply to this container on creation. formated as `[(subsystem, name), ...]`. Please refer to the [cgroup api](cgroup.md) for more detailes.
 
 ## list
 

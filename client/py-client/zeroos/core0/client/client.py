@@ -2957,8 +2957,8 @@ class CGroupManager:
         the call to this method will always GET the current set values for both cpus and mems
         If cpus, or mems is NOT NONE value it will be set as the spec for that attribute
 
-        :param mem: Set memory limit to the given value (in bytes), ignore if 0
-        :param swap: Set swap limit to the given value (in bytes) (only if mem is not zero)
+        :param cpus: Set cpus affinity limit to the given value (0, 1, 0-10, etc...)
+        :param mems: Set mems affinity limit to the given value (0, 1, 0-10, etc...)
 
         :return: current cpuset
         """

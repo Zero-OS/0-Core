@@ -50,6 +50,7 @@ Hereby:
 - [Core commands](core.md)
 - [Info commands](info.md)
 - [Container commands](container.md)
+- [CGroup commands](cgroup.md)
 - [Bridge commands](bridge.md)
 - [Disk commands](disk.md)
 - [Btrfs commands](btrfs.md)

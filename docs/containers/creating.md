@@ -23,7 +23,7 @@ print(container.system('ls -l /opt').get())
 
 > In the above example we explicitly specified with the `storage` argument that we want to mount the ARDB storage cluster of the Zero-OS Hub. When omitting this optional argument the default storage cluster of the Zero-OS node will be used. This default is set with the `storage` global parameter as documented in [Main Configuration](../config/main.md).
 
-See the [Creating an OpenSSH Container](../interaction/examples/openssh.md) example for more elaborate example.
+See the [Creating an OpenSSH Container](../interacting/examples/openssh.md) example for more elaborate example.
 
 See [Container Commands](../interacting/commands/container.md) for all available commands for managing containers.
 
