@@ -1009,7 +1009,7 @@ class ContainerManager:
         'cgroups': typchk.Or(
             typchk.IsNone(),
             [typchk.Length((str,), 2, 2)], # array of (str, str) tuples i.e [(subsyste, name), ...]
-         )
+        )
     })
 
     _client_chk = typchk.Checker(
