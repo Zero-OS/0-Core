@@ -37,6 +37,7 @@ type btrfsFS struct {
 	TotalDevices int           `json:"total_devices"`
 	Used         int64         `json:"used"`
 	Devices      []btrfsDevice `json:"devices"`
+	Warnings     string        `json:"warnings"`
 }
 
 type btrfsDataInfo struct {
@@ -405,13 +406,22 @@ func (m *btrfsManager) parseList(output string) ([]btrfsFS, error) {
 	var fss []btrfsFS
 
 	blocks := strings.Split(output, "\n\n")
-
 	for _, block := range blocks {
+		warnings := ""
+		// Ensure that fsLines starts with Label (and collect all warnings into fs.Warnings)
+		labelIdx := strings.Index(block, "Label:")
+		if labelIdx != 0 {
+			warnings = block[:labelIdx]
+			block = block[labelIdx:]
+		}
 		fsLines := strings.Split(block, "\n")
 		if len(fsLines) < 3 {
 			continue
 		}
 		fs, err := m.parseFS(fsLines)
+		if warnings != "" {
+			fs.Warnings = warnings
+		}
 		if err != nil {
 			return fss, err
 		}
