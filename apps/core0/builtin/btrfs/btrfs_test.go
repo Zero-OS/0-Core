@@ -16,6 +16,16 @@ Label: 'single'  uuid: 74595911-0f79-4c2e-925f-105d1279fb48
 	Total devices 1 FS bytes used 196608
     devid    1 size 1048576000 used 138412032 path /dev/loop3
 `
+
+	fsStringWithWarnings = `warning, device 2 is missing
+Label: 'ROOT'  uuid: b8049c50-f0a4-4d6b-b6dc-6523ff577e26
+  Total devices 2 FS bytes used 42279981056
+  devid    1 size 42949672960 used 42949672960 path /dev/sda4
+
+  Label: 'single'  uuid: 74595911-0f79-4c2e-925f-105d1279fb48
+  Total devices 1 FS bytes used 196608
+  devid    1 size 1048576000 used 138412032 path /dev/loop3
+`
 )
 
 func TestParseFS(t *testing.T) {
@@ -37,6 +47,27 @@ func TestParseFS(t *testing.T) {
 	assert.Equal(t, int64(1048576000), dev.Size)
 	assert.Equal(t, int64(218103808), dev.Used)
 	assert.Equal(t, "/dev/loop1", dev.Path)
+}
+
+func TestParseFSWithWarnings(t *testing.T) {
+	var m btrfsManager
+	fss, err := m.parseList(fsStringWithWarnings)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(fss))
+
+	fs := fss[0]
+	assert.Nil(t, err)
+	assert.Equal(t, "ROOT", fs.Label)
+	assert.Equal(t, "b8049c50-f0a4-4d6b-b6dc-6523ff577e26", fs.UUID)
+	assert.Equal(t, 2, fs.TotalDevices)
+	assert.Equal(t, int64(42279981056), fs.Used)
+
+	assert.Equal(t, 1, len(fs.Devices))
+	dev := fs.Devices[0]
+	assert.Equal(t, 1, dev.DevID)
+	assert.Equal(t, int64(42949672960), dev.Size)
+	assert.Equal(t, int64(42949672960), dev.Used)
+	assert.Equal(t, "/dev/sda4", dev.Path)
 }
 
 var (
