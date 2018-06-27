@@ -1848,6 +1848,7 @@ class DiskManager:
         it's a very good way to verify if the underlying disk type is SSD or HDD
 
         :param disk: disk path or name (/dev/sda, or sda)
+        :return: a dict as follows {'device': '<device-path>', 'elapsed': <seek-time in us', 'type': '<SSD or HDD>'}
         """
         args = {
             'disk': disk,
