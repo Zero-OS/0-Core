@@ -34,7 +34,7 @@ func extensionProcessFactory(exe string, dir string, args []string, env map[stri
 			case []byte:
 				sysargs.StdIn = string(in)
 			default:
-				log.Errorf("invalid stdin to extesion command, expecting string, or bytes")
+				log.Errorf("invalid stdin to extension command, expecting string, or bytes")
 			}
 
 			delete(input, "stdin")

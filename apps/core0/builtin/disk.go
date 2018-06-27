@@ -3,15 +3,16 @@ package builtin
 import (
 	"encoding/json"
 	"fmt"
-	"golang.org/x/sys/unix"
 	"io/ioutil"
 	"os"
 	"regexp"
 	"strconv"
-	"syscall"
 	"strings"
-	"github.com/zero-os/0-core/base/utils"
+	"syscall"
+
 	"github.com/zero-os/0-core/base/pm"
+	"github.com/zero-os/0-core/base/utils"
+	"golang.org/x/sys/unix"
 )
 
 /*
@@ -37,6 +38,7 @@ func init() {
 	pm.RegisterBuiltIn("disk.smartctl-info", d.smartctlInfo)
 	pm.RegisterBuiltIn("disk.smartctl-health", d.smartctlHealth)
 	pm.RegisterBuiltIn("disk.spindown", d.spindown)
+	pm.RegisterBuiltIn("disk.seektime", d.seektime)
 }
 
 type diskInfo struct {
@@ -677,25 +679,23 @@ func (d *diskMgr) protect(cmd *pm.Command) (interface{}, error) {
 	return nil, nil
 }
 
-
-
 func (d *diskMgr) spindown(cmd *pm.Command) (interface{}, error) {
 	var args struct {
-		Disk string `json:"disk"`
-		Spindown uint	`json:"spindown"`
+		Disk     string `json:"disk"`
+		Spindown uint   `json:"spindown"`
 	}
 	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
 		return nil, err
 	}
 	// assert disk exists
-	if !utils.Exists(args.Disk){
+	if !utils.Exists(args.Disk) {
 		return nil, pm.BadRequestError(fmt.Errorf("disk doesn't exist: %s", args.Disk))
 
 	}
-	if !(args.Spindown<241){
+	if !(args.Spindown < 241) {
 		return nil, pm.BadRequestError(fmt.Errorf("spindown %d out of range 1 - 240", args.Spindown))
-	
-	} 
+
+	}
 	_, err := pm.System("hdparm", "-S", fmt.Sprintf("%d", args.Spindown), args.Disk)
 
 	if err != nil {
@@ -703,4 +703,31 @@ func (d *diskMgr) spindown(cmd *pm.Command) (interface{}, error) {
 	}
 
 	return nil, nil
+}
+
+func (d *diskMgr) seektime(cmd *pm.Command) (interface{}, error) {
+	var args struct {
+		Disk string `json:"disk"`
+	}
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, pm.BadRequestError(err)
+	}
+
+	device, err := d.deviceToBlockDevice(args.Disk)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := pm.System("seektime", "-j", device.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	var out interface{}
+	if err := json.Unmarshal([]byte(result.Streams.Stdout()), &out); err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
