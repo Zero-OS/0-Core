@@ -1,6 +1,7 @@
 package btrfs
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,6 +16,15 @@ var (
 Label: 'single'  uuid: 74595911-0f79-4c2e-925f-105d1279fb48
 	Total devices 1 FS bytes used 196608
     devid    1 size 1048576000 used 138412032 path /dev/loop3
+`
+	fsString2 = `Label: 'sp_zos-cache'  uuid: e8784776-6288-49e2-9cb0-29e50707bd73
+	Total devices 1 FS bytes used 544014336
+	devid    1 size 5366611968 used 5354029056 path /dev/vdc1
+
+Label: 'dmdm'  uuid: 7977d80d-f9c9-4343-82d3-018bc54698b1
+	Total devices 2 FS bytes used 114688
+	devid    1 size 5368709120 used 1619001344 path /dev/vdd
+	devid    2 size 5368709120 used 1619001344 path /dev/vde
 `
 
 	fsStringWithWarnings = `warning, device 2 is missing
@@ -47,6 +57,20 @@ func TestParseFS(t *testing.T) {
 	assert.Equal(t, int64(1048576000), dev.Size)
 	assert.Equal(t, int64(218103808), dev.Used)
 	assert.Equal(t, "/dev/loop1", dev.Path)
+}
+
+func TestParseFS2(t *testing.T) {
+	var m btrfsManager
+	fss, err := m.parseList(fsString2)
+	fmt.Printf("%v\n", fss)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(fss))
+
+	fs := fss[0]
+	assert.Equal(t, 1, fs.TotalDevices)
+
+	fs = fss[1]
+	assert.Equal(t, 2, fs.TotalDevices)
 }
 
 func TestParseFSWithWarnings(t *testing.T) {
