@@ -193,7 +193,6 @@ func (m *btrfsManager) list(cmd *pm.Command, args []string) ([]btrfsFS, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	fss, err := m.parseList(result.Streams.Stdout())
 	if err != nil {
 		return nil, err
@@ -407,6 +406,10 @@ func (m *btrfsManager) parseList(output string) ([]btrfsFS, error) {
 
 	blocks := strings.Split(output, "\n\n")
 	for _, block := range blocks {
+		if strings.TrimSpace(block) == "" {
+			continue
+		}
+
 		warnings := ""
 		// Ensure that fsLines starts with Label (and collect all warnings into fs.Warnings)
 		labelIdx := strings.Index(block, "Label:")
@@ -447,7 +450,6 @@ func (m *btrfsManager) parseFS(lines []string) (btrfsFS, error) {
 	if _, err := fmt.Sscanf(strings.TrimSpace(lines[1]), "Total devices %d FS bytes used %d", &totDevice, &used); err != nil {
 		return btrfsFS{}, err
 	}
-
 	devs, err := m.parseDevices(lines[2:])
 	if err != nil {
 		return btrfsFS{}, err
