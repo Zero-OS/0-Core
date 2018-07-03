@@ -409,12 +409,9 @@ func (m *btrfsManager) parseList(output string) ([]btrfsFS, error) {
 		if strings.TrimSpace(block) == "" {
 			continue
 		}
-
-		warnings := ""
 		// Ensure that fsLines starts with Label (and collect all warnings into fs.Warnings)
 		labelIdx := strings.Index(block, "Label:")
 		if labelIdx != 0 {
-			warnings = block[:labelIdx]
 			block = block[labelIdx:]
 		}
 		fsLines := strings.Split(block, "\n")
@@ -422,9 +419,7 @@ func (m *btrfsManager) parseList(output string) ([]btrfsFS, error) {
 			continue
 		}
 		fs, err := m.parseFS(fsLines)
-		if warnings != "" {
-			fs.Warnings = warnings
-		}
+
 		if err != nil {
 			return fss, err
 		}
@@ -450,7 +445,18 @@ func (m *btrfsManager) parseFS(lines []string) (btrfsFS, error) {
 	if _, err := fmt.Sscanf(strings.TrimSpace(lines[1]), "Total devices %d FS bytes used %d", &totDevice, &used); err != nil {
 		return btrfsFS{}, err
 	}
-	devs, err := m.parseDevices(lines[2:])
+	var validDevsLines []string
+	var fsWarnings string
+	for _, line := range lines[2:] {
+		trimmedLine := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmedLine, "**") {
+			// a warning
+			fsWarnings += trimmedLine
+		} else {
+			validDevsLines = append(validDevsLines, line)
+		}
+	}
+	devs, err := m.parseDevices(validDevsLines)
 	if err != nil {
 		return btrfsFS{}, err
 	}
@@ -460,6 +466,7 @@ func (m *btrfsManager) parseFS(lines []string) (btrfsFS, error) {
 		TotalDevices: totDevice,
 		Used:         used,
 		Devices:      devs,
+		Warnings:     fsWarnings,
 	}, nil
 }
 
