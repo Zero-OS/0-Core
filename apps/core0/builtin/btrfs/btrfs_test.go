@@ -1,7 +1,6 @@
 package btrfs
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -27,15 +26,35 @@ Label: 'dmdm'  uuid: 7977d80d-f9c9-4343-82d3-018bc54698b1
 	devid    2 size 5368709120 used 1619001344 path /dev/vde
 `
 
-	fsStringWithWarnings = `warning, device 2 is missing
-Label: 'ROOT'  uuid: b8049c50-f0a4-4d6b-b6dc-6523ff577e26
-  Total devices 2 FS bytes used 42279981056
-  devid    1 size 42949672960 used 42949672960 path /dev/sda4
+	fsStringWithWarnings = `
+	Label: 'sp_zos-cache'  uuid: c739f6f4-a02b-429c-9ffa-7899b65ad566
+	Total devices 1 FS bytes used 262144
+	devid    1 size 1071644672 used 132251648 path /dev/vda1
 
-  Label: 'single'  uuid: 74595911-0f79-4c2e-925f-105d1279fb48
-  Total devices 1 FS bytes used 196608
-  devid    1 size 1048576000 used 138412032 path /dev/loop3
+warning, device 2 is missing
+Label: 'dsds'  uuid: 70059ae1-6b5a-4e44-a4e2-13cabc10b8bf
+	Total devices 2 FS bytes used 114688
+	devid    1 size 5368709120 used 1619001344 path /dev/vdf
+	*** Some devices missing
+
 `
+	fsStringWithWarnings2 = `warning, device 2 is missing
+	warning, device 2 is missing
+	Label: 'sp_zos-cache'  uuid: c739f6f4-a02b-429c-9ffa-7899b65ad566
+	Total devices 1 FS bytes used 262144
+	devid    1 size 1071644672 used 132251648 path /dev/vda1
+
+Label: 'dsds'  uuid: 70059ae1-6b5a-4e44-a4e2-13cabc10b8bf
+	Total devices 2 FS bytes used 114688
+	devid    1 size 5368709120 used 1619001344 path /dev/vdf
+	*** Some devices missing
+
+	
+	Label: 'dmdm'  uuid: 1a6c5498-758f-4490-add2-e151a7bad1de
+		Total devices 2 FS bytes used 132251648
+		devid    1 size 5368709120 used 1619001344 path /dev/vdd
+		*** Some devices missing
+	`
 )
 
 func TestParseFS(t *testing.T) {
@@ -62,7 +81,6 @@ func TestParseFS(t *testing.T) {
 func TestParseFS2(t *testing.T) {
 	var m btrfsManager
 	fss, err := m.parseList(fsString2)
-	fmt.Printf("%v\n", fss)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(fss))
 
@@ -81,17 +99,50 @@ func TestParseFSWithWarnings(t *testing.T) {
 
 	fs := fss[0]
 	assert.Nil(t, err)
-	assert.Equal(t, "ROOT", fs.Label)
-	assert.Equal(t, "b8049c50-f0a4-4d6b-b6dc-6523ff577e26", fs.UUID)
-	assert.Equal(t, 2, fs.TotalDevices)
-	assert.Equal(t, int64(42279981056), fs.Used)
+	assert.Equal(t, "sp_zos-cache", fs.Label)
+	assert.Equal(t, "c739f6f4-a02b-429c-9ffa-7899b65ad566", fs.UUID)
+	assert.Equal(t, 1, fs.TotalDevices)
 
+	fs = fss[1]
+	assert.Equal(t, "dsds", fs.Label)
+	assert.Equal(t, "70059ae1-6b5a-4e44-a4e2-13cabc10b8bf", fs.UUID)
+	assert.Equal(t, 2, fs.TotalDevices)
 	assert.Equal(t, 1, len(fs.Devices))
 	dev := fs.Devices[0]
 	assert.Equal(t, 1, dev.DevID)
-	assert.Equal(t, int64(42949672960), dev.Size)
-	assert.Equal(t, int64(42949672960), dev.Used)
-	assert.Equal(t, "/dev/sda4", dev.Path)
+	assert.Equal(t, "/dev/vdf", dev.Path)
+}
+
+func TestParseFSWithWarnings2(t *testing.T) {
+	var m btrfsManager
+	fss, err := m.parseList(fsStringWithWarnings2)
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(fss))
+
+	fs := fss[0]
+	assert.Nil(t, err)
+	assert.Equal(t, "sp_zos-cache", fs.Label)
+	assert.Equal(t, "c739f6f4-a02b-429c-9ffa-7899b65ad566", fs.UUID)
+	assert.Equal(t, 1, fs.TotalDevices)
+
+	fs = fss[1]
+	assert.Equal(t, "dsds", fs.Label)
+	assert.Equal(t, "70059ae1-6b5a-4e44-a4e2-13cabc10b8bf", fs.UUID)
+	assert.Equal(t, 2, fs.TotalDevices)
+	assert.Equal(t, 1, len(fs.Devices))
+	dev := fs.Devices[0]
+	assert.Equal(t, 1, dev.DevID)
+	assert.Equal(t, "/dev/vdf", dev.Path)
+
+	fs = fss[2]
+	assert.Equal(t, "dmdm", fs.Label)
+	assert.Equal(t, "1a6c5498-758f-4490-add2-e151a7bad1de", fs.UUID)
+	assert.Equal(t, 2, fs.TotalDevices)
+	assert.Equal(t, 1, len(fs.Devices))
+	dev = fs.Devices[0]
+	assert.Equal(t, 1, dev.DevID)
+	assert.Equal(t, "/dev/vdd", dev.Path)
+
 }
 
 var (
