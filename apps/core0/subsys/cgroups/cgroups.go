@@ -118,6 +118,10 @@ func Get(subsystem Subsystem, name string) (Group, error) {
 func GetGroups() (map[Subsystem][]string, error) {
 	result := make(map[Subsystem][]string)
 	for sub := range subsystems {
+		// skip devices subsystem (only cpuset and memory)
+		if sub == DevicesSubsystem {
+			continue
+		}
 		info, err := ioutil.ReadDir(path.Join(CGroupBase, string(sub)))
 		if err != nil {
 			return nil, err
@@ -126,7 +130,6 @@ func GetGroups() (map[Subsystem][]string, error) {
 			if !dir.IsDir() {
 				continue
 			}
-
 			result[sub] = append(result[sub], dir.Name())
 		}
 	}
