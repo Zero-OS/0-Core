@@ -39,6 +39,7 @@ func init() {
 	pm.RegisterBuiltIn("disk.smartctl-health", d.smartctlHealth)
 	pm.RegisterBuiltIn("disk.spindown", d.spindown)
 	pm.RegisterBuiltIn("disk.seektime", d.seektime)
+	pm.RegisterBuiltIn("disk.usage", d.usage)
 }
 
 type diskInfo struct {
@@ -730,4 +731,37 @@ func (d *diskMgr) seektime(cmd *pm.Command) (interface{}, error) {
 	}
 
 	return out, nil
+}
+
+func (d *diskMgr) usage(cmd *pm.Command) (interface{}, error) {
+	var args struct {
+		Disk string `json:"disk"`
+	}
+
+	type DiskStatus struct {
+		All  uint64 `json:"all"`
+		Used uint64 `json:"used"`
+		Free uint64 `json:"free"`
+	}
+
+	if err := json.Unmarshal(*cmd.Arguments, &args); err != nil {
+		return nil, pm.BadRequestError(err)
+	}
+
+	device, err := d.deviceToBlockDevice(args.Disk)
+	if err != nil {
+		return nil, err
+	}
+
+	fs := syscall.Statfs_t{}
+	if err := syscall.Statfs(device.Path, &fs); err != nil {
+		return nil, err
+	}
+
+	var disk DiskStatus
+	disk.All = fs.Blocks * uint64(fs.Bsize)
+	disk.Free = fs.Bavail * uint64(fs.Bsize)
+	disk.Used = disk.All - disk.Free
+
+	return disk, nil
 }

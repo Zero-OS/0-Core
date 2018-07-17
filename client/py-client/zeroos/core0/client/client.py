@@ -1664,6 +1664,10 @@ class DiskManager:
         'disk': str,
     })
 
+    _usage_chk = typchk.Checker({
+        'disk': str,
+    })
+
     def __init__(self, client):
         self._client = client
 
@@ -1858,6 +1862,13 @@ class DiskManager:
 
         return self._client.json("disk.seektime", args)
 
+    def usage(self, disk):
+        args = {
+            'disk': disk,
+        }
+
+        self._usage_chk.check(args)
+        return self._client.json("disk.usage", args)
 
 class BtrfsManager:
     _create_chk = typchk.Checker({
