@@ -9,7 +9,7 @@ class Machinetests(BaseTest):
         super(Machinetests, self).setUp()
         self.check_g8os_connection(Machinetests)
 
-    @unittest.skip("this test doesn't work on travis .. no idea why.. needs to be run manually")
+    @unittest.skip("this test doesn't work on travis but passes manually.. no idea why")
     def test001_create_destroy_list_kvm(self):
         """ g8os-009
 
