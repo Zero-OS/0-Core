@@ -3,8 +3,9 @@ package builtin
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/zero-os/0-core/base/pm"
 	"syscall"
+
+	"github.com/zero-os/0-core/base/pm"
 )
 
 const (
@@ -27,6 +28,7 @@ type processData struct {
 	pm.ProcessStats
 	StartTime int64       `json:"starttime"`
 	Cmd       *pm.Command `json:"cmd,omitempty"`
+	PID       int32       `json:"pid"`
 }
 
 func jobList(cmd *pm.Command) (interface{}, error) {
@@ -68,6 +70,10 @@ func jobList(cmd *pm.Command) (interface{}, error) {
 			s.RSS = psStat.RSS
 			s.VMS = psStat.VMS
 			s.Swap = psStat.Swap
+		}
+
+		if pider, ok := ps.(pm.PIDer); ok {
+			s.PID = pider.GetPID()
 		}
 
 		stats = append(stats, s)

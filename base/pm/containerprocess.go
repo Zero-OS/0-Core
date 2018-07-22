@@ -129,9 +129,16 @@ func (p *containerProcessImpl) Stats() *ProcessStats {
 		stats.Swap = mem.Swap
 	}
 
-	stats.Debug = fmt.Sprintf("%d", p.process.Pid)
-
 	return &stats
+}
+
+func (p *containerProcessImpl) GetPID() int32 {
+	ps := p.process
+	if ps == nil {
+		return -1
+	}
+
+	return ps.Pid
 }
 
 func (p *containerProcessImpl) setupChannel() (*os.File, *os.File, error) {

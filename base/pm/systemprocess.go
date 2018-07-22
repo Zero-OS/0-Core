@@ -75,9 +75,16 @@ func (p *systemProcessImpl) Stats() *ProcessStats {
 		stats.Swap = mem.Swap
 	}
 
-	stats.Debug = fmt.Sprintf("%d", p.process.Pid)
-
 	return &stats
+}
+
+func (p *systemProcessImpl) GetPID() int32 {
+	ps := p.process
+	if ps == nil {
+		return -1
+	}
+
+	return ps.Pid
 }
 
 func (p *systemProcessImpl) Signal(sig syscall.Signal) error {
