@@ -55,6 +55,9 @@ func parseKerenlOptions(content string) KernelOptions {
 	for _, option := range cmdline {
 		kv := strings.SplitN(option, "=", 2)
 		key := kv[0]
+		if !isValidParam(key) {
+			continue
+		}
 		value := ""
 		if len(kv) == 2 {
 			value = kv[1]
