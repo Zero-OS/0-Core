@@ -124,6 +124,7 @@ func (sink *Sink) process() {
 			log.Warningf("receiving a command with no ID, dropping")
 			continue
 		}
+
 		if sink.ch.Flagged(command.ID) {
 			log.Errorf("received a command with a duplicate ID(%v), dropping", command.ID)
 			continue
@@ -132,16 +133,24 @@ func (sink *Sink) process() {
 		sink.ch.Flag(command.ID)
 		log.Debugf("Starting command %s", &command)
 
+		if !sink.allowedCommnad(&command) {
+			sink.respondUnknwonCommand(&command)
+			continue
+		}
 		_, err = pm.Run(&command)
 
 		if err == pm.UnknownCommandErr {
-			result := pm.NewJobResult(&command)
-			result.State = pm.StateUnknownCmd
-			sink.Forward(result)
+			sink.respondUnknwonCommand(&command)
 		} else if err != nil {
 			log.Errorf("Unknown error while processing command (%s): %s", command, err)
 		}
 	}
+}
+
+func (sink *Sink) respondUnknwonCommand(cmd *pm.Command) {
+	result := pm.NewJobResult(cmd)
+	result.State = pm.StateUnknownCmd
+	sink.Forward(result)
 }
 
 //Forward forwards job result
