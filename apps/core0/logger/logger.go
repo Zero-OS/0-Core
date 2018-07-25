@@ -44,5 +44,5 @@ func (logger *ConsoleLogger) LogRecord(record *LogRecord) {
 	if !IsLoggable(logger.defaults, record.Message) {
 		return
 	}
-	log.Infof("[%d]%s %s", record.Core, record.Command, record.Message)
+	log.Debugf("[%d]%s %s", record.Core, record.Command, record.Message)
 }

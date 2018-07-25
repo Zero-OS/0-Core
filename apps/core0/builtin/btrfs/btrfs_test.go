@@ -49,7 +49,7 @@ Label: 'dsds'  uuid: 70059ae1-6b5a-4e44-a4e2-13cabc10b8bf
 	devid    1 size 5368709120 used 1619001344 path /dev/vdf
 	*** Some devices missing
 
-	
+
 	Label: 'dmdm'  uuid: 1a6c5498-758f-4490-add2-e151a7bad1de
 		Total devices 2 FS bytes used 132251648
 		devid    1 size 5368709120 used 1619001344 path /dev/vdd
@@ -184,4 +184,38 @@ func TestParseSubvolume(t *testing.T) {
 	assert.Equal(t, sv.Gen, 14)
 	assert.Equal(t, sv.TopLevel, 5)
 	assert.Equal(t, sv.Path, "svol")
+}
+
+func TestQGroupParse(t *testing.T) {
+	s := `
+qgroupid         rfer         excl     max_rfer     max_excl
+--------         ----         ----     --------     --------
+0/5             16384        16384         none         none
+0/257           16384        16384         none         none
+0/258         5804032      5804032   1073741824         none
+0/259           16384        16384         none         none
+	`
+
+	var m btrfsManager
+
+	groups := m.parseQGroups(s)
+	if ok := assert.Len(t, groups, 4); !ok {
+		t.Fail()
+	}
+
+	g, ok := groups["0/258"]
+
+	if ok := assert.True(t, ok); !ok {
+		t.Fail()
+	}
+
+	if ok := assert.Equal(t, btrfsQGroup{
+		ID:      "0/258",
+		Rfer:    5804032,
+		Excl:    5804032,
+		MaxRfer: 1073741824,
+		MaxExcl: 0,
+	}, g); !ok {
+		t.Fail()
+	}
 }
