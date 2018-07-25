@@ -17,6 +17,7 @@ import (
 
 	_ "github.com/zero-os/0-core/apps/coreX/builtin"
 	_ "github.com/zero-os/0-core/base/builtin"
+	_ "github.com/zero-os/0-core/base/builtin/fs"
 )
 
 const (

@@ -21,10 +21,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	_ "github.com/zero-os/0-core/apps/core0/builtin"
-	_ "github.com/zero-os/0-core/apps/core0/builtin/btrfs"
 	"github.com/zero-os/0-core/apps/core0/transport"
-	_ "github.com/zero-os/0-core/base/builtin"
 )
 
 var (
