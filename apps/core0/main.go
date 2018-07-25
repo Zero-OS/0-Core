@@ -32,7 +32,7 @@ var (
 )
 
 func init() {
-	formatter := logging.MustStringFormatter("%{time}: %{color}%{module} %{level:.1s} > %{message} %{color:reset}")
+	formatter := logging.MustStringFormatter("%{time}: %{color}%{module} %{level:.1s} > %{color:reset} %{message}")
 	logging.SetFormatter(formatter)
 
 	//we don't use signal.Ignore because the Ignore is actually inherited by children
