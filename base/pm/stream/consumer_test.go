@@ -209,3 +209,48 @@ func TestConsumerNoNewLine(t *testing.T) {
 		t.Fatal()
 	}
 }
+
+func TestConsumer_ParseHeader(t *testing.T) {
+	var c consumerImpl
+	head, err := c.parseHead([]byte("1::"))
+
+	if ok := assert.NoError(t, err); !ok {
+		t.Fatal()
+	}
+
+	if ok := assert.Equal(t, &header{level: 1, length: 3}, head); !ok {
+		t.Error()
+	}
+
+	head, err = c.parseHead([]byte("12::abc"))
+
+	if ok := assert.NoError(t, err); !ok {
+		t.Fatal()
+	}
+
+	if ok := assert.Equal(t, &header{level: 12, length: 4}, head); !ok {
+		t.Error()
+	}
+
+	head, err = c.parseHead([]byte("12:::abc"))
+
+	if ok := assert.NoError(t, err); !ok {
+		t.Fatal()
+	}
+
+	if ok := assert.Equal(t, &header{level: 12, length: 5, multiline: true}, head); !ok {
+		t.Error()
+	}
+
+	head, err = c.parseHead([]byte("1:"))
+
+	if ok := assert.Error(t, err); !ok {
+		t.Fatal()
+	}
+
+	head, err = c.parseHead([]byte(""))
+
+	if ok := assert.Error(t, err); !ok {
+		t.Fatal()
+	}
+}
