@@ -7,6 +7,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -51,6 +52,51 @@ func (u *underLayingCloser) Close() error {
 func (u *underLayingCloser) Read(p []byte) (int, error) {
 	return u.readers[len(u.readers)-1].Read(p)
 }
+
+func getFlistHash(src string) (string, error) {
+	url := fmt.Sprintf("%s.md5", src)
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	msg, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to get flist hash (%s): %s", resp.Status, string(msg))
+	}
+
+	return string(msg), nil
+}
+
+//TODO: flist signing check
+
+// func getOrDownloadFlist(src string) (io.ReadCloser, error) {
+// 	//Get hash file
+
+// 	hash, err := getFlistHash(src)
+// 	if err != nil {
+// 		//We couldn't get flist hash, we should not cache it
+// 		//we can directly instead try to stream it directly
+// 		//over http
+// 		stream, err := http.Get(src)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		if stream.StatusCode != http.StatusOK {
+// 			stream.Body.Close()
+// 			return nil, fmt.Errorf("failed to download flist: %s", stream.Status)
+// 		}
+
+// 		return stream.Body, nil
+// 	}
+
+// 	return nil, nil
+// }
 
 func getMetaDBTar(src string) (io.ReadCloser, error) {
 	u, err := url.Parse(src)
