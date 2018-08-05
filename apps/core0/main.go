@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/op/go-logging"
 	"github.com/zero-os/0-core/apps/core0/assets"
@@ -30,6 +31,20 @@ import (
 var (
 	log = logging.MustGetLogger("main")
 )
+
+func updateHostnameOnScreen(hostSection *screen.TextSection) {
+	for {
+		time.Sleep(time.Second * 5)
+
+		hostname, err := os.Hostname()
+		if err != nil {
+			log.Critical(err.Error())
+		} else {
+			hostSection.Text = fmt.Sprintf("Hostname: %s", hostname)
+		}
+	}
+
+}
 
 func init() {
 	formatter := logging.MustStringFormatter("%{time}: %{color}%{module} %{level:.1s} > %{color:reset} %{message}")
@@ -73,7 +88,15 @@ func Splash() {
 			options.Options.Kernel.String("debug", "organization", "zerotier", "quiet", "development"), //flags we care about
 		),
 	})
+	hostnameSection := &screen.TextSection{
+		Attributes: screen.Attributes{screen.Bold},
+		Text:       "",
+	}
+	screen.Push(hostnameSection)
 	screen.Push(&screen.TextSection{})
+
+	go updateHostnameOnScreen(hostnameSection)
+
 	screen.Push(&screen.TextSection{
 		Text: "[Alt+F1: Kernel logs view] [Alt+F2: This screen]",
 	})
@@ -93,9 +116,7 @@ func main() {
 	if options.Version() {
 		os.Exit(0)
 	}
-
 	pm.New()
-
 	if err := settings.LoadSettings(options.Config()); err != nil {
 		log.Fatal(err)
 	}
