@@ -20,7 +20,7 @@ See the release schedule in the [Zero-OS home repository](https://github.com/zer
 Check the page on how to boot zos in a local setup [here](docs/booting/README.md). Choose the best one that suits your
 setup. For development, we would recommend the [VM using QEMU](docs/booting/qemu.md).
 
-## Enteracting with zos
+## Interacting with zos
 ZOS does not provide interactive shell, or a UI all interactions id done through any of its interfaces. For more details about interaction with zos please check [the docs here](docs/interacting/README.md)
 
 ## Releases and features
