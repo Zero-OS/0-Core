@@ -25,7 +25,7 @@ https://my.zerotier.com/
 
 ![](images/create-ZT-1.png)
 
-![](images/create-ZT-1.png)
+![](images/create-ZT-2.png)
 
 ![](images/create-ZT-3.png)
 
